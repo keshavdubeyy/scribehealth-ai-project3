@@ -1,0 +1,242 @@
+@startuml
+title AI Medical Scribe - Pipeline Architecture (With Error Handling)
+
+' ========================
+' ENUMS
+' ========================
+enum Role {
+  DOCTOR
+  ADMIN
+}
+
+enum NoteStatus {
+  DRAFT
+  REVIEWED
+  APPROVED
+}
+
+enum ErrorType {
+  TRANSCRIPTION_ERROR
+  NLP_ERROR
+  GENERATION_ERROR
+  NOTIFICATION_ERROR
+}
+
+' ========================
+' CORE DOMAIN ENTITIES
+' ========================
+class User {
+  +userId: String
+  +name: String
+  +email: String
+  +role: Role
+}
+
+class Doctor {
+  +doctorId: String
+  +specialization: String
+}
+
+class Patient {
+  +patientId: String
+  +name: String
+  +age: int
+  +medicalHistory: String
+}
+
+class Consultation {
+  +consultationId: String
+  +dateTime: Date
+  +status: String
+}
+
+class ClinicalNote {
+  +noteId: String
+  +content: String
+  +status: NoteStatus
+}
+
+class Template {
+  +templateId: String
+  +name: String
+  +format: String
+}
+
+' ========================
+' PROCESSING ARTIFACTS
+' ========================
+class AudioRecording {
+  +filePath: String
+  +duration: int
+}
+
+class Transcript {
+  +text: String
+  +confidenceScore: float
+}
+
+class MedicalEntity {
+  +type: String
+  +value: String
+}
+
+' ========================
+' ERROR HANDLING CORE (🔥 NEW)
+' ========================
+class PipelineError {
+  +type: ErrorType
+  +message: String
+  +timestamp: Date
+}
+
+class Result<T> {
+  +success: boolean
+  +data: T
+  +error: PipelineError
+}
+
+' ========================
+' PIPELINE CONTEXT (🔥 EXTENDED)
+' ========================
+class ConsultationContext {
+  audio: AudioRecording
+  transcript: Transcript
+  entities: List<MedicalEntity>
+  note: ClinicalNote
+  template: Template
+  errors: List<PipelineError>   ' 🔥 Collect all errors
+}
+
+' ========================
+' PIPELINE STAGE INTERFACE
+' ========================
+interface PipelineStage {
+  +process(context: ConsultationContext): Result<ConsultationContext>
+}
+
+' ========================
+' PIPELINE STAGES
+' ========================
+class TranscriptionStage
+class NLPStage
+class NoteGenerationStage
+class NotificationStage
+
+PipelineStage <|.. TranscriptionStage
+PipelineStage <|.. NLPStage
+PipelineStage <|.. NoteGenerationStage
+PipelineStage <|.. NotificationStage
+
+' ========================
+' SERVICE INTERFACES
+' ========================
+interface ITranscriptionService {
+  +transcribe(audio: AudioRecording): Transcript
+}
+
+interface INLPService {
+  +extractEntities(text: String): List<MedicalEntity>
+}
+
+interface INoteGenerationService {
+  +generateNote(transcript: Transcript, entities: List<MedicalEntity>, template: Template): ClinicalNote
+}
+
+interface INotificationChannel {
+  +send(note: ClinicalNote, recipient: String)
+}
+
+' ========================
+' IMPLEMENTATIONS
+' ========================
+class GoogleTranscriptionService
+class WhisperTranscriptionService
+
+class BasicNLPService
+class LLMNLPService
+
+class SOAPNoteGenerator
+class CustomTemplateGenerator
+
+class EmailNotification
+class SMSNotification
+class WhatsAppNotification
+
+ITranscriptionService <|.. GoogleTranscriptionService
+ITranscriptionService <|.. WhisperTranscriptionService
+
+INLPService <|.. BasicNLPService
+INLPService <|.. LLMNLPService
+
+INoteGenerationService <|.. SOAPNoteGenerator
+INoteGenerationService <|.. CustomTemplateGenerator
+
+INotificationChannel <|.. EmailNotification
+INotificationChannel <|.. SMSNotification
+INotificationChannel <|.. WhatsAppNotification
+
+' ========================
+' STAGE DEPENDENCIES
+' ========================
+TranscriptionStage --> ITranscriptionService
+NLPStage --> INLPService
+NoteGenerationStage --> INoteGenerationService
+NotificationStage --> INotificationChannel
+
+' ========================
+' PIPELINE EXECUTOR (🔥 ERROR CONTROL)
+' ========================
+class ConsultationPipeline {
+  -stages: List<PipelineStage>
+  +execute(context: ConsultationContext): Result<ConsultationContext>
+  +handleError(error: PipelineError)
+}
+
+ConsultationPipeline --> PipelineStage
+ConsultationPipeline --> Result
+ConsultationPipeline --> PipelineError
+
+' ========================
+' SUPPORTING SERVICES
+' ========================
+class ReviewService {
+  +editNote(note: ClinicalNote)
+  +approveNote(note: ClinicalNote)
+}
+
+class AuthService {
+  +login(email, password)
+}
+
+class AuditService {
+  +logAction(user: User, action: String)
+  +logError(error: PipelineError)   ' 🔥 Error traceability
+}
+
+ReviewService --> ClinicalNote
+AuditService --> User
+AuditService --> PipelineError
+AuthService --> User
+
+' ========================
+' RELATIONSHIPS
+' ========================
+User <|-- Doctor
+
+Doctor "1" -- "many" Consultation
+Patient "1" -- "many" Consultation
+
+Consultation --> ClinicalNote
+
+' ========================
+' PIPELINE FLOW
+' ========================
+ConsultationPipeline --> ConsultationContext
+ConsultationContext --> AudioRecording
+ConsultationContext --> Transcript
+ConsultationContext --> MedicalEntity
+ConsultationContext --> ClinicalNote
+ConsultationContext --> Template
+ConsultationContext --> PipelineError
+
+@enduml
