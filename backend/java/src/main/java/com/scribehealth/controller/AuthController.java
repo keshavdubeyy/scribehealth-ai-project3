@@ -1,5 +1,4 @@
 package com.scribehealth.controller;
-
 import com.scribehealth.dto.AuthResponse;
 import com.scribehealth.dto.LoginRequest;
 import com.scribehealth.dto.RegisterRequest;
@@ -9,7 +8,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
