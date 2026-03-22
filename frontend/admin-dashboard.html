@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="dashboard.css" />
+  <script src="auth.js"></script>
 </head>
 <body>
 
@@ -102,15 +103,12 @@
 
   <script>
     const API   = 'http://localhost:8080/api';
-    const token = localStorage.getItem('jwt_token');
-    const name  = localStorage.getItem('user_name');
-    const role  = localStorage.getItem('user_role');
+    const token = localStorage.getItem('scribeToken');
+    const name  = localStorage.getItem('scribeName');
+    const role  = localStorage.getItem('scribeRole');
 
     // Guard — only admins allowed here
-    if (!token || role !== 'ADMIN') {
-      localStorage.clear();
-      window.location.href = 'login.html';
-    }
+    requireAuth(['ADMIN']);
 
     document.getElementById('user-name-display').textContent = name || 'Admin';
 
@@ -131,7 +129,9 @@
 
     // ===== LOGOUT =====
     document.getElementById('logout-btn').addEventListener('click', () => {
-      localStorage.clear();
+      localStorage.removeItem('scribeToken');
+      localStorage.removeItem('scribeRole');
+      localStorage.removeItem('scribeName');
       window.location.href = 'login.html';
     });
 
