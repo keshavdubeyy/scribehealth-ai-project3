@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScribeHealth AI — Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L3 6.5V12c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6.5L12 2Z" fill="currentColor" opacity="0.2"/>
+        <path d="M12 2L3 6.5V12c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="logo-text">ScribeHealth <strong>AI</strong></span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item nav-item--active" data-section="overview">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+        Overview
+      </a>
+      <a href="#" class="nav-item" data-section="users">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M2 21c0-4 3.1-7 7-7s7 3 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M19 8v6M22 11h-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        All Users
+      </a>
+    </nav>
+
+    <button class="logout-btn" id="logout-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Log Out
+    </button>
+  </aside>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="main-content">
+
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div>
+        <h1 class="page-title" id="page-title">Overview</h1>
+        <p class="page-subtitle">Logged in as <span id="user-name-display">Admin</span></p>
+      </div>
+      <div class="topbar-role">
+        <span class="role-badge role-badge--admin">ADMIN</span>
+      </div>
+    </header>
+
+    <!-- ===== OVERVIEW SECTION ===== -->
+    <section id="section-overview" class="section">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Total Users</span>
+          <span class="stat-value" id="stat-total">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Doctors</span>
+          <span class="stat-value" id="stat-doctors">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Admins</span>
+          <span class="stat-value" id="stat-admins">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Active Accounts</span>
+          <span class="stat-value" id="stat-active">—</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== USERS SECTION ===== -->
+    <section id="section-users" class="section" style="display:none;">
+      <div class="card-panel">
+        <h2 class="panel-title">All Users</h2>
+        <div id="users-error" class="form-msg form-msg--error" style="display:none;"></div>
+        <div id="users-success" class="form-msg form-msg--success" style="display:none;"></div>
+        <table class="users-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody">
+            <tr><td colspan="6" class="table-empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const API   = 'http://localhost:8080/api';
+    const token = localStorage.getItem('jwt_token');
+    const name  = localStorage.getItem('user_name');
+    const role  = localStorage.getItem('user_role');
+
+    // Guard — only admins allowed here
+    if (!token || role !== 'ADMIN') {
+      localStorage.clear();
+      window.location.href = 'login.html';
+    }
+
+    document.getElementById('user-name-display').textContent = name || 'Admin';
+
+    // ===== NAV SWITCHING =====
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = item.dataset.section;
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('nav-item--active'));
+        item.classList.add('nav-item--active');
+        document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+        document.getElementById(`section-${target}`).style.display = 'block';
+        document.getElementById('page-title').textContent =
+          target === 'overview' ? 'Overview' : 'All Users';
+        if (target === 'users') loadUsers();
+      });
+    });
+
+    // ===== LOGOUT =====
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      localStorage.clear();
+      window.location.href = 'login.html';
+    });
+
+    // ===== LOAD STATS =====
+    async function loadStats() {
+      try {
+        const res = await fetch(`${API}/admin/stats`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.status === 401 || res.status === 403) {
+          localStorage.clear(); window.location.href = 'login.html'; return;
+        }
+        const data = await res.json();
+        document.getElementById('stat-total').textContent   = data.totalUsers;
+        document.getElementById('stat-doctors').textContent = data.totalDoctors;
+        document.getElementById('stat-admins').textContent  = data.totalAdmins;
+        document.getElementById('stat-active').textContent  = data.activeUsers;
+      } catch (err) {
+        console.error('Failed to load stats', err);
+      }
+    }
+
+    // ===== LOAD USERS TABLE =====
+    async function loadUsers() {
+      const tbody = document.getElementById('users-tbody');
+      tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Loading…</td></tr>';
+      try {
+        const res = await fetch(`${API}/admin/users`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const users = await res.json();
+        if (!users.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="table-empty">No users found.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = users.map(u => `
+          <tr>
+            <td>${u.name}</td>
+            <td>${u.email}</td>
+            <td><span class="role-badge role-badge--${u.role.toLowerCase()}">${u.role}</span></td>
+            <td><span class="status-badge ${u.active ? 'status--active' : 'status--inactive'}">${u.active ? 'Active' : 'Inactive'}</span></td>
+            <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
+            <td>
+              ${u.active
+                ? `<button class="btn-danger btn-sm" onclick="toggleUser('${u.id}', false)">Deactivate</button>`
+                : `<button class="btn-success btn-sm" onclick="toggleUser('${u.id}', true)">Activate</button>`
+              }
+            </td>
+          </tr>`).join('');
+      } catch (err) {
+        document.getElementById('users-error').textContent = 'Failed to load users.';
+        document.getElementById('users-error').style.display = 'block';
+      }
+    }
+
+    // ===== ACTIVATE / DEACTIVATE USER =====
+    async function toggleUser(userId, activate) {
+      const action = activate ? 'activate' : 'deactivate';
+      try {
+        const res = await fetch(`${API}/admin/users/${userId}/${action}`, {
+          method:  'PATCH',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Action failed');
+        const s = document.getElementById('users-success');
+        s.textContent = `User ${action}d successfully.`;
+        s.style.display = 'block';
+        setTimeout(() => { s.style.display = 'none'; }, 3000);
+        loadUsers();
+        loadStats();
+      } catch (err) {
+        const e = document.getElementById('users-error');
+        e.textContent = err.message;
+        e.style.display = 'block';
+      }
+    }
+
+    loadStats();
+  </script>
+
+</body>
+</html>
