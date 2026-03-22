@@ -316,7 +316,13 @@
       localStorage.setItem('user_name', data.name);
       localStorage.setItem('user_role', data.role);
       showSuccess(`Welcome back, ${data.name}! Redirecting…`);
-      // TODO: redirect to dashboard
+      setTimeout(() => {
+        if (data.role === 'ADMIN') {
+          window.location.href = 'admin-dashboard.html';
+        } else {
+          window.location.href = 'doctor-dashboard.html';
+        }
+      }, 1000);
     } catch (err) {
       showError(err.message);
     } finally {
@@ -340,6 +346,7 @@
       localStorage.setItem('user_name', data.name);
       localStorage.setItem('user_role', data.role);
       showSuccess(`Account created! Welcome, ${data.name}!`);
+      setTimeout(() => { window.location.href = 'doctor-dashboard.html'; }, 1000);
     } catch (err) {
       showError(err.message);
     } finally {
