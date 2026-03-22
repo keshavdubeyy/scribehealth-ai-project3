@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScribeHealth AI — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="login.css" />
+</head>
+<body>
+
+  <main class="page-wrapper">
+    <div class="card">
+
+      <!-- ===== LEFT PANEL ===== -->
+      <section class="panel panel--left">
+
+        <!-- Logo -->
+        <div class="logo-wrap">
+          <svg
+            class="logo-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 2L3 6.5V12c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6.5L12 2Z"
+              fill="currentColor"
+              opacity="0.15"
+            />
+            <path
+              d="M12 2L3 6.5V12c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6.5L12 2Z"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M9 12l2 2 4-4"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span class="logo-wordmark">ScribeHealth<span class="logo-ai"> AI</span></span>
+        </div>
+
+        <!-- Heading -->
+        <h1 class="heading">Welcome back</h1>
+        <p class="subtext">Please enter your details.</p>
+
+        <!-- Login Form -->
+        <!-- TODO: wire to Spring Boot /api/auth/login -->
+        <form class="login-form" action="#" method="POST" novalidate>
+
+          <!-- Email -->
+          <div class="field-group">
+            <label class="field-label" for="email">Email</label>
+            <input
+              class="field-input"
+              type="email"
+              id="email"
+              name="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+            />
+          </div>
+
+          <!-- Password -->
+          <div class="field-group">
+            <label class="field-label" for="password">Password</label>
+            <input
+              class="field-input"
+              type="password"
+              id="password"
+              name="password"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+
+          <!-- Remember me + Forgot password -->
+          <div class="form-row">
+            <label class="checkbox-label">
+              <input type="checkbox" name="remember" />
+              <span>Remember me</span>
+            </label>
+            <a href="#" class="link link--subtle">Forgot Password</a>
+          </div>
+
+          <!-- Submit -->
+          <button type="submit" class="btn-submit">Submit</button>
+
+        </form>
+
+        <!-- Register CTA -->
+        <p class="register-cta">
+          Don't have an account?
+          <!-- TODO: wire to Spring Boot /api/auth/register -->
+          <a href="#" class="link link--underline">Request a free trial</a>
+        </p>
+
+        <!-- Footer -->
+        <footer class="panel-footer">
+          <span>presented by</span>
+          <svg
+            class="footer-logo"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-label="ScribeHealth AI"
+          >
+            <path
+              d="M12 2L3 6.5V12c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6.5L12 2Z"
+              fill="currentColor"
+              opacity="0.2"
+            />
+            <path
+              d="M12 2L3 6.5V12c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6.5L12 2Z"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </footer>
+
+      </section>
+
+      <!-- ===== RIGHT PANEL ===== -->
+      <section class="panel panel--right" aria-label="Resources">
+
+        <!-- Decorative purple blur blob -->
+        <div class="blob blob--1" aria-hidden="true"></div>
+        <div class="blob blob--2" aria-hidden="true"></div>
+
+        <div class="resource-cards">
+
+          <!-- Card 1 -->
+          <a href="#" class="resource-card">
+            <span class="card-icon" aria-hidden="true">
+              <!-- Lifebuoy / support icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M9.17 9.17 6.34 6.34M14.83 9.17l2.83-2.83M14.83 14.83l2.83 2.83M9.17 14.83l-2.83 2.83"
+                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <div class="card-body">
+              <span class="card-title">Visit our Support Center</span>
+              <span class="card-subtitle">Get guidance from our Support team.</span>
+            </div>
+            <span class="card-chevron" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- Card 2 -->
+          <a href="#" class="resource-card">
+            <span class="card-icon" aria-hidden="true">
+              <!-- Map / roadmap icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path d="M9 4L3 7v13l6-3 6 3 6-3V4l-6 3-6-3Z"
+                  stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 4v13M15 7v13"
+                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <div class="card-body">
+              <span class="card-title">View our Product Roadmap</span>
+              <span class="card-subtitle">Browse and vote on what's next.</span>
+            </div>
+            <span class="card-chevron" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- Card 3 -->
+          <a href="#" class="resource-card">
+            <span class="card-icon" aria-hidden="true">
+              <!-- Sparkle / release icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3v2M12 19v2M3 12H5M19 12h2M5.64 5.64l1.41 1.41M16.95 16.95l1.41 1.41M5.64 18.36l1.41-1.41M16.95 7.05l1.41-1.41"
+                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </span>
+            <div class="card-body">
+              <span class="card-title">Check out the latest releases</span>
+              <span class="card-subtitle">See new features and updates.</span>
+            </div>
+            <span class="card-chevron" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- Card 4 -->
+          <a href="#" class="resource-card">
+            <span class="card-icon" aria-hidden="true">
+              <!-- Slack-style chat bubbles icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z"
+                  stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <div class="card-body">
+              <span class="card-title">Join our Slack Community</span>
+              <span class="card-subtitle">Discuss with hundreds of users.</span>
+            </div>
+            <span class="card-chevron" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+</body>
+</html>
