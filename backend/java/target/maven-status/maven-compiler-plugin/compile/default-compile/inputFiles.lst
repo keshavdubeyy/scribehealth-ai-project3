@@ -1,0 +1,15 @@
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/repository/UserRepository.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/model/User.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/dto/RegisterRequest.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/service/AuthService.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/dto/AuthResponse.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/model/DoctorProfile.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/controller/AuthController.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/service/AuthServiceImpl.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/dto/LoginRequest.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/config/JwtAuthFilter.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/config/GlobalExceptionHandler.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/model/Role.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/util/JwtUtil.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/ScribeHealthApplication.java
+/Users/d400l/Desktop/SE-P3/scribehealth-ai-project3/backend/java/src/main/java/com/scribehealth/config/SecurityConfig.java
