@@ -1,5 +1,4 @@
 package com.scribehealth.service;
-
 import com.scribehealth.dto.AuthResponse;
 import com.scribehealth.dto.LoginRequest;
 import com.scribehealth.dto.RegisterRequest;
@@ -10,10 +9,8 @@ import com.scribehealth.util.JwtUtil;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
 import java.time.Instant;
 import java.util.NoSuchElementException;
-
 @Service
 public class AuthServiceImpl implements AuthService {
 
