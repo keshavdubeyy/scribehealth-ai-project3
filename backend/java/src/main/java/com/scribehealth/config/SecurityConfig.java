@@ -39,7 +39,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
+                .requestMatchers("/api/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(
