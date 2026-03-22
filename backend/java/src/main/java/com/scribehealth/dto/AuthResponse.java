@@ -1,5 +1,4 @@
 package com.scribehealth.dto;
-
 import com.scribehealth.model.Role;
 
 public class AuthResponse {
