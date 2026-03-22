@@ -12,8 +12,6 @@ body {
   display: flex;
   min-height: 100vh;
 }
-
-/* ===== SIDEBAR ===== */
 .sidebar {
   width: 240px;
   min-height: 100vh;
@@ -101,7 +99,6 @@ body {
 .logout-btn svg { width: 18px; height: 18px; }
 .logout-btn:hover { background: #fef2f2; }
 
-/* ===== MAIN CONTENT ===== */
 .main-content {
   margin-left: 240px;
   flex: 1;
@@ -109,7 +106,6 @@ body {
   max-width: 1100px;
 }
 
-/* ===== TOP BAR ===== */
 .topbar {
   display: flex;
   align-items: flex-start;
@@ -129,7 +125,6 @@ body {
   margin-top: 0.2rem;
 }
 
-/* ===== ROLE BADGES ===== */
 .role-badge {
   display: inline-block;
   padding: 0.3rem 0.75rem;
@@ -154,7 +149,6 @@ body {
 .status--active   { background: #dcfce7; color: #15803d; }
 .status--inactive { background: #fee2e2; color: #b91c1c; }
 
-/* ===== STATS GRID ===== */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -185,8 +179,6 @@ body {
   font-weight: 700;
   color: #111827;
 }
-
-/* ===== CARD PANEL ===== */
 .card-panel {
   background: #ffffff;
   border-radius: 12px;
@@ -214,7 +206,6 @@ body {
   margin: 1.5rem 0;
 }
 
-/* ===== INFO GRID ===== */
 .info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -226,7 +217,6 @@ body {
 .info-label { font-size: 0.78rem; color: #9ca3af; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
 .info-value { font-size: 0.95rem; color: #111827; font-weight: 600; }
 
-/* ===== FORM ELEMENTS ===== */
 .field-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
 .field-label { font-size: 0.85rem; font-weight: 500; color: #374151; }
 .field-input {
@@ -242,7 +232,6 @@ body {
 }
 .field-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
 
-/* ===== BUTTONS ===== */
 .btn-primary {
   padding: 0.65rem 1.5rem;
   background: #4f46e5;
@@ -282,7 +271,6 @@ body {
 }
 .btn-success:hover { background: #86efac; }
 
-/* ===== USERS TABLE ===== */
 .users-table {
   width: 100%;
   border-collapse: collapse;
@@ -316,8 +304,6 @@ body {
   padding: 2rem !important;
   font-style: italic;
 }
-
-/* ===== FEEDBACK MESSAGES ===== */
 .form-msg {
   padding: 0.75rem 1rem;
   border-radius: 8px;
