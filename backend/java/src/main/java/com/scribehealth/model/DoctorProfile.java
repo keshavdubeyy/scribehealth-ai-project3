@@ -1,5 +1,4 @@
 package com.scribehealth.model;
-
 public class DoctorProfile {
 
     private String specialization;
