@@ -227,5 +227,4 @@ their modules end-to-end: design, implementation, testing, and documentation.
 
 ---
 
-## Typical Consultation Workflow
 
