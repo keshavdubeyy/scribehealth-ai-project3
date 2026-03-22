@@ -13,9 +13,6 @@
 
 'use strict';
 
-// ─────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────
 const API_BASE      = 'http://localhost:8080/api/auth';
 const TOKEN_KEY     = 'scribeToken';
 const ROLE_KEY      = 'scribeRole';
@@ -83,9 +80,6 @@ function requireAuth(allowedRoles) {
   }
 }
 
-// ─────────────────────────────────────────────
-// Shared UI helpers
-// ─────────────────────────────────────────────
 
 function showError(msg) {
   const el = document.getElementById('form-error');
@@ -108,9 +102,6 @@ function clearMessages() {
   if (suc) suc.style.display = 'none';
 }
 
-// ─────────────────────────────────────────────
-// login()
-// ─────────────────────────────────────────────
 
 async function login(email, password) {
   const submitBtn = document.getElementById('submit-btn');
@@ -139,7 +130,6 @@ async function login(email, password) {
 
     const data = await res.json();
 
-    // Store credentials
     localStorage.setItem(TOKEN_KEY, data.token);
     localStorage.setItem(ROLE_KEY,  data.role);
     localStorage.setItem(NAME_KEY,  data.name);
@@ -159,12 +149,7 @@ async function login(email, password) {
   }
 }
 
-// ─────────────────────────────────────────────
-// register() — modal
-// ─────────────────────────────────────────────
-
 function openRegisterModal() {
-  // Prevent duplicates
   if (document.getElementById('register-modal')) return;
 
   const overlay = document.createElement('div');
@@ -229,7 +214,6 @@ function openRegisterModal() {
 
   document.body.appendChild(overlay);
 
-  // Show/hide specialization based on role
   const roleSelect   = document.getElementById('reg-role');
   const specGroup    = document.getElementById('specialization-group');
 
@@ -239,17 +223,15 @@ function openRegisterModal() {
   syncSpecVisibility();
   roleSelect.addEventListener('change', syncSpecVisibility);
 
-  // Close on overlay click or close button
   document.getElementById('modal-close-btn').addEventListener('click', closeRegisterModal);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeRegisterModal(); });
 
-  // Trap Escape key
   overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeRegisterModal(); });
 
-  // Form submit
+
   document.getElementById('register-form').addEventListener('submit', handleRegisterSubmit);
 
-  // Focus first input
+
   requestAnimationFrame(() => document.getElementById('reg-name').focus());
 }
 
@@ -274,7 +256,6 @@ async function handleRegisterSubmit(e) {
   const role     = document.getElementById('reg-role').value;
   const spec     = document.getElementById('reg-spec').value.trim();
 
-  // Basic client-side validation
   if (!name || !email || !password || !role) {
     modalError.textContent = 'Please fill in all required fields.';
     modalError.style.display = 'block';
@@ -311,7 +292,7 @@ async function handleRegisterSubmit(e) {
 
     const data = await res.json();
 
-    // Store credentials
+
     localStorage.setItem(TOKEN_KEY, data.token);
     localStorage.setItem(ROLE_KEY,  data.role);
     localStorage.setItem(NAME_KEY,  data.name);
@@ -319,11 +300,11 @@ async function handleRegisterSubmit(e) {
     modalSuccess.textContent   = `Account created! Welcome, ${data.name}.`;
     modalSuccess.style.display = 'block';
 
-    // Pre-fill email in the login form
+
     const loginEmailInput = document.getElementById('email');
     if (loginEmailInput) loginEmailInput.value = email;
 
-    // Auto-close after short delay then redirect
+
     setTimeout(() => {
       closeRegisterModal();
       window.location.href =
@@ -339,15 +320,10 @@ async function handleRegisterSubmit(e) {
   }
 }
 
-// ─────────────────────────────────────────────
-// Wire up login.html on DOMContentLoaded
-// ─────────────────────────────────────────────
-
 document.addEventListener('DOMContentLoaded', () => {
   const loginForm    = document.getElementById('login-form');
   const registerLink = document.getElementById('register-link');
 
-  // Hook: login form submit → login()
   if (loginForm) {
     loginForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -357,7 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Hook: "Request a free trial" → open register modal
   if (registerLink) {
     registerLink.addEventListener('click', (e) => {
       e.preventDefault();
@@ -365,11 +340,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
-
-// ─────────────────────────────────────────────
-// Exports (for protected pages)
-// ─────────────────────────────────────────────
-
 // Usage: <script src="auth.js"></script>
 // Then call: requireAuth(['DOCTOR']) or requireAuth(['ADMIN'])
 window.requireAuth = requireAuth;

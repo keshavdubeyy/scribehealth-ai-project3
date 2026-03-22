@@ -10,8 +10,6 @@
   <script src="auth.js"></script>
 </head>
 <body>
-
-  <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar">
     <div class="sidebar-logo">
       <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
@@ -39,10 +37,8 @@
     </button>
   </aside>
 
-  <!-- ===== MAIN CONTENT ===== -->
   <main class="main-content">
 
-    <!-- Top Bar -->
     <header class="topbar">
       <div>
         <h1 class="page-title" id="page-title">Overview</h1>
@@ -53,7 +49,6 @@
       </div>
     </header>
 
-    <!-- ===== OVERVIEW SECTION ===== -->
     <section id="section-overview" class="section">
       <div class="stats-grid">
         <div class="stat-card">
@@ -74,8 +69,6 @@
         </div>
       </div>
     </section>
-
-    <!-- ===== USERS SECTION ===== -->
     <section id="section-users" class="section" style="display:none;">
       <div class="card-panel">
         <h2 class="panel-title">All Users</h2>
@@ -107,12 +100,10 @@
     const name  = localStorage.getItem('scribeName');
     const role  = localStorage.getItem('scribeRole');
 
-    // Guard — only admins allowed here
+    // Guard 
     requireAuth(['ADMIN']);
 
     document.getElementById('user-name-display').textContent = name || 'Admin';
-
-    // ===== NAV SWITCHING =====
     document.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', (e) => {
         e.preventDefault();
@@ -126,16 +117,12 @@
         if (target === 'users') loadUsers();
       });
     });
-
-    // ===== LOGOUT =====
     document.getElementById('logout-btn').addEventListener('click', () => {
       localStorage.removeItem('scribeToken');
       localStorage.removeItem('scribeRole');
       localStorage.removeItem('scribeName');
       window.location.href = 'login.html';
     });
-
-    // ===== LOAD STATS =====
     async function loadStats() {
       try {
         const res = await fetch(`${API}/admin/stats`, {
@@ -153,8 +140,6 @@
         console.error('Failed to load stats', err);
       }
     }
-
-    // ===== LOAD USERS TABLE =====
     async function loadUsers() {
       const tbody = document.getElementById('users-tbody');
       tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Loading…</td></tr>';
@@ -187,7 +172,6 @@
       }
     }
 
-    // ===== ACTIVATE / DEACTIVATE USER =====
     async function toggleUser(userId, activate) {
       const action = activate ? 'activate' : 'deactivate';
       try {

@@ -10,8 +10,6 @@
   <script src="auth.js"></script>
 </head>
 <body>
-
-  <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar">
     <div class="sidebar-logo">
       <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
@@ -39,10 +37,8 @@
     </button>
   </aside>
 
-  <!-- ===== MAIN CONTENT ===== -->
   <main class="main-content">
 
-    <!-- Top Bar -->
     <header class="topbar">
       <div>
         <h1 class="page-title" id="page-title">Overview</h1>
@@ -52,8 +48,6 @@
         <span class="role-badge role-badge--doctor">DOCTOR</span>
       </div>
     </header>
-
-    <!-- ===== OVERVIEW SECTION ===== -->
     <section id="section-overview" class="section">
       <div class="stats-grid">
         <div class="stat-card">
@@ -74,8 +68,6 @@
         </div>
       </div>
     </section>
-
-    <!-- ===== PROFILE SECTION ===== -->
     <section id="section-profile" class="section" style="display:none;">
       <div class="card-panel">
         <h2 class="panel-title">My Profile</h2>
@@ -113,12 +105,10 @@
     const name  = localStorage.getItem('scribeName');
     const role  = localStorage.getItem('scribeRole');
 
-    // Guard — redirect to login if not authenticated or wrong role
+    // Guard 
     requireAuth(['DOCTOR', 'ADMIN']);
 
     document.getElementById('user-name-display').textContent = name || 'Doctor';
-
-    // ===== NAV SWITCHING =====
     document.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', (e) => {
         e.preventDefault();
@@ -133,16 +123,12 @@
           target === 'overview' ? `Welcome back, ${name}` : 'View and update your information';
       });
     });
-
-    // ===== LOGOUT =====
     document.getElementById('logout-btn').addEventListener('click', () => {
       localStorage.removeItem('scribeToken');
       localStorage.removeItem('scribeRole');
       localStorage.removeItem('scribeName');
       window.location.href = 'login.html';
     });
-
-    // ===== LOAD PROFILE =====
     async function loadProfile() {
       try {
         const res = await fetch(`${API}/doctor/profile`, {
@@ -152,14 +138,10 @@
           localStorage.clear(); window.location.href = 'login.html'; return;
         }
         const data = await res.json();
-
-        // Overview stats
         document.getElementById('stat-status').textContent  = data.active ? '✅ Active' : '🚫 Inactive';
         document.getElementById('stat-created').textContent = data.createdAt   ? new Date(data.createdAt).toLocaleDateString()   : '—';
         document.getElementById('stat-login').textContent   = data.lastLoginAt ? new Date(data.lastLoginAt).toLocaleString()      : '—';
         document.getElementById('stat-role').textContent    = data.role;
-
-        // Profile section
         document.getElementById('p-name').textContent   = data.name;
         document.getElementById('p-email').textContent  = data.email;
         document.getElementById('p-role').textContent   = data.role;
@@ -170,8 +152,6 @@
         console.error('Failed to load profile', err);
       }
     }
-
-    // ===== SAVE PROFILE =====
     document.getElementById('profile-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       document.getElementById('profile-error').style.display   = 'none';
