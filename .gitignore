@@ -23,7 +23,6 @@ replay_pid*
 # ===========================
 # Spring Boot
 # ===========================
-application-local.properties
 application-local.yml
 application-secret.properties
 
@@ -64,3 +63,4 @@ secrets.properties
 descrip.md
 
 
+application.properties
