@@ -221,9 +221,6 @@ their modules end-to-end: design, implementation, testing, and documentation.
 | **Member 4** | Medical Entity Extraction (NLP), Clinical Note Generation | Template Method Pattern |
 | **Member 5** | Template-Based Documentation, Note Sharing (Email/SMS/WhatsApp) | Strategy Pattern, Factory Method Pattern (templates) |
 
-> **Note:** Members 3 and 4 must tightly coordinate on the **transcription → entity extraction → 
-> note generation pipeline**. Member 2 coordinates integration across all modules for the 
-> consultation workflow.
 
 ---
 
