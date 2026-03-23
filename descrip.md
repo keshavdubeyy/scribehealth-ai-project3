@@ -1,4 +1,4 @@
-Drool3008: why is the structure the exact same in src/main and target whats the significance
+git pDrool3008: why is the structure the exact same in src/main and target whats the significance
 
 GitHub Copilot: The `target/` directory is Maven's **build output folder**. Here's why the structure mirrors `src/main/`:
 
