@@ -187,7 +187,6 @@ scribehealth-ai-project3/
 │       └── builder/       # Builder pattern
 └── docs/                  # Documentation and diagrams
 ```
-
 ---
 
 
