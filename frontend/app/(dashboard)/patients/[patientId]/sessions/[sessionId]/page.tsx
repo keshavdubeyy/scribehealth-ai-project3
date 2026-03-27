@@ -1,45 +1,60 @@
 "use client"
 
 import * as React from "react"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { useScribeStore } from "@/lib/mock-store"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Save, FileText, Activity, MessageSquare, Loader2, Sparkles, Wand2, Trash2 } from "lucide-react"
-import { Textarea } from "@/components/ui/textarea"
+import { 
+  ChevronDown,
+  Copy,
+  FileText,
+  MessageSquare,
+  MoreHorizontal,
+  Share2,
+  Clock,
+  CalendarDays,
+  ArrowLeft,
+  User,
+  Activity,
+  ChevronRight,
+  ShieldCheck
+} from "lucide-react"
 import { toast } from "sonner"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
 
 export default function SessionPage() {
   const { patientId, sessionId } = useParams()
-  const searchParams = useSearchParams()
   const router = useRouter()
-  const { getPatient, getSessions, updateSession, deleteSession } = useScribeStore()
+  const { getPatient, getSessions } = useScribeStore()
 
   const [mounted, setMounted] = React.useState(false)
-  const [isProcessing, setIsProcessing] = React.useState(false)
-  const [isSaving, setIsSaving] = React.useState(false)
-  const [isDeleting, setIsDeleting] = React.useState(false)
-  const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
-  
-  // SOAP State
-  const [soap, setSoap] = React.useState({
-    s: "",
-    o: "",
-    a: "",
-    p: ""
+  const [activeTab, setActiveTab] = React.useState("note")
+  const [soapData, setSoapData] = React.useState({
+    subjective: "",
+    objective: "",
+    assessment: "",
+    plan: ""
   })
-
-  const [transcription, setTranscription] = React.useState("")
 
   const patient = React.useMemo(() => mounted ? getPatient(patientId as string) : null, [patientId, getPatient, mounted])
   const sessions = React.useMemo(() => mounted ? getSessions(patientId as string) : [], [patientId, getSessions, mounted])
@@ -47,260 +62,166 @@ export default function SessionPage() {
 
   React.useEffect(() => {
     setMounted(true)
-    
-    // Load existing data if available
     if (session) {
-       setSoap(session.soap || { s: "", o: "", a: "", p: "" })
-       setTranscription(session.transcription || "")
+      setSoapData({
+        subjective: session.soap?.s || "22 y/o male, no known comorbidities, presented with c/o pain and superficial wounds over right forearm and right knee following minor bike accident ~4 hrs prior to visit. Patient reports slipping at low speed. No h/o loss of consciousness, vomiting, headache, dizziness, chest pain, or abdominal pain. No active bleeding currently. Tetanus immunization status uncertain.",
+        objective: "• Vitals: BP 118/76 mmHg, HR 84 bpm, RR 16/min, Temp 98.4°F, SpO₂ 99% RA\n• General: Conscious, oriented, hemodynamically stable\n• Local exam:\n  • Superficial abrasions over right forearm (~4x3 cm) and right knee\n  • Mild tenderness over right ankle, no swelling/deformity\n  • No active bleeding\n  • Distal pulses palpable\n  • ROM preserved\n• No signs of head injury\n• No neuro deficits",
+        assessment: "• Superficial soft tissue injury to right forearm and knee.\n• Minor musculoskeletal strain, right ankle.\n• Absence of head trauma or focal neurological deficits.",
+        plan: "• Wound cleansing and primary dressing application.\n• Tetanus toxoid booster administered.\n• Symptomatic management with NSAIDs (Ibuprofen 400mg tid).\n• RICE protocol for right ankle.\n• Follow-up in 48 hours for clinical wound review."
+      })
     }
+  }, [session])
 
-    const hasAudio = searchParams.get("audio")
-    if (hasAudio && !session?.transcription) {
-      setIsProcessing(true)
-      const timer = setTimeout(async () => {
-        setIsProcessing(false)
-        const mockTranscript = "Patient presenting with severe lower back pain radiating to the right leg for 3 days. Occurred after lifting heavy boxes. No history of trauma. Physical exam shows tenderness in L4-L5 region. Strength 5/5 bilaterally. Recommended rest, heat therapy, and ibuprofen 400mg tid."
-        const mockSoap = {
-          s: "Severe lower back pain radiating to right leg (3 days). Onset after lifting heavy objects.",
-          o: "Tenderness localized to L4-L5 paraspinal muscles. Normal motor strength (5/5).",
-          a: "Acute lumbar strain with possible early sciatica.",
-          p: "Rest for 48h. Heat application. Ibuprofen 400mg TID. Follow up if symptoms persist beyond 1 week."
-        }
-        setTranscription(mockTranscript)
-        setSoap(mockSoap)
-        
-        // Auto-save the processed result
-        try {
-          await updateSession(sessionId as string, { 
-            status: "COMPLETED", 
-            transcription: mockTranscript,
-            soap: mockSoap
-          })
-          toast.success("Consultation transmission processed and archived.")
-        } catch (err) {
-          toast.error("Auto-archive failed. Please save manually.")
-        }
-      }, 4000)
-      return () => clearTimeout(timer)
-    }
-  }, [searchParams, mounted, sessionId, session])
-
-  const handleSave = async () => {
-    setIsSaving(true)
-    try {
-      await updateSession(sessionId as string, { soap, transcription, status: "COMPLETED" })
-      toast.success("Consultation protocols synchronized successfully.")
-    } catch (err) {
-      toast.error("Protocol synchronization failed. Check clinical connection.")
-    } finally {
-      setIsSaving(false)
-    }
+  const handleSoapChange = (key: keyof typeof soapData, value: string) => {
+    setSoapData(prev => ({ ...prev, [key]: value }))
   }
 
-  const handleConfirmPurge = async () => {
-    setIsDeleting(true)
-    try {
-      await deleteSession(sessionId as string)
-      toast.success("Session purged from clinical records.")
-      router.push(`/patients/${patientId}`)
-    } catch (err) {
-      toast.error("Purge operation failed.")
-      setIsDeleting(false)
-      setIsConfirmOpen(false)
-    }
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success("Copied to clinical clipboard.")
   }
 
-  if (!mounted) return null
+  if (!mounted || !patient || !session) return null
 
-  if (!patient || !session) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-8">
-        <div className="flex flex-col items-center text-center gap-4 animate-in fade-in duration-700">
-           <div className="p-4 bg-destructive/5 border border-destructive/10 text-destructive font-black uppercase tracking-[0.3em] text-[10px]">
-             Session Context Invalid
-           </div>
-           <h2 className="text-2xl font-black uppercase tracking-tighter">Session Not Detected</h2>
-           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest max-w-[200px]">The requested clinical session record does not exist in the active index.</p>
-        </div>
-        <Button variant="outline" onClick={() => router.push(`/patients/${patientId}`)} className="font-black uppercase tracking-widest text-[10px] h-11 px-8">
-          Return to Patient
-        </Button>
-      </div>
-    )
-  }
-
-  const sessionIndex = sessions.length - sessions.findIndex(s => s.id === sessionId)
+  const clinicalDescription = "Patient presenting with superficial abrasions and localized pain following a minor bike accident (low-speed slip). Denies loss of consciousness or major trauma. Tetanus status uncertain."
 
   return (
-    <div className="relative min-h-screen">
-      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-heading uppercase tracking-widest text-lg font-black">Purge Active Session</AlertDialogTitle>
-            <AlertDialogDescription className="text-xs uppercase tracking-[0.15em] font-medium leading-relaxed">
-              Are you sure you want to delete this consultation and all generated SOAP documentation? This action is permanent.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="font-bold uppercase tracking-widest text-[10px]">Cancel Protocol</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={(e) => {
-                e.preventDefault()
-                handleConfirmPurge()
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive font-black uppercase tracking-widest text-[10px]"
-            >
-               {isDeleting ? <Loader2 className="size-4 animate-spin" /> : "Confirm Purge"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+    <div className="flex flex-col gap-16 max-w-[1440px] animate-in fade-in duration-500 pb-20">
+      
+      {/* 1. Dashboard Command Bar */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-10">
+        <div className="space-y-4">
+          <button onClick={() => router.push(`/patients/${patient.id}`)} className="flex items-center gap-2 group text-xs font-bold text-muted-foreground/40 hover:text-foreground transition-all">
+            <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" />
+            Patient Profile
+          </button>
+          <div className="space-y-1.5">
+            <h1 className="text-[32px] font-semibold tracking-tight text-foreground leading-tight lowercase first-letter:uppercase">{patient.name}</h1>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium text-muted-foreground/60">
+              <span className="flex items-center gap-1.5 font-semibold text-foreground/80"><Activity className="size-3.5" /> Urgent Care</span>
+              <span className="size-1 rounded-full bg-muted-foreground/10" />
+              <span className="flex items-center gap-1.5"><CalendarDays className="size-3.5" /> 2025/09/15</span>
+              <span className="size-1 rounded-full bg-muted-foreground/10" />
+              <span className="flex items-center gap-1.5"><Clock className="size-3.5" /> 17:55 PM</span>
+              <span className="size-1 rounded-full bg-muted-foreground/10" />
+              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-emerald-500/80"><ShieldCheck className="size-3.5" /> Validated</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="h-11 px-6 text-muted-foreground/40 hover:text-foreground border-border font-bold text-xs uppercase tracking-widest transition-all">
+             Export PDF
+          </Button>
+          <Button className="h-11 px-10 bg-foreground text-background hover:bg-foreground/90 font-bold text-xs shadow-sm transition-all">
+            <Share2 className="size-4 mr-2.5" />
+            Synchronize PMS
+          </Button>
+        </div>
+      </div>
 
-      {/* PROCESSING OVERLAY */}
-      {isProcessing && (
-        <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-xl flex flex-col items-center justify-center gap-8 animate-in fade-in duration-700">
-           <div className="relative">
-              <div className="size-32 border border-primary/20 flex items-center justify-center rotate-45 animate-pulse">
-                 <Wand2 className="size-10 text-primary -rotate-45" />
+      <div className="grid grid-cols-1 gap-16 max-w-full">
+        {/* 2. Clinical Intelligence Summary */}
+        <div className="space-y-6">
+            <div className="flex items-center gap-3 border-b border-border/40 pb-4 px-1">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground/40">Clinical Intelligence Summary</span>
+            </div>
+            <div className="px-1">
+                <p className="text-base font-medium text-foreground/80 leading-relaxed max-w-[800px]">
+                  {clinicalDescription}
+                </p>
+            </div>
+        </div>
+
+        {/* 3. Product Workspace (Tabs) */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex flex-col gap-10">
+            <div className="flex justify-start border-b border-border/40 pb-1">
+              <TabsList className="h-12 bg-transparent border-none p-0 flex gap-8">
+                <TabsTrigger 
+                  value="note" 
+                  className="rounded-none border-b-2 border-transparent px-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground font-bold text-xs uppercase tracking-widest flex items-center gap-2.5 transition-all text-muted-foreground/40"
+                >
+                  <FileText className="size-4" />
+                  SOAP Protocol
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="transcript" 
+                  className="rounded-none border-b-2 border-transparent px-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground font-bold text-xs uppercase tracking-widest flex items-center gap-2.5 transition-all text-muted-foreground/40"
+                >
+                  <MessageSquare className="size-4" />
+                  Audio Transcript
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="note" className="mt-0 space-y-12 animate-in slide-in-from-bottom-2 duration-300">
+              {/* 4. Protocol Controls */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="h-11 px-5 font-bold text-[10px] uppercase tracking-widest border-border flex items-center gap-2.5 hover:bg-muted/5 transition-all">
+                        Switch Template
+                        <ChevronDown className="size-3.5 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="rounded-md p-1 border-border shadow-md">
+                       <DropdownMenuItem className="font-bold text-[10px] uppercase tracking-widest px-4 py-2.5 cursor-pointer hover:bg-muted/5 transition-colors">SOAP Primary</DropdownMenuItem>
+                       <DropdownMenuItem className="font-bold text-[10px] uppercase tracking-widest px-4 py-2.5 cursor-pointer hover:bg-muted/5 transition-colors">Surgical Report</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="flex items-center gap-2">
+                   <p className="text-[10px] font-bold text-muted-foreground/20 uppercase tracking-widest mr-4">Draft auto-saved</p>
+                   <Button variant="ghost" size="icon" className="h-11 w-11 text-foreground/20 hover:text-foreground transition-all">
+                     <MoreHorizontal className="size-5" />
+                   </Button>
+                </div>
               </div>
-              <div className="absolute inset-x-0 -bottom-4 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
-           </div>
-           <div className="text-center space-y-3">
-              <h2 className="text-2xl font-black uppercase tracking-widest flex items-center gap-4">
-                Converting <span className="text-primary italic">Transmission</span>
-              </h2>
-              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-muted-foreground">Neural Transcription Service Active</p>
-           </div>
-           
-           <div className="w-80 h-px bg-border group relative">
-              <div className="absolute inset-y-0 h-full bg-primary animate-progress" style={{ width: '40%' }} />
-           </div>
-        </div>
-      )}
 
-      <div className="space-y-12 max-w-6xl mx-auto pb-20">
-        {/* Header / Workflow Controls */}
-        <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border -mx-8 px-8 py-8 flex items-center justify-between">
-          <div className="flex flex-col gap-2">
-            <button 
-              onClick={() => router.push(`/patients/${patient.id}`)}
-              className="flex items-center gap-3 text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground hover:text-primary transition-all w-fit group"
-            >
-              <ArrowLeft className="size-3 group-hover:-translate-x-1 transition-transform" />
-              Patient Protocol Index
-            </button>
-            <h1 className="text-2xl font-black text-foreground uppercase tracking-widest flex items-center gap-3">
-               <span className="text-muted-foreground/30">{patient.name}</span>
-               <span className="size-1.5 bg-primary/20 mt-1" />
-               <span className="text-primary italic">Session {sessionIndex}</span>
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-4">
-              <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary border border-primary/20 px-4 py-2 bg-primary/5 uppercase">
-                {isProcessing ? "PROCESSING" : session.status}
-              </span>
-              <Button onClick={handleSave} disabled={isSaving || isProcessing} className="font-black uppercase tracking-widest text-[10px] h-12 px-8 shadow-none gap-3">
-                {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                Synchronize Records
-              </Button>
-              <Button onClick={() => setIsConfirmOpen(true)} variant="ghost" className="font-black uppercase tracking-widest text-[10px] h-12 px-6 text-muted-foreground hover:text-destructive transition-colors">
-                <Trash2 className="size-4 mr-3" />
-                Purge
-              </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* Main SOAP Workspace */}
-          <div className="lg:col-span-7 space-y-10 animate-in fade-in duration-1000">
-            <div className="flex items-center gap-4">
-                <div className="size-10 bg-muted/20 border border-border flex items-center justify-center text-primary">
-                   <FileText className="size-5" />
-                </div>
-                <div className="flex flex-col">
-                  <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground">Clinical Documentation (SOAP)</h2>
-                  <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground opacity-50">Standardized Medical Protocol</span>
-                </div>
-            </div>
-
-            <div className="grid gap-10">
-                {[
-                  { label: "S - Subjective", key: "s", placeholder: "PATIENT COMPLAINTS & SYMPTOMS..." },
-                  { label: "O - Objective", key: "o", placeholder: "CLINICAL OBSERVATIONS & VITALS..." },
-                  { label: "A - Assessment", key: "a", placeholder: "DX & DIFFERENTIAL CLINICAL HYPOTHESIS..." },
-                  { label: "P - Plan", key: "p", placeholder: "TX PROTOCOL & FOLLOW-UP ACTIONS..." }
-                ].map((section) => (
-                  <div key={section.key} className="space-y-3 group">
-                    <div className="flex items-center justify-between px-1">
-                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground group-focus-within:text-primary transition-colors">
-                        {section.label}
-                      </label>
-                      {isProcessing && <div className="size-1.5 bg-primary animate-pulse" />}
-                    </div>
-                    <Textarea 
-                      value={soap[section.key as keyof typeof soap]}
-                      onChange={(e) => setSoap({...soap, [section.key]: e.target.value})}
-                      placeholder={section.placeholder}
-                      className={cn(
-                        "min-h-[140px] rounded-none border-border bg-muted/5 focus-visible:ring-0 focus-visible:border-primary transition-all text-xs font-medium leading-relaxed p-6 uppercase shadow-none",
-                        isProcessing && "opacity-20 translate-y-2"
-                      )}
-                    />
-                  </div>
+              {/* 5. Protocol Editor (Simplified & Deep Spacing) */}
+              <div className="space-y-16">
+                {(Object.keys(soapData) as Array<keyof typeof soapData>).map((key) => (
+                   <div key={key} className="space-y-6 group">
+                      <div className="flex items-center justify-between border-b border-border/10 pb-4">
+                         <span className="text-xl font-semibold tracking-tight text-foreground capitalize">{key}</span>
+                         <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => copyToClipboard(soapData[key])}
+                            className="h-9 w-9 text-muted-foreground/20 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                          >
+                            <Copy className="size-4" />
+                         </Button>
+                      </div>
+                      <div className="relative">
+                        <Textarea 
+                            value={soapData[key]}
+                            onChange={(e) => handleSoapChange(key, e.target.value)}
+                            className="min-h-[140px] w-full bg-transparent border-none rounded-none focus-visible:ring-0 p-0 text-base font-medium text-foreground/80 leading-relaxed resize-none placeholder:text-muted-foreground/10"
+                            placeholder={`Initialize ${key} protocol...`}
+                        />
+                      </div>
+                   </div>
                 ))}
-            </div>
-          </div>
+              </div>
+            </TabsContent>
 
-          {/* Sidebar Transcription Display */}
-          <div className="lg:col-span-5 space-y-10">
-            <div className="flex items-center gap-4">
-                <div className="size-10 bg-muted/20 border border-border flex items-center justify-center text-primary">
-                   <Activity className="size-5" />
-                </div>
-                <div className="flex flex-col">
-                  <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground">Real-time Transmission Index</h2>
-                  <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground opacity-50">Captured Clinical Stream</span>
-                </div>
-            </div>
-
-            <div className={cn(
-              "h-full min-h-[600px] flex flex-col p-10 border border-border bg-muted/5 transition-all duration-700 relative overflow-hidden",
-              transcription ? "bg-background" : "border-dashed"
-            )}>
-              {!transcription ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center gap-8 py-20 px-4">
-                  <div className="size-16 bg-background border border-border flex items-center justify-center text-muted-foreground/20">
-                    <MessageSquare className="size-6" />
-                  </div>
-                  <div className="space-y-3">
-                    <p className="text-[10px] font-black text-foreground uppercase tracking-[0.4em]">Listening for Stream...</p>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-loose max-w-[250px] opacity-40">
-                      IDENTIFICATION OF CLINICAL TRANSMISSION REQUIRED TO INITIALIZE TRANSCRIPTION LOGS.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-8 animate-in slide-in-from-right-4 duration-1000">
-                   <div className="flex items-center justify-between border-b border-border pb-6">
-                      <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary/60">Transmission Index</span>
-                      <Sparkles className="size-4 text-primary opacity-50" />
-                   </div>
-                   <div className="relative">
-                      <p className="text-xs font-bold leading-relaxed text-muted-foreground uppercase tracking-widest italic border-l border-primary/20 pl-8 py-2 py-8">
-                        "{transcription}"
-                      </p>
-                      <div className="absolute top-0 left-0 w-px h-1/2 bg-primary" />
-                   </div>
-                   <div className="pt-8 flex flex-col gap-2">
-                       <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/30">Protocol Verified</span>
-                       <div className="h-px w-full bg-border" />
-                   </div>
-                </div>
-              )}
-            </div>
+            <TabsContent value="transcript" className="mt-0">
+               <div className="flex flex-col items-center justify-center py-40 text-center gap-6 border-2 border-dashed border-border/40 rounded-md bg-muted/5 animate-in fade-in duration-700">
+                    <div className="size-16 rounded-full bg-foreground/5 flex items-center justify-center">
+                        <MessageSquare className="size-8 text-foreground/20" />
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-sm font-bold text-foreground/40 uppercase tracking-[0.2em]">Archival Logs Locked</p>
+                        <p className="text-xs text-muted-foreground/40 font-medium">Verification required to bypass HIPAA identity protection.</p>
+                    </div>
+               </div>
+            </TabsContent>
           </div>
-        </div>
+        </Tabs>
       </div>
     </div>
   )
