@@ -1,58 +1,32 @@
 "use client"
 
-import Link from "next/link"
+import { Users, LogOut, LayoutDashboard } from "lucide-react"
 import { usePathname } from "next/navigation"
-import { signOut, useSession } from "next-auth/react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { 
-  LayoutDashboard, 
-  UserCircle, 
-  Users, 
-  LogOut, 
-  ShieldCheck,
-  Stethoscope
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { signOut } from "next-auth/react"
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { data: session } = useSession()
-  const role = session?.user?.role
 
   const routes = [
     {
-      label: "Overview",
-      icon: LayoutDashboard,
-      href: "/dashboard",
-      active: pathname === "/dashboard"
-    },
-    ...(role === "DOCTOR" ? [
-      {
-        label: "My Profile",
-        icon: UserCircle,
-        href: "/dashboard/profile",
-        active: pathname === "/dashboard/profile"
-      }
-    ] : []),
-    ...(role === "ADMIN" ? [
-      {
-        label: "All Users",
-        icon: Users,
-        href: "/dashboard/users",
-        active: pathname === "/dashboard/users"
-      }
-    ] : [])
+      label: "Patients",
+      icon: Users,
+      href: "/patients",
+      active: pathname === "/patients" || pathname.startsWith("/patients/")
+    }
   ]
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col min-h-screen">
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center text-white">
-          {role === 'ADMIN' ? <ShieldCheck size={20} /> : <Stethoscope size={20} />}
+    <aside className="w-64 h-full bg-white border-r border-slate-200 flex flex-col transition-all duration-300">
+      <div className="p-6">
+        <div className="flex items-center gap-2 font-bold tracking-tighter text-slate-900 overflow-hidden">
+          <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground min-w-7">
+            S
+          </div>
+          <span className="text-sm uppercase tracking-widest truncate">Scribe<span className="font-light italic">Health</span></span>
         </div>
-        <span className="text-lg font-bold text-white tracking-tight">
-          ScribeHealth <span className="text-indigo-400">AI</span>
-        </span>
       </div>
 
       <nav className="flex-1 px-4 py-4 space-y-1">
@@ -61,25 +35,26 @@ export function Sidebar() {
             key={route.href}
             href={route.href}
             className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/5 hover:text-white",
-              route.active ? "bg-white/10 text-white" : "text-slate-400"
+              "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200",
+              route.active 
+                ? "bg-slate-100 text-primary shadow-sm" 
+                : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
             )}
           >
-            <route.icon size={18} />
+            <route.icon className={cn("size-4", route.active ? "text-primary" : "text-slate-400")} />
             {route.label}
           </Link>
         ))}
       </nav>
 
-      <div className="p-4 border-t border-white/5">
-        <Button 
-          variant="ghost" 
-          className="w-full justify-start text-slate-400 hover:text-white hover:bg-white/5 gap-3 h-10 px-3"
+      <div className="p-4 border-t border-slate-100">
+        <button
           onClick={() => signOut({ callbackUrl: "/login" })}
+          className="flex items-center gap-3 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-destructive hover:bg-destructive/5 rounded-xl transition-all duration-200"
         >
-          <LogOut size={18} />
-          Log Out
-        </Button>
+          <LogOut className="size-4" />
+          Logout
+        </button>
       </div>
     </aside>
   )
