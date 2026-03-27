@@ -12,8 +12,8 @@ export default function LoginPage() {
             <CommandIcon className="size-6" />
           </div>
           <div className="flex flex-col leading-none">
-            <span className="text-xl font-black uppercase tracking-widest leading-none">Scribe<span className="text-primary italic">Health</span></span>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase mt-1 tracking-[0.2em]">Clinical Intelligence</span>
+            <span className="text-xl font-semibold tracking-tight leading-none">Scribe<span>Health</span></span>
+            <span className="text-[10px] font-medium text-muted-foreground mt-1 tracking-widest">Clinical intelligence</span>
           </div>
         </div>
         <LoginForm />
