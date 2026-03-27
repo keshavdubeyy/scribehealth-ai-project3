@@ -1,0 +1,102 @@
+"use client"
+
+import { create } from "zustand"
+import { persist } from "zustand/middleware"
+
+export interface Patient {
+  id: string
+  name: string
+  age: number
+  gender: string
+}
+
+export interface Session {
+  id: string
+  patientId: string
+  createdAt: string
+  status: "IDLE" | "RECORDING" | "PROCESSING" | "COMPLETED"
+  soap?: {
+    s: string
+    o: string
+    a: string
+    p: string
+  }
+  transcription?: string
+}
+
+interface ScribeStore {
+  patients: Patient[]
+  sessions: Session[]
+  
+  // local crud
+  fetchPatients: () => Promise<void>
+  addPatient: (patient: Omit<Patient, "id">) => Promise<string>
+  deletePatient: (id: string) => Promise<void>
+  fetchSessions: (patientId: string) => Promise<void>
+  addSession: (patientId: string) => Promise<string>
+  updateSession: (id: string, data: Partial<Session>) => Promise<void>
+  deleteSession: (id: string) => Promise<void>
+  
+  getPatient: (id: string) => Patient | undefined
+  getSessions: (patientId: string) => Session[]
+}
+
+export const useScribeStore = create<ScribeStore>()(
+  persist(
+    (set, get) => ({
+      patients: [],
+      sessions: [],
+
+      fetchPatients: async () => {
+        // No-op for local
+      },
+
+      addPatient: async (data) => {
+        const id = Math.random().toString(36).substring(7)
+        const newPatient = { ...data, id }
+        set((state) => ({ patients: [...state.patients, newPatient] }))
+        return id
+      },
+
+      deletePatient: async (id) => {
+        set((state) => ({
+          patients: state.patients.filter(p => p.id !== id),
+          sessions: state.sessions.filter(s => s.patientId !== id)
+        }))
+      },
+
+      fetchSessions: async (patientId) => {
+        // No-op for local
+      },
+
+      addSession: async (patientId) => {
+        const id = Math.random().toString(36).substring(7)
+        const newSession: Session = {
+          id,
+          patientId,
+          createdAt: new Date().toISOString(),
+          status: "IDLE",
+          soap: { s: "", o: "", a: "", p: "" }
+        }
+        set((state) => ({ sessions: [newSession, ...state.sessions] }))
+        return id
+      },
+
+      updateSession: async (id, data) => {
+        set((state) => ({
+          sessions: state.sessions.map(s => s.id === id ? { ...s, ...data } : s)
+        }))
+      },
+
+      deleteSession: async (id) => {
+        set((state) => ({
+          sessions: state.sessions.filter(s => s.id !== id)
+        }))
+      },
+
+      getPatient: (id) => get().patients.find(p => p.id === id),
+      getSessions: (patientId) => get().sessions.filter(s => s.patientId === patientId),
+    }),
+    { name: "scribe-storage" }
+  )
+)
