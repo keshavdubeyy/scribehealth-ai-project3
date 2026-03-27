@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   description: "AI-powered medical scribe",
 };
 
+
 export default function RootLayout({
   children,
 }: Readonly<{
