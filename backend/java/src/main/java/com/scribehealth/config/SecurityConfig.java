@@ -35,17 +35,13 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
-                        .requestMatchers("/api/patients/**").hasAnyRole("DOCTOR", "ADMIN")
-                        .requestMatchers("/api/sessions/**").hasAnyRole("DOCTOR", "ADMIN")
-                        .requestMatchers("/api/transcribe/**").hasAnyRole("DOCTOR", "ADMIN")
-                        .requestMatchers("/api/generate-note/**").hasAnyRole("DOCTOR", "ADMIN")
-                        .requestMatchers("/api/prescriptions/**").hasAnyRole("DOCTOR", "ADMIN")
-                        .anyRequest().authenticated())
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/patients/**").permitAll()
+                        .requestMatchers("/api/sessions/**").permitAll()
+                        .requestMatchers("/api/transcribe/**").permitAll()
+                        .requestMatchers("/api/generate-note/**").permitAll()
+                        .requestMatchers("/api/prescriptions/**").permitAll()
+                        .anyRequest().permitAll())
                 .addFilterBefore(
                         new JwtAuthFilter(jwtUtil),
                         UsernamePasswordAuthenticationFilter.class);
