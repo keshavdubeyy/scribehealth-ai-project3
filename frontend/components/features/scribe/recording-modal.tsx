@@ -63,7 +63,7 @@ export function RecordingModal({ isOpen, onClose, onRecordingComplete }: Recordi
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md rounded-none border-border p-0 overflow-hidden bg-background shadow-none">
         <DialogHeader className="p-0 h-0 overflow-hidden">
-           <DialogTitle>Consultation Recording Phase</DialogTitle>
+           <DialogTitle>Consultation recording phase</DialogTitle>
            <DialogDescription>Capture and provision clinical audio transmission.</DialogDescription>
         </DialogHeader>
         <div className="p-10 flex flex-col items-center justify-center min-h-[400px] gap-10">
@@ -74,8 +74,8 @@ export function RecordingModal({ isOpen, onClose, onRecordingComplete }: Recordi
                   <div className="absolute inset-x-0 -bottom-2 h-0.5 bg-primary/20 animate-pulse" />
                </div>
                <div className="text-center space-y-3">
-                  <h3 className="text-xs font-black uppercase tracking-[0.4em] text-foreground">Initializing Protocol</h3>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground italic opacity-50">Synchronizing Clinical Stream</p>
+                  <h3 className="text-sm font-semibold tracking-tight text-foreground">Initializing protocol</h3>
+                  <p className="text-[10px] font-medium text-muted-foreground tracking-wide opacity-50">Synchronizing clinical stream</p>
                </div>
             </div>
           ) : (
@@ -93,38 +93,38 @@ export function RecordingModal({ isOpen, onClose, onRecordingComplete }: Recordi
                </div>
 
                <div className="text-center space-y-4 w-full">
-                  <div className="flex items-center justify-center gap-4 text-4xl font-mono font-black tracking-tighter text-foreground">
+                  <div className="flex items-center justify-center gap-4 text-4xl font-mono font-semibold tracking-tighter text-foreground">
                      <div className={cn("size-2 bg-primary", step === "RECORDING" ? "animate-pulse" : "opacity-0")} />
                      {formatTime(duration)}
                   </div>
-                  <div className="flex justify-center">
-                    <span className="text-[10px] font-black uppercase tracking-[0.5em] text-muted-foreground opacity-40">Capturing Live consultation</span>
+                  <div className="flex justify-center text-[10px] font-medium text-muted-foreground opacity-40 tracking-widest leading-loose">
+                    Capturing live consultation
                   </div>
                </div>
 
-               <div className="flex items-center gap-4 w-full">
+               <div className="flex items-center gap-4 w-full px-4">
                   {step === "RECORDING" ? (
                     <Button 
                       onClick={() => setStep("PAUSED")} 
                       variant="outline" 
-                      className="flex-1 rounded-none h-14 font-black uppercase tracking-widest text-[10px] gap-3 border-border shadow-none"
+                      className="flex-1 rounded-none h-14 font-semibold text-xs gap-3 border-border shadow-none"
                     >
                       <Pause className="size-4" />
-                      Pause Protocol
+                      Pause protocol
                     </Button>
                   ) : (
                     <Button 
                       onClick={() => setStep("RECORDING")} 
-                      className="flex-1 rounded-none h-14 font-black uppercase tracking-widest text-[10px] gap-3 shadow-none"
+                      className="flex-1 rounded-none h-14 font-semibold text-xs gap-3 shadow-none"
                     >
                       <Mic className="size-4" />
-                      Resume Stream
+                      Resume stream
                     </Button>
                   )}
                   <Button 
                     onClick={handleStop} 
                     variant="destructive" 
-                    className="flex-1 rounded-none h-14 font-black uppercase tracking-widest text-[10px] gap-3 shadow-none"
+                    className="flex-1 rounded-none h-14 font-semibold text-xs gap-3 shadow-none"
                   >
                     <Square className="size-4 fill-current" />
                     Terminate
