@@ -1,11 +1,9 @@
 package com.scribehealth.repository;
 
-import com.scribehealth.model.ConsultationSession;
-import com.scribehealth.model.SessionStatus;
+import com.scribehealth.model.ClinicalSession;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
 
-public interface SessionRepository extends MongoRepository<ConsultationSession, String> {
-    List<ConsultationSession> findByPatientId(String patientId);
-    List<ConsultationSession> findByStatus(SessionStatus status);
+public interface SessionRepository extends MongoRepository<ClinicalSession, String> {
+    List<ClinicalSession> findByPatientId(String patientId);
 }

@@ -5,7 +5,7 @@ export default async function IndexPage() {
   const session = await auth()
 
   if (session) {
-    redirect("/dashboard")
+    redirect("/patients")
   } else {
     redirect("/login")
   }
