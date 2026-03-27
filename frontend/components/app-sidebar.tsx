@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { UsersIcon, CommandIcon } from "lucide-react"
-import { usePathname } from "next/navigation"
+import {
+  CommandIcon,
+  UsersIcon,
+} from "lucide-react"
 import Link from "next/link"
 
 import { NavMain } from "@/components/nav-main"
@@ -15,61 +17,56 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
 } from "@/components/ui/sidebar"
 
+// This is sample data.
 const data = {
   user: {
-    name: "Dr. Practitioner",
-    email: "clinic@scribehealth.ai",
-    avatar: "/avatars/doctor.jpg",
+    name: "Dr. Keshav Dubey",
+    email: "keshav@scribehealth.ai",
+    avatar: "/avatars/doctor.png",
   },
   navMain: [
     {
       title: "Patient Directory",
       url: "/patients",
-      icon: <UsersIcon />,
+      icon: <UsersIcon className="size-4" />,
       isActive: true,
-    },
+    }
   ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const pathname = usePathname()
-
-  // Update activation state based on pathname
-  const navItems = data.navMain.map(item => ({
-    ...item,
-    isActive: pathname === item.url || pathname.startsWith(item.url + "/")
-  }))
-
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
-      <SidebarHeader>
+    <Sidebar
+      className="border-r border-sidebar-border"
+      {...props}
+    >
+      <SidebarHeader className="bg-sidebar h-(--header-height) flex items-center justify-center border-b border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:p-1.5!"
-            >
+            <SidebarMenuButton size="lg" asChild className="hover:bg-transparent active:bg-transparent px-2 flex items-center justify-center">
               <Link href="/patients">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-none bg-primary text-primary-foreground">
-                  <CommandIcon className="size-5!" />
+                <div className="flex aspect-square size-8 items-center justify-center rounded-none bg-foreground text-background shrink-0">
+                  <CommandIcon className="size-5" />
                 </div>
-                <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="text-sm font-black uppercase tracking-widest">Scribe<span className="text-primary italic">Health</span></span>
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase">Clinical Intelligence</span>
+                <div className="flex flex-col gap-0.5 leading-none ml-3 group-data-[collapsible=icon]:hidden overflow-hidden">
+                  <span className="text-sm font-bold tracking-tight text-foreground truncate">ScribeHealth</span>
+                  <span className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-widest truncate">Clinical Workspace</span>
                 </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={navItems} />
+      <SidebarContent className="bg-sidebar py-4">
+        <NavMain items={data.navMain} />
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="bg-sidebar border-t border-sidebar-border p-4">
         <NavUser user={data.user} />
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   )
 }
