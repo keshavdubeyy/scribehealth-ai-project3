@@ -1,0 +1,27 @@
+ 
+ -------------- celery@Keshavs-MacBook-Air.local v5.6.2 (recovery)
+--- ***** ----- 
+-- ******* ---- macOS-26.4-arm64-arm-64bit-Mach-O 2026-03-18 21:11:31
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         worker:0x10781a7b0
+- ** ---------- .> transport:   redis://localhost:6379/0
+- ** ---------- .> results:     redis://localhost:6379/0
+- *** --- * --- .> concurrency: 10 (prefork)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> celery           exchange=celery(direct) key=celery
+                
+
+[tasks]
+  . app.workers.tasks.start_pipeline
+
+[2026-03-18 21:11:32,026: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2026-03-18 21:11:32,029: INFO/MainProcess] mingle: searching for neighbors
+[2026-03-18 21:11:33,037: INFO/MainProcess] mingle: all alone
+[2026-03-18 21:11:33,067: INFO/MainProcess] celery@Keshavs-MacBook-Air.local ready.
+[2026-03-18 21:11:36,593: INFO/MainProcess] Task app.workers.tasks.start_pipeline[e2a47896-4300-4b4c-9b1c-48bd596d9e92] received
+
+worker: Warm shutdown (MainProcess)
+[2026-03-18 21:11:42,607: INFO/ForkPoolWorker-8] Task app.workers.tasks.start_pipeline[e2a47896-4300-4b4c-9b1c-48bd596d9e92] succeeded in 6.012436790973879s: {'success': True, 'data': {'transcript': 'Patient has fever and cough', 'entities': ['fever', 'cough'], 'note': 'Patient reports fever and cough. Likely viral infection.', 'errors': []}}
