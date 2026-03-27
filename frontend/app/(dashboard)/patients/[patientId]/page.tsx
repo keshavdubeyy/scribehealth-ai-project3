@@ -3,8 +3,17 @@
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useScribeStore } from "@/lib/mock-store"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Calendar, Clock, ChevronRight, User, Trash2, Loader2 } from "lucide-react"
+import { 
+  ArrowLeft, 
+  Plus, 
+  ChevronRight, 
+  User, 
+  Trash2, 
+  Loader2,
+  Search
+} from "lucide-react"
 import { format } from "date-fns"
 import { RecordingModal } from "@/components/features/scribe/recording-modal"
 import {
@@ -12,11 +21,20 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 
 export default function PatientDetailPage() {
@@ -27,8 +45,8 @@ export default function PatientDetailPage() {
   const [mounted, setMounted] = React.useState(false)
   const [isRecordingModalOpen, setIsRecordingModalOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState("")
 
-  // Confirmation Modal State
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
   const [confirmConfig, setConfirmConfig] = React.useState({
     type: "session" as "session" | "patient",
@@ -43,53 +61,28 @@ export default function PatientDetailPage() {
   const patient = React.useMemo(() => mounted ? getPatient(patientId as string) : null, [patientId, getPatient, mounted])
   const sessions = React.useMemo(() => mounted ? getSessions(patientId as string) : [], [patientId, getSessions, mounted])
 
-  if (!mounted) return null
-
-  if (!patient) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-8">
-        <div className="flex flex-col items-center text-center gap-4 animate-in fade-in duration-700">
-           <div className="p-4 bg-destructive/5 border border-destructive/10 text-destructive font-black uppercase tracking-[0.3em] text-[10px]">
-             Protocol Identification Failed
-           </div>
-           <h2 className="text-2xl font-black uppercase tracking-tighter">Entity Not Detected</h2>
-           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest max-w-[200px]">The requested clinical record does not exist in the active index.</p>
-        </div>
-        <Button variant="outline" onClick={() => router.push("/patients")} className="font-black uppercase tracking-widest text-[10px] h-11 px-8">
-          Return to Directory
-        </Button>
-      </div>
+  const filteredSessions = React.useMemo(() => {
+    return sessions.filter(s => 
+      s.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.status.toLowerCase().includes(searchQuery.toLowerCase())
     )
-  }
+  }, [sessions, searchQuery])
 
-  async function handleStartSession() {
-    setIsRecordingModalOpen(true)
-  }
-
-  const openDeletePatientModal = () => {
-    setConfirmConfig({ type: "patient", id: patientId as string })
-    setIsConfirmOpen(true)
-  }
-
-  const openDeleteSessionModal = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setConfirmConfig({ type: "session", id })
-    setIsConfirmOpen(true)
-  }
+  if (!mounted || !patient) return null
 
   const handleConfirmAction = async () => {
     setIsDeleting(true)
     try {
       if (confirmConfig.type === "patient") {
         await (useScribeStore.getState() as any).deletePatient(confirmConfig.id)
-        toast.success("Patient record purged from clinical system.")
         router.push("/patients")
+        toast.success("Patient record purged.")
       } else {
         await deleteSession(confirmConfig.id)
-        toast.success("Session purged from historical index.")
+        toast.success("Consultation record purged.")
       }
     } catch (err) {
-      toast.error("Operation failed. Try again.")
+      toast.error("Operation failure.")
     } finally {
       setIsDeleting(false)
       setIsConfirmOpen(false)
@@ -98,152 +91,119 @@ export default function PatientDetailPage() {
 
   async function onRecordingComplete(audioData: string) {
     if (!patient) return
-    try {
-      const sessionId = await addSession(patient.id)
-      setIsRecordingModalOpen(false)
-      toast.success("Consultation record provisioned in local index.")
-      router.push(`/patients/${patient.id}/sessions/${sessionId}?audio=${audioData}`)
-    } catch (err) {
-      toast.error("Local session initialization failed.")
-    }
+    const id = await addSession(patient.id)
+    setIsRecordingModalOpen(false)
+    router.push(`/patients/${patient.id}/sessions/${id}?audio=${audioData}`)
   }
 
   return (
-    <div className="space-y-12 max-w-5xl mx-auto">
-      <RecordingModal 
-        isOpen={isRecordingModalOpen} 
-        onClose={() => setIsRecordingModalOpen(false)}
-        onRecordingComplete={onRecordingComplete}
-      />
+    <div className="flex flex-col gap-16 max-w-[1440px] animate-in fade-in duration-500">
+      <RecordingModal isOpen={isRecordingModalOpen} onClose={() => setIsRecordingModalOpen(false)} onRecordingComplete={onRecordingComplete} />
 
       <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-heading uppercase tracking-widest text-lg font-black">
-              {confirmConfig.type === "patient" ? "Purge Patient Record" : "Purge Session Record"}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs uppercase tracking-[0.15em] font-medium leading-relaxed">
-              {confirmConfig.type === "patient" 
-                ? "Are you sure you want to delete this patient and all associated clinical sessions? This action is permanent."
-                : "Are you sure you want to delete this specific consultation record? This cannot be undone."
-              }
-            </AlertDialogDescription>
+        <AlertDialogContent className="rounded-md border-border p-8">
+          <AlertDialogHeader className="space-y-2">
+             <AlertDialogTitle className="text-xl font-semibold tracking-tight">System Confirmation</AlertDialogTitle>
+             <p className="text-sm text-muted-foreground/60 font-medium">Are you certain you wish to purge this record? This operation is irreversible.</p>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="font-bold uppercase tracking-widest text-[10px]">Cancel Protocol</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={(e) => {
-                e.preventDefault()
-                handleConfirmAction()
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive font-black uppercase tracking-widest text-[10px]"
-            >
-               {isDeleting ? <Loader2 className="size-4 animate-spin" /> : "Confirm Purge"}
-            </AlertDialogAction>
+          <AlertDialogFooter className="pt-4">
+            <AlertDialogCancel className="h-11 px-6 text-xs font-bold uppercase tracking-widest border-border hover:bg-muted/5 transition-all">Abort</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAction} className="h-11 px-6 bg-destructive text-destructive-foreground font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all">{isDeleting ? <Loader2 className="animate-spin" /> : "Confirm Purge"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Header / Navigation */}
-      <div className="flex flex-col gap-10">
-        <button 
-          onClick={() => router.push("/patients")}
-          className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground hover:text-primary transition-all w-fit group"
-        >
-          <ArrowLeft className="size-3 group-hover:-translate-x-1 transition-transform" />
-          Directory Index
-        </button>
-
-        <div className="flex items-end justify-between border-b border-border pb-10">
-          <div className="flex items-center gap-6">
-            <div className="size-16 bg-muted/20 border border-border flex items-center justify-center text-foreground ring-8 ring-muted/5">
-                <User className="size-8" />
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-4xl font-black tracking-tighter text-foreground uppercase leading-none">
-                {patient?.name || "Loading..."}
-              </h1>
-              <div className="flex items-center gap-4">
-                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground border border-border px-3 py-1 bg-muted/10">
-                    {patient?.gender || "--"}
-                 </span>
-                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground border border-border px-3 py-1 bg-muted/10">
-                    {patient?.age || "--"} Y/O Profile
-                 </span>
-              </div>
+      {/* 1. Dashboard Command Bar */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-10">
+        <div className="space-y-4">
+          <button onClick={() => router.push("/patients")} className="flex items-center gap-2 group text-xs font-bold text-muted-foreground/40 hover:text-foreground transition-all">
+            <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" />
+            Registry Index
+          </button>
+          <div className="space-y-1.5">
+            <h1 className="text-[32px] font-semibold tracking-tight text-foreground leading-tight">{patient.name}</h1>
+            <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground/60">
+              <span className="flex items-center gap-1.5 font-semibold leading-none"><User className="size-3.5" /> {patient.gender}</span>
+              <span className="size-1 rounded-full bg-muted-foreground/10" />
+              <span className="leading-none">{patient.age} Y/O Identity</span>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Button onClick={openDeletePatientModal} variant="ghost" className="font-black uppercase tracking-widest text-[10px] h-12 px-6 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors">
-               <Trash2 className="size-4 mr-3" />
-               Purge Record
-            </Button>
-            <Button onClick={handleStartSession} className="font-black uppercase tracking-[0.2em] text-[11px] h-12 px-10 shadow-none border-0">
-              <Plus className="size-4 mr-3" />
-              Start Consultation
-            </Button>
-          </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => { setConfirmConfig({ type: "patient", id: patientId as string }); setIsConfirmOpen(true) }} className="h-11 px-6 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/5 border-border font-bold text-xs uppercase tracking-widest transition-all">
+             Purge Index
+          </Button>
+          <Button onClick={() => setIsRecordingModalOpen(true)} className="h-11 px-10 bg-foreground text-background hover:bg-foreground/90 font-bold text-xs shadow-sm transition-all">
+            <Plus className="size-4 mr-2.5" />
+            Initialize Consultation
+          </Button>
         </div>
       </div>
 
-      {/* Sessions Section */}
-      <div className="space-y-8 animate-in fade-in duration-1000">
-        <div className="flex items-center justify-between">
-           <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground/60">Historical Clinical Index</h2>
-           <span className="text-[9px] font-bold text-primary italic uppercase tracking-widest">{sessions.length} Records Detected</span>
+      {/* 2. Clinical Index Section */}
+      <div className="flex flex-col gap-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-1">
+            <p className="text-sm font-semibold tracking-tight text-muted-foreground/40 uppercase">Consolidated Clinical History</p>
+            <div className="relative w-full lg:w-80 group">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/40 group-focus-within:text-foreground transition-colors" />
+                <Input placeholder="Filter by protocol identifier..." className="pl-10 h-11 border-border bg-background focus-visible:ring-1 focus-visible:ring-foreground/10 focus-visible:border-foreground/20 shadow-none text-sm font-medium" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            </div>
         </div>
 
-        {sessions.length === 0 ? (
-          <div className="h-[300px] border border-dashed border-border flex flex-col items-center justify-center bg-muted/5 gap-8">
-            <div className="relative">
-               <Clock className="size-12 text-muted-foreground/10" />
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-xs font-black text-foreground uppercase tracking-[0.3em] leading-none">Index Empty</p>
-              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-none opacity-50">Initiate a session to begin clinical tracking.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-px bg-border border border-border overflow-hidden">
-            {sessions.map((session, index) => (
-              <div 
-                key={session.id} 
-                onClick={() => router.push(`/patients/${patient.id}/sessions/${session.id}`)}
-                className="group flex items-center justify-between p-8 bg-background hover:bg-muted/50 transition-all cursor-pointer relative"
-              >
-                <div className="flex items-center gap-6">
-                   <div className="size-12 bg-muted/30 flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
-                      <Calendar className="size-5" />
-                   </div>
-                   <div className="space-y-1.5">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-sm font-black text-foreground uppercase tracking-widest group-hover:text-primary transition-colors">Consultation {sessions.length - index}</h3>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-primary/50 group-hover:text-primary transition-colors">ID: {session.id.slice(-6)}</span>
+        <Table>
+          <TableCaption className="mt-12 text-[11px] font-medium text-muted-foreground/20 uppercase tracking-[0.2em]">End of consultation history</TableCaption>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent border-b border-border/40 overflow-hidden">
+              <TableHead className="w-[300px]">Consultation</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="text-center">Protocol ID</TableHead>
+              <TableHead className="text-center">Date</TableHead>
+              <TableHead className="text-center">Time</TableHead>
+              <TableHead className="text-right"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredSessions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-64 text-center text-xs font-semibold text-muted-foreground/20 italic">
+                  No historical entries detected.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredSessions.map((session) => {
+                const sessionIndex = sessions.length - sessions.findIndex(s => s.id === session.id)
+                const isProcessing = session.status === "PROCESSING" || !session.transcription
+                return (
+                  <TableRow key={session.id} className="group hover:bg-muted/5 cursor-pointer transition-colors" onClick={() => router.push(`/patients/${patient.id}/sessions/${session.id}`)}>
+                    <TableCell className="font-medium h-16">
+                      <div className="flex items-center gap-4">
+                        <div className="size-8 bg-foreground flex items-center justify-center text-background font-mono text-[10px] rounded-md shadow-sm">C{sessionIndex}</div>
+                        Consultation {sessionIndex}
                       </div>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] leading-none opacity-60">
-                        {format(new Date(session.createdAt), "MMMM dd, yyyy · HH:mm")}
-                      </p>
-                   </div>
-                </div>
-                <div className="flex items-center gap-8">
-                   <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-600 bg-emerald-500/5 px-3 py-1.5 border border-emerald-500/20">
-                      {session.status}
-                   </span>
-                   <div className="flex items-center gap-2">
-                     <button 
-                       onClick={(e) => openDeleteSessionModal(session.id, e)}
-                       className="p-3 bg-muted/0 hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-all group/del"
-                     >
-                       <Trash2 className="size-4" />
-                     </button>
-                     <ChevronRight className="size-5 text-muted-foreground/20 group-hover:text-primary transition-all group-hover:translate-x-1" />
-                   </div>
-                </div>
-                <div className="absolute left-0 top-0 w-1 h-0 bg-primary group-hover:h-full transition-all duration-300" />
-              </div>
-            ))}
-          </div>
-        )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                       <span className={cn("text-[10px] font-bold px-3 py-1 border rounded-sm transition-all shadow-sm", session.status === "COMPLETED" ? "bg-emerald-500/5 text-emerald-600 border-emerald-500/10" : isProcessing ? "bg-amber-500/5 text-amber-600 border-amber-500/10 animate-pulse" : "bg-destructive/5 text-destructive border-destructive/10")}>
+                          {session.status === "COMPLETED" ? "Completed" : isProcessing ? "Processing" : "Failed"}
+                       </span>
+                    </TableCell>
+                    <TableCell className="text-center font-mono text-[11px] text-muted-foreground/40">{session.id.toUpperCase().slice(0, 8)}</TableCell>
+                    <TableCell className="text-center text-sm font-medium">{format(new Date(session.createdAt), "MMM dd, yy")}</TableCell>
+                    <TableCell className="text-center text-muted-foreground/40 text-sm font-medium">{format(new Date(session.createdAt), "HH:mm")}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-3 transition-all">
+                         <Button variant="ghost" size="icon" className="text-muted-foreground/40 hover:text-destructive h-9 w-9 opacity-0 group-hover:opacity-100 transition-all" onClick={(e) => { e.stopPropagation(); setConfirmConfig({ type: "session", id: session.id }); setIsConfirmOpen(true) }}>
+                           <Trash2 className="size-4" />
+                         </Button>
+                         <ChevronRight className="size-4 text-muted-foreground/20 group-hover:text-primary transition-all" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )
