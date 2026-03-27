@@ -36,7 +36,7 @@ export function NavMain({
                   <div className="flex size-5 items-center justify-center">
                     {item.icon}
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">{item.title}</span>
+                  <span className="text-sm font-semibold tracking-tight">{item.title}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
