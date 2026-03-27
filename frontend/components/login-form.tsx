@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2 } from "lucide-react"
+import { Loader2, ArrowRight } from "lucide-react"
 
 export function LoginForm({
   className,
@@ -44,7 +44,7 @@ export function LoginForm({
       if (result?.error) {
         setError("Invalid email or security pin.")
       } else {
-        router.push("/dashboard")
+        router.push("/patients") // Redirect to patients directory
         router.refresh()
       }
     } catch (err) {
@@ -55,68 +55,71 @@ export function LoginForm({
   }
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="rounded-xl border-slate-200 shadow-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-xl font-bold tracking-tight uppercase">Authorize <span className="text-primary italic">Protocol</span></CardTitle>
-          <CardDescription>
-            Enter your clinical credentials to access the scribe core.
+    <div className={cn("flex flex-col gap-8", className)} {...props}>
+      <Card className="rounded-none border-border bg-background shadow-none animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <CardHeader className="text-center pb-10">
+          <CardTitle className="text-2xl font-black tracking-tighter uppercase leading-none">Authorize <span className="text-primary italic">Protocol</span></CardTitle>
+          <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-2 opacity-50">
+            Provision clinical credentials for index access
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit} className="space-y-6">
-            <div className="grid gap-4">
+          <form onSubmit={onSubmit} className="space-y-10">
+            <div className="grid gap-6">
               {error && (
-                <Alert variant="destructive" className="py-2">
-                  <AlertDescription className="text-xs font-semibold uppercase">{error}</AlertDescription>
+                <Alert variant="destructive" className="rounded-none border-destructive/20 bg-destructive/5 py-4">
+                  <AlertDescription className="text-[9px] font-black uppercase tracking-[0.2em]">{error}</AlertDescription>
                 </Alert>
               )}
               
-              <div className="grid gap-2">
-                <Label htmlFor="email" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Clinical Email</Label>
+              <div className="grid gap-3">
+                <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Clinical Email</Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="name@scribehealth.ai"
+                  placeholder="NAME@SCRIBEHEALTH.AI"
                   required
                   disabled={loading}
-                  className="rounded-lg bg-slate-50 border-slate-200 focus-visible:ring-primary"
+                  className="rounded-none bg-muted/5 border-border focus-visible:ring-0 focus-visible:border-primary h-12 text-xs font-bold uppercase tracking-widest px-4 shadow-none"
                 />
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-3">
                 <div className="flex items-center">
-                  <Label htmlFor="password" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Security Pin</Label>
+                  <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Security Pin</Label>
                 </div>
                 <Input 
                   id="password" 
                   name="password" 
                   type="password" 
+                  placeholder="****"
                   required 
                   disabled={loading}
-                  className="rounded-lg bg-slate-50 border-slate-200 focus-visible:ring-primary"
+                  className="rounded-none bg-muted/5 border-border focus-visible:ring-0 focus-visible:border-primary h-12 text-xs font-bold uppercase tracking-widest px-4 shadow-none"
                 />
               </div>
               
-              <Button type="submit" className="w-full rounded-lg font-bold uppercase tracking-tight" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              <Button type="submit" className="w-full rounded-none h-14 font-black uppercase tracking-[0.3em] text-[11px] mt-2 shadow-none group" disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowRight className="size-4 mr-2 group-hover:translate-x-1 transition-transform" />}
                 Authorize Session
               </Button>
             </div>
             
-            <div className="text-center text-sm">
-              Don&apos;t have an account?{" "}
-              <a href="/register" className="underline underline-offset-4 font-semibold text-primary">
-                Enroll Session
+            <div className="text-center border-t border-border pt-8">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">New Practitioner?</span>{" "}
+              <a href="#" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline underline-offset-4 ml-1">
+                Enroll Protocol
               </a>
             </div>
           </form>
         </CardContent>
       </Card>
-      <p className="px-8 text-center text-xs text-muted-foreground leading-relaxed">
-        By continuing, you verify protocol adherence to our <a href="#" className="underline font-medium">Terms</a> and <a href="#" className="underline font-medium">Data Privacy</a>.
-      </p>
+      <div className="px-10 space-y-4">
+        <p className="text-center text-[9px] text-muted-foreground font-bold uppercase tracking-widest leading-relaxed opacity-30">
+          PROVISIONING OF CLINICAL CREDENTIALS VERIFIES COMPLIANCE WITH THE SCRIBEHEALTH <a href="#" className="underline hover:text-foreground">DATA PROTOCOL</a>.
+        </p>
+      </div>
     </div>
   )
 }

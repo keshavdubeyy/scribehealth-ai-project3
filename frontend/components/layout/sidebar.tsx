@@ -1,10 +1,21 @@
 "use client"
 
-import { Users, LogOut, LayoutDashboard } from "lucide-react"
+import { Users, LogOut } from "lucide-react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { cn } from "@/lib/utils"
 import { signOut } from "next-auth/react"
+import {
+  Sidebar as ShadcnSidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+} from "@/components/ui/sidebar"
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -19,43 +30,62 @@ export function Sidebar() {
   ]
 
   return (
-    <aside className="w-64 h-full bg-white border-r border-slate-200 flex flex-col transition-all duration-300">
-      <div className="p-6">
-        <div className="flex items-center gap-2 font-bold tracking-tighter text-slate-900 overflow-hidden">
-          <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground min-w-7">
+    <ShadcnSidebar>
+      <SidebarHeader className="p-4 border-b border-sidebar-border bg-sidebar/50">
+        <div className="flex items-center gap-3">
+          <div className="flex size-8 items-center justify-center rounded-none bg-primary text-primary-foreground font-black">
             S
           </div>
-          <span className="text-sm uppercase tracking-widest truncate">Scribe<span className="font-light italic">Health</span></span>
+          <div className="flex flex-col">
+            <span className="text-sm font-black uppercase tracking-widest leading-none">
+              Scribe<span className="text-primary italic">Health</span>
+            </span>
+            <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-tight mt-1">
+              Clinical Intelligence
+            </span>
+          </div>
         </div>
-      </div>
+      </SidebarHeader>
 
-      <nav className="flex-1 px-4 py-4 space-y-1">
-        {routes.map((route) => (
-          <Link
-            key={route.href}
-            href={route.href}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200",
-              route.active 
-                ? "bg-slate-100 text-primary shadow-sm" 
-                : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-            )}
-          >
-            <route.icon className={cn("size-4", route.active ? "text-primary" : "text-slate-400")} />
-            {route.label}
-          </Link>
-        ))}
-      </nav>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-4 py-6 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50">
+            Administrative Protocol
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="px-2 space-y-1">
+              {routes.map((route) => (
+                <SidebarMenuItem key={route.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={route.active}
+                    className="h-10 px-4 font-bold uppercase tracking-widest text-[11px]"
+                  >
+                    <Link href={route.href}>
+                      <route.icon className="size-4 mr-2" />
+                      {route.label}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-      <div className="p-4 border-t border-slate-100">
-        <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex items-center gap-3 w-full px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-destructive hover:bg-destructive/5 rounded-xl transition-all duration-200"
-        >
-          <LogOut className="size-4" />
-          Logout
-        </button>
-      </div>
-    </aside>
+      <SidebarFooter className="p-4 border-t border-sidebar-border bg-sidebar/50">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="h-10 px-4 font-bold uppercase tracking-widest text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+            >
+              <LogOut className="size-4 mr-2" />
+              Terminate Session
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </ShadcnSidebar>
   )
 }
