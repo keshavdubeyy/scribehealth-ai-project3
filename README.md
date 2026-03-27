@@ -225,6 +225,37 @@ their modules end-to-end: design, implementation, testing, and documentation.
 > note generation pipeline**. Member 2 coordinates integration across all modules for the 
 > consultation workflow.
 
+
 ---
 
+## 🚀 Quick Start: Running the Server
+
+To get the ScribeHealth AI system running locally, follow these steps:
+
+### 1. Database Initialization
+Ensure you have **MongoDB** running locally on its default port:
+- **Connection String:** `mongodb://localhost:27017/scribehealth`
+- The system will automatically create the necessary collections upon first run.
+
+### 2. Backend Execution (Spring Boot)
+The backend is configured to run on **Port 8081** to avoid local system conflicts.
+```bash
+cd backend/java
+./mvnw spring-boot:run
+```
+*   **API Base:** `http://localhost:8081/api`
+*   **Auth Endpoints:** `/api/auth/login`, `/api/auth/register`
+
+### 3. Frontend Execution (Next.js)
+The frontend uses Turbopack for high-speed development.
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*   **Web Interface:** [http://localhost:3000](http://localhost:3000)
+*   **Environment:** Ensure `.env.local` contains `NEXT_PUBLIC_API_BASE=http://localhost:8081/api`.
+
+### 4. Admin Credentials
+Once the server is running, you can use the **Enroll Session** flow to create a Doctor or Admin account and access the restored Analytical Dashboard.
 
