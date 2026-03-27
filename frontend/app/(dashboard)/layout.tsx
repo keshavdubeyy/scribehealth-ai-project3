@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import { Sidebar } from "@/components/layout/sidebar"
+import { AppSidebar } from "@/components/app-sidebar"
+import { SiteHeader } from "@/components/site-header"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 export default async function DashboardLayout({
   children,
@@ -14,13 +16,27 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
-      <Sidebar />
-      <main className="flex-1 flex flex-col overflow-auto scrollbar-hide bg-slate-50 relative">
-        <div className="p-8 pb-32">
-            {children}
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
+    >
+      <AppSidebar variant="inset" />
+      <SidebarInset>
+        <SiteHeader />
+        <div className="flex flex-1 flex-col">
+          <div className="@container/main flex flex-1 flex-col gap-2">
+            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-8 px-6 lg:px-8">
+              <main className="flex-1">
+                {children}
+              </main>
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

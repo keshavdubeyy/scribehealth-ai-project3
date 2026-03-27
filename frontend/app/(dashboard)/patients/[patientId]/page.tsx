@@ -4,10 +4,19 @@ import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useScribeStore } from "@/lib/mock-store"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Calendar, Clock, ChevronRight, User, Trash2 } from "lucide-react"
+import { ArrowLeft, Plus, Calendar, Clock, ChevronRight, User, Trash2, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { RecordingModal } from "@/components/features/scribe/recording-modal"
-import { ConfirmationModal } from "@/components/ui/confirmation-modal"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 
 export default function PatientDetailPage() {
@@ -19,7 +28,7 @@ export default function PatientDetailPage() {
   const [isRecordingModalOpen, setIsRecordingModalOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
 
-  // Confirmation Moodal State
+  // Confirmation Modal State
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
   const [confirmConfig, setConfirmConfig] = React.useState({
     type: "session" as "session" | "patient",
@@ -38,12 +47,15 @@ export default function PatientDetailPage() {
 
   if (!patient) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <div className="p-4 bg-destructive/10 rounded-2xl text-destructive font-bold uppercase tracking-widest text-[10px]">
-          Protocol Identification Failed
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-8">
+        <div className="flex flex-col items-center text-center gap-4 animate-in fade-in duration-700">
+           <div className="p-4 bg-destructive/5 border border-destructive/10 text-destructive font-black uppercase tracking-[0.3em] text-[10px]">
+             Protocol Identification Failed
+           </div>
+           <h2 className="text-2xl font-black uppercase tracking-tighter">Entity Not Detected</h2>
+           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest max-w-[200px]">The requested clinical record does not exist in the active index.</p>
         </div>
-        <h2 className="text-xl font-bold uppercase tracking-tight">Patient Not Found</h2>
-        <Button variant="outline" onClick={() => router.push("/patients")} className="rounded-xl font-bold uppercase tracking-tight">
+        <Button variant="outline" onClick={() => router.push("/patients")} className="font-black uppercase tracking-widest text-[10px] h-11 px-8">
           Return to Directory
         </Button>
       </div>
@@ -97,116 +109,137 @@ export default function PatientDetailPage() {
   }
 
   return (
-    <div className="space-y-10 max-w-5xl mx-auto">
+    <div className="space-y-12 max-w-5xl mx-auto">
       <RecordingModal 
         isOpen={isRecordingModalOpen} 
         onClose={() => setIsRecordingModalOpen(false)}
         onRecordingComplete={onRecordingComplete}
       />
 
-      <ConfirmationModal 
-        isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
-        onConfirm={handleConfirmAction}
-        isLoading={isDeleting}
-        title={confirmConfig.type === "patient" ? "Purge Patient Record" : "Purge Session Record"}
-        description={confirmConfig.type === "patient" 
-          ? "Are you sure you want to delete this patient and all associated clinical sessions? This action is permanent."
-          : "Are you sure you want to delete this specific consultation record? This cannot be undone."
-        }
-        confirmText="Confirm Purge"
-      />
+      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading uppercase tracking-widest text-lg font-black">
+              {confirmConfig.type === "patient" ? "Purge Patient Record" : "Purge Session Record"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs uppercase tracking-[0.15em] font-medium leading-relaxed">
+              {confirmConfig.type === "patient" 
+                ? "Are you sure you want to delete this patient and all associated clinical sessions? This action is permanent."
+                : "Are you sure you want to delete this specific consultation record? This cannot be undone."
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-bold uppercase tracking-widest text-[10px]">Cancel Protocol</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmAction()
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive font-black uppercase tracking-widest text-[10px]"
+            >
+               {isDeleting ? <Loader2 className="size-4 animate-spin" /> : "Confirm Purge"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {/* Header / Breadcrumb */}
-      <div className="flex flex-col gap-6">
+      {/* Header / Navigation */}
+      <div className="flex flex-col gap-10">
         <button 
           onClick={() => router.push("/patients")}
-          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-primary transition-colors w-fit"
+          className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground hover:text-primary transition-all w-fit group"
         >
-          <ArrowLeft className="size-3" />
+          <ArrowLeft className="size-3 group-hover:-translate-x-1 transition-transform" />
           Directory Index
         </button>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="size-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-900 shadow-sm">
-                <User className="size-6" />
+        <div className="flex items-end justify-between border-b border-border pb-10">
+          <div className="flex items-center gap-6">
+            <div className="size-16 bg-muted/20 border border-border flex items-center justify-center text-foreground ring-8 ring-muted/5">
+                <User className="size-8" />
             </div>
-            <div className="space-y-0.5">
-              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 uppercase">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-black tracking-tighter text-foreground uppercase leading-none">
                 {patient?.name || "Loading..."}
               </h1>
-              <div className="flex items-center gap-3">
-                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 border border-slate-200 px-2 py-0.5 rounded-md bg-white">
+              <div className="flex items-center gap-4">
+                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground border border-border px-3 py-1 bg-muted/10">
                     {patient?.gender || "--"}
                  </span>
-                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 border border-slate-200 px-2 py-0.5 rounded-md bg-white">
-                    {patient?.age || "--"} Y/O
+                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground border border-border px-3 py-1 bg-muted/10">
+                    {patient?.age || "--"} Y/O Profile
                  </span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button onClick={openDeletePatientModal} variant="ghost" className="rounded-xl font-bold uppercase tracking-widest text-[10px] h-10 px-4 text-slate-400 hover:text-destructive hover:bg-destructive/5">
-               <Trash2 className="size-3.5 mr-2" />
+          <div className="flex items-center gap-4">
+            <Button onClick={openDeletePatientModal} variant="ghost" className="font-black uppercase tracking-widest text-[10px] h-12 px-6 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors">
+               <Trash2 className="size-4 mr-3" />
                Purge Record
             </Button>
-            <Button onClick={handleStartSession} className="rounded-xl font-bold uppercase tracking-tight gap-2 shadow-sm h-10 px-6">
-              <Plus className="size-4" />
-              Start Session
+            <Button onClick={handleStartSession} className="font-black uppercase tracking-[0.2em] text-[11px] h-12 px-10 shadow-none border-0">
+              <Plus className="size-4 mr-3" />
+              Start Consultation
             </Button>
           </div>
         </div>
       </div>
 
       {/* Sessions Section */}
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-           <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Clinical History / Sessions</h2>
-           <div className="flex-1 h-px bg-slate-100" />
+      <div className="space-y-8 animate-in fade-in duration-1000">
+        <div className="flex items-center justify-between">
+           <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground/60">Historical Clinical Index</h2>
+           <span className="text-[9px] font-bold text-primary italic uppercase tracking-widest">{sessions.length} Records Detected</span>
         </div>
 
         {sessions.length === 0 ? (
-          <div className="h-[300px] rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center bg-white/40 gap-4">
-            <div className="p-4 bg-slate-100 rounded-2xl text-slate-400">
-               <Clock className="size-8" />
+          <div className="h-[300px] border border-dashed border-border flex flex-col items-center justify-center bg-muted/5 gap-8">
+            <div className="relative">
+               <Clock className="size-12 text-muted-foreground/10" />
             </div>
-            <div className="text-center space-y-1">
-              <p className="text-sm font-bold text-slate-900 uppercase tracking-widest">No sessions yet</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Start a new consultation to begin medical scribing.</p>
+            <div className="text-center space-y-2">
+              <p className="text-xs font-black text-foreground uppercase tracking-[0.3em] leading-none">Index Empty</p>
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-none opacity-50">Initiate a session to begin clinical tracking.</p>
             </div>
           </div>
         ) : (
-          <div className="grid gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid gap-px bg-border border border-border overflow-hidden">
             {sessions.map((session, index) => (
               <div 
                 key={session.id} 
                 onClick={() => router.push(`/patients/${patient.id}/sessions/${session.id}`)}
-                className="group flex items-center justify-between p-6 rounded-2xl border border-slate-200 bg-white hover:border-primary/20 hover:shadow-md transition-all cursor-pointer"
+                className="group flex items-center justify-between p-8 bg-background hover:bg-muted/50 transition-all cursor-pointer relative"
               >
-                <div className="flex items-center gap-4">
-                   <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-primary/5 group-hover:text-primary transition-colors">
+                <div className="flex items-center gap-6">
+                   <div className="size-12 bg-muted/30 flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
                       <Calendar className="size-5" />
                    </div>
-                   <div className="space-y-0.5">
-                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight group-hover:text-primary transition-colors">Session {sessions.length - index}</h3>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none italic">
+                   <div className="space-y-1.5">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-sm font-black text-foreground uppercase tracking-widest group-hover:text-primary transition-colors">Consultation {sessions.length - index}</h3>
+                        <span className="text-[8px] font-black uppercase tracking-widest text-primary/50 group-hover:text-primary transition-colors">ID: {session.id.slice(-6)}</span>
+                      </div>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.15em] leading-none opacity-60">
                         {format(new Date(session.createdAt), "MMMM dd, yyyy · HH:mm")}
                       </p>
                    </div>
                 </div>
-                <div className="flex items-center gap-4">
-                   <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md">
+                <div className="flex items-center gap-8">
+                   <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-600 bg-emerald-500/5 px-3 py-1.5 border border-emerald-500/20">
                       {session.status}
                    </span>
-                   <button 
-                     onClick={(e) => openDeleteSessionModal(session.id, e)}
-                     className="p-2 rounded-lg hover:bg-destructive/10 text-slate-300 hover:text-destructive transition-colors group/del"
-                   >
-                     <Trash2 className="size-4" />
-                   </button>
-                   <ChevronRight className="size-4 text-slate-300 group-hover:text-primary transition-all group-hover:translate-x-1" />
+                   <div className="flex items-center gap-2">
+                     <button 
+                       onClick={(e) => openDeleteSessionModal(session.id, e)}
+                       className="p-3 bg-muted/0 hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-all group/del"
+                     >
+                       <Trash2 className="size-4" />
+                     </button>
+                     <ChevronRight className="size-5 text-muted-foreground/20 group-hover:text-primary transition-all group-hover:translate-x-1" />
+                   </div>
                 </div>
+                <div className="absolute left-0 top-0 w-1 h-0 bg-primary group-hover:h-full transition-all duration-300" />
               </div>
             ))}
           </div>
