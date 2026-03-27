@@ -1,4 +1,5 @@
 package com.scribehealth.config;
+
 import com.scribehealth.util.JwtUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,22 +31,24 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(
-                new JwtAuthFilter(jwtUtil),
-                UsernamePasswordAuthenticationFilter.class
-            );
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
+                        .requestMatchers("/api/patients/**").hasAnyRole("DOCTOR", "ADMIN")
+                        .requestMatchers("/api/sessions/**").hasAnyRole("DOCTOR", "ADMIN")
+                        .requestMatchers("/api/transcribe/**").hasAnyRole("DOCTOR", "ADMIN")
+                        .requestMatchers("/api/generate-note/**").hasAnyRole("DOCTOR", "ADMIN")
+                        .requestMatchers("/api/prescriptions/**").hasAnyRole("DOCTOR", "ADMIN")
+                        .anyRequest().authenticated())
+                .addFilterBefore(
+                        new JwtAuthFilter(jwtUtil),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -63,8 +66,7 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://localhost:5500",
                 "http://127.0.0.1:5500",
-                "null"
-        ));
+                "null"));
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
