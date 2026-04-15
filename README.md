@@ -259,3 +259,74 @@ npm run dev
 ### 4. Admin Credentials
 Once the server is running, you can use the **Enroll Session** flow to create a Doctor or Admin account and access the restored Analytical Dashboard.
 
+---
+
+## Analysis: Design Pattern Coverage
+
+Looking at the current README, the existing tasks with explicit design pattern anchors are:
+
+| Task | Pattern Assigned |
+|---|---|
+| User Authentication & Role-Based Access | Service Layer |
+| Speech-to-Text Transcription | Factory Method |
+| Clinical Note Generation | Template Method |
+| Template-Based Documentation | Factory Method (shared) |
+| Note Sharing (Email/SMS/WhatsApp) | Strategy |
+| Audit Logging & Admin Dashboard | Facade |
+
+Tasks like **Consultation Recording**, **Review & Approval Workflow**, and **Patient & Consultation Management** have no explicit design pattern mandate — they're pure implementation/integration work.
+
+---
+
+## 3 Suggested New Tasks
+
+### Task A — Consultation Lifecycle Manager *(State Pattern)*
+
+*A consultation isn't a static object. It transitions through well-defined stages — and not every action is valid at every stage.*
+
+Model the consultation workflow as an explicit state machine with legal transitions:
+
+```
+SCHEDULED → IN_PROGRESS → RECORDED → TRANSCRIBED → UNDER_REVIEW → APPROVED / REJECTED
+```
+
+Each state encapsulates what actions are permissible (e.g., you cannot "approve" a note that hasn't been transcribed yet). The **State Pattern** eliminates sprawling `if-else` chains and makes adding new states (e.g., `PENDING_SECOND_OPINION`) trivially safe. In Java, each state is a class implementing a `ConsultationState` interface with methods like `startReview()`, `approve()`, `reject()`.
+
+**Design Pattern:** State Pattern — behavior changes based on the consultation's current stage, with illegal transitions explicitly blocked.
+
+---
+
+### Task B — Event-Driven Notification Hub *(Observer Pattern)*
+
+*The doctor shouldn't have to manually check if a note is ready. The system should tell them.*
+
+Build a notification hub that listens to consultation lifecycle events and broadcasts to relevant subscribers. For example:
+- Note ready for review → Doctor receives in-app alert
+- Note approved → Patient record updated, audit log written, admin dashboard refreshes
+- Transcription failed → Admin is alerted
+
+The **Observer Pattern** decouples the event source (consultation state change) from consumers (email notifier, dashboard updater, audit logger). New subscribers can be added without touching the consultation logic, directly extending the extensibility principle the README already outlines for Note Sharing.
+
+**Design Pattern:** Observer Pattern — consultation acts as the `Subject`; notification channels, dashboard, and logger act as `Observers`.
+
+---
+
+### Task C — Patient Profile Builder *(Builder Pattern)*
+
+*A patient record isn't a single form. It's a complex object assembled from many optional, domain-validated parts.*
+
+Patient profiles in a medical scribe system have deeply nested, optional components — chronic conditions, current medications, allergy history, emergency contacts, insurance details. Constructing these with overloaded constructors or massive setter chains is brittle and error-prone. The **Builder Pattern** enforces step-by-step, validated construction of `PatientProfile` objects, ensuring no partially-initialized records reach the database.
+
+```java
+PatientProfile profile = new PatientProfile.Builder("John Doe")
+    .withChronicConditions(List.of("Hypertension", "T2 Diabetes"))
+    .withAllergies(List.of("Penicillin"))
+    .withEmergencyContact("Jane Doe", "+91-9XXXXXXXXX")
+    .build(); // validates completeness before returning
+```
+
+This is especially important since **Patient & Consultation Management** is the central domain entity — it needs a robust, extensible construction mechanism.
+
+**Design Pattern:** Builder Pattern — complex domain object construction with validation guardrails.
+
+---
