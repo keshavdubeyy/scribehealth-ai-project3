@@ -1,20 +1,17 @@
 "use client"
 
 import { LoginForm } from "@/components/login-form"
-import { CommandIcon } from "lucide-react"
+import { Stethoscope } from "lucide-react"
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-10 bg-background p-10">
-      <div className="flex w-full max-w-sm flex-col gap-8">
-        <div className="flex items-center gap-4 self-center group">
-          <div className="flex size-10 items-center justify-center rounded-none bg-primary text-primary-foreground group-hover:bg-foreground transition-all duration-500">
-            <CommandIcon className="size-6" />
+    <div className="flex min-h-svh flex-col items-center justify-center gap-8 bg-background p-6">
+      <div className="flex w-full max-w-sm flex-col gap-6">
+        <div className="flex items-center gap-2 self-center">
+          <div className="flex size-8 items-center justify-center rounded-full bg-primary">
+            <Stethoscope className="size-4 text-white" />
           </div>
-          <div className="flex flex-col leading-none">
-            <span className="text-xl font-semibold tracking-tight leading-none">Scribe<span>Health</span></span>
-            <span className="text-[10px] font-medium text-muted-foreground mt-1 tracking-widest">Clinical intelligence</span>
-          </div>
+          <span className="text-lg font-semibold text-foreground tracking-tight">acribe health</span>
         </div>
         <LoginForm />
       </div>
