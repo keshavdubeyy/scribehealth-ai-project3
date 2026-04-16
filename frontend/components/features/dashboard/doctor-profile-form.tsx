@@ -42,19 +42,16 @@ export function DoctorProfileForm({ profile, token }: { profile: any, token: str
     setLoading(true)
     setError(null)
     setSuccess(null)
-
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080/api"}/doctor/profile`, {
         method: "PATCH",
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify(values),
       })
-
       if (!res.ok) throw new Error("Failed to update profile.")
-
       setSuccess("Profile updated successfully!")
     } catch (e: any) {
       setError(e.message || "An error occurred.")
@@ -66,9 +63,9 @@ export function DoctorProfileForm({ profile, token }: { profile: any, token: str
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       {/* Update Form */}
-      <Card className="lg:col-span-2 border-none shadow-sm rounded-2xl bg-white overflow-hidden">
-        <CardHeader className="bg-slate-50 border-b border-slate-100">
-          <CardTitle className="text-sm font-semibold text-slate-900 tracking-tight uppercase">
+      <Card className="lg:col-span-2 border border-border shadow-sm rounded-2xl overflow-hidden">
+        <CardHeader className="bg-muted/50 border-b border-border">
+          <CardTitle className="text-sm font-semibold text-foreground tracking-tight uppercase">
             Clinical Information
           </CardTitle>
         </CardHeader>
@@ -80,16 +77,14 @@ export function DoctorProfileForm({ profile, token }: { profile: any, token: str
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-
               {success && (
-                <Alert className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                <Alert className="bg-emerald-500/10 text-emerald-700 border-emerald-500/20">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 size={16} />
                     <AlertDescription>{success}</AlertDescription>
                   </div>
                 </Alert>
               )}
-
               <FormField
                 control={form.control}
                 name="specialization"
@@ -104,7 +99,6 @@ export function DoctorProfileForm({ profile, token }: { profile: any, token: str
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="licenseNumber"
@@ -119,8 +113,7 @@ export function DoctorProfileForm({ profile, token }: { profile: any, token: str
                   </FormItem>
                 )}
               />
-
-              <div className="pt-4 border-t border-slate-50 flex items-center justify-end">
+              <div className="pt-4 border-t border-border flex items-center justify-end">
                 <Button type="submit" className="h-11 px-6 min-w-[140px]" disabled={loading}>
                   {loading ? (
                     <>
@@ -138,33 +131,33 @@ export function DoctorProfileForm({ profile, token }: { profile: any, token: str
       </Card>
 
       {/* Profile Overview (Read Only) */}
-      <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
-        <CardHeader className="bg-slate-50 border-b border-slate-100">
-            <CardTitle className="text-sm font-semibold text-slate-900 tracking-tight uppercase">
+      <Card className="border border-border shadow-sm rounded-2xl overflow-hidden">
+        <CardHeader className="bg-muted/50 border-b border-border">
+          <CardTitle className="text-sm font-semibold text-foreground tracking-tight uppercase">
             Account Details
-            </CardTitle>
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-8 space-y-6">
-            <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Name</label>
-                <div className="text-slate-900 font-semibold">{profile.name}</div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Full Name</label>
+            <div className="text-foreground font-semibold">{profile.name}</div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Email Address</label>
+            <div className="text-foreground font-semibold">{profile.email}</div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">System Role</label>
+            <Badge variant="secondary" className="font-bold px-2 py-0.5 rounded-md">
+              {profile.role}
+            </Badge>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Account Status</label>
+            <div className={`text-sm font-bold ${profile.active ? 'text-emerald-500' : 'text-destructive'}`}>
+              {profile.active ? 'VERIFIED' : 'UNVERIFIED'}
             </div>
-            <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email Address</label>
-                <div className="text-slate-900 font-semibold">{profile.email}</div>
-            </div>
-            <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">System Role</label>
-                <Badge variant="outline" className="text-indigo-500 border-indigo-500/20 bg-indigo-50 font-bold px-2 py-0.5 rounded-md">
-                   {profile.role}
-                </Badge>
-            </div>
-            <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Account Status</label>
-                <div className={`text-sm font-bold ${profile.active ? 'text-emerald-500' : 'text-rose-500'}`}>
-                   {profile.active ? 'VERIFIED' : 'UNVERIFIED'}
-                </div>
-            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
