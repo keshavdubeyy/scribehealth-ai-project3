@@ -63,4 +63,5 @@ secrets.properties
 descrip.md
 
 
-application.propertiesbackend/db/
+application.properties
+backend/db/

@@ -24,6 +24,18 @@ export interface Session {
   transcription?: string
 }
 
+export interface PrescriptionTemplate {
+  imageUrl: string
+  safeZone: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  fontSize: number
+  lineHeight: number
+}
+
 interface ScribeStore {
   patients: Patient[]
   sessions: Session[]
@@ -39,6 +51,11 @@ interface ScribeStore {
   
   getPatient: (id: string) => Patient | undefined
   getSessions: (patientId: string) => Session[]
+
+  // prescription template
+  prescriptionTemplate: PrescriptionTemplate | null
+  savePrescriptionTemplate: (template: PrescriptionTemplate) => Promise<void>
+  deletePrescriptionTemplate: () => Promise<void>
 }
 
 export const useScribeStore = create<ScribeStore>()(
@@ -94,8 +111,16 @@ export const useScribeStore = create<ScribeStore>()(
         }))
       },
 
-      getPatient: (id) => get().patients.find(p => p.id === id),
-      getSessions: (patientId) => get().sessions.filter(s => s.patientId === patientId),
+      getPatient: (id: string) => get().patients.find(p => p.id === id),
+      getSessions: (patientId: string) => get().sessions.filter(s => s.patientId === patientId),
+
+      prescriptionTemplate: null,
+      savePrescriptionTemplate: async (template: PrescriptionTemplate) => {
+        set({ prescriptionTemplate: template })
+      },
+      deletePrescriptionTemplate: async () => {
+        set({ prescriptionTemplate: null })
+      },
     }),
     { name: "scribe-storage" }
   )
