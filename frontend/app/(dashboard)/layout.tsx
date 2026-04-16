@@ -27,12 +27,12 @@ export default async function DashboardLayout({
         }
       >
         <div className="flex min-h-screen w-full">
-          <AppSidebar variant="sidebar" collapsible="icon" className="border-r border-border" />
+          <AppSidebar collapsible="icon" />
           <SidebarInset className="bg-background">
             <SiteHeader />
             <main className="flex flex-1 flex-col overflow-hidden">
               <div className="flex flex-1 flex-col overflow-y-auto">
-                <div className="flex flex-col gap-6 py-6 px-4 sm:px-8 lg:px-10 w-full animate-in fade-in duration-300">
+                <div className="flex flex-col gap-6 py-8 px-6 sm:px-10 lg:px-12 w-full animate-in fade-in duration-300">
                   {children}
                 </div>
               </div>
