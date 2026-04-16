@@ -27,8 +27,8 @@ export default async function DoctorProfilePage() {
   return (
     <div className="space-y-8 max-w-[1280px]">
       <div>
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Clinical Profile</h2>
-        <p className="text-slate-500">View and update your medical credentials and system information.</p>
+        <h2 className="text-3xl font-bold text-foreground tracking-tight">Clinical Profile</h2>
+        <p className="text-muted-foreground">View and update your medical credentials and system information.</p>
       </div>
       
       <DoctorProfileForm profile={profile} token={token} />

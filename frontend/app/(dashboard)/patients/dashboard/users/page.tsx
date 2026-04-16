@@ -3,7 +3,7 @@ import { AdminUsersTable } from "@/components/features/dashboard/admin-users-tab
 import { redirect } from "next/navigation"
 
 async function getAllUsers(token: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080/api"}/admin/users", {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080/api"}/admin/users`, {
     headers: { Authorization: `Bearer ${token}` },
     next: { tags: ['users'], revalidate: 30 }
   })
@@ -25,8 +25,8 @@ export default async function AdminUsersPage() {
   return (
     <div className="space-y-8 max-w-[1280px]">
       <div>
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Manage System Access</h2>
-        <p className="text-slate-500">View and toggle user account status across the clinic.</p>
+        <h2 className="text-3xl font-bold text-foreground tracking-tight">Manage System Access</h2>
+        <p className="text-muted-foreground">View and toggle user account status across the clinic.</p>
       </div>
       
       <AdminUsersTable initialUsers={users} token={token} />
