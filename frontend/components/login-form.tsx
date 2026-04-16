@@ -3,24 +3,16 @@
 import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, ArrowRight } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
-export function LoginForm({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -31,95 +23,78 @@ export function LoginForm({
     setError(null)
 
     const formData = new FormData(e.currentTarget)
-    const email = formData.get("email") as string
+    const email    = formData.get("email")    as string
     const password = formData.get("password") as string
 
     try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      })
-
+      const result = await signIn("credentials", { email, password, redirect: false })
       if (result?.error) {
-        setError("Invalid email or security pin.")
+        setError("Invalid email or password.")
       } else {
-        router.push("/patients") // Redirect to patients directory
+        router.push("/patients/dashboard")
         router.refresh()
       }
-    } catch (err) {
-      setError("An unexpected authentication error occurred.")
+    } catch {
+      setError("Something went wrong. Please try again.")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className={cn("flex flex-col gap-8", className)} {...props}>
-      <Card className="rounded-none border-border bg-background shadow-none animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <CardHeader className="text-center pb-10">
-          <CardTitle className="text-2xl font-semibold tracking-tighter leading-none">Authorize Protocol</CardTitle>
-          <CardDescription className="text-xs font-medium text-muted-foreground mt-2 opacity-50">
-            Provision clinical credentials for index access
+    <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <Card className="border border-border shadow-sm">
+        <CardHeader className="text-center pb-6">
+          <CardTitle className="text-xl font-semibold">Sign in</CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">
+            Enter your email and password to continue
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit} className="space-y-10">
-            <div className="grid gap-6">
-              {error && (
-                <Alert variant="destructive" className="rounded-none border-destructive/20 bg-destructive/5 py-4">
-                  <AlertDescription className="text-[10px] font-semibold tracking-wide uppercase">{error}</AlertDescription>
-                </Alert>
-              )}
-              
-              <div className="grid gap-3">
-                <Label htmlFor="email" className="text-xs font-semibold text-muted-foreground px-1">Clinical email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="name@scribehealth.ai"
-                  required
-                  disabled={loading}
-                  className="rounded-none bg-muted/5 border-border focus-visible:ring-0 focus-visible:border-primary h-12 text-sm font-medium px-4 shadow-none"
-                />
-              </div>
+          <form onSubmit={onSubmit} className="space-y-5">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-              <div className="grid gap-3">
-                <div className="flex items-center">
-                  <Label htmlFor="password" className="text-xs font-semibold text-muted-foreground px-1">Security pin</Label>
-                </div>
-                <Input 
-                  id="password" 
-                  name="password" 
-                  type="password" 
-                  placeholder="****"
-                  required 
-                  disabled={loading}
-                  className="rounded-none bg-muted/5 border-border focus-visible:ring-0 focus-visible:border-primary h-12 text-sm font-medium px-4 shadow-none"
-                />
-              </div>
-              
-              <Button type="submit" className="w-full rounded-none h-14 font-semibold text-sm mt-2 shadow-none group" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowRight className="size-4 mr-2 group-hover:translate-x-1 transition-transform" />}
-                Authorize session
-              </Button>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                required
+                disabled={loading}
+              />
             </div>
-            
-            <div className="text-center border-t border-border pt-8">
-              <span className="text-xs font-medium text-muted-foreground opacity-50">New practitioner?</span>{" "}
-              <a href="#" className="text-xs font-semibold text-primary hover:underline underline-offset-4 ml-1">
-                Enroll protocol
-              </a>
+
+            <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                disabled={loading}
+              />
             </div>
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sign in
+            </Button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              Don't have an account?{" "}
+              <Link href="/signup" className="font-medium text-primary hover:underline">
+                Sign up
+              </Link>
+            </p>
           </form>
         </CardContent>
       </Card>
-      <div className="px-10 space-y-4">
-        <p className="text-center text-[10px] text-muted-foreground font-medium tracking-wide leading-relaxed opacity-30">
-          Provisioning of clinical credentials verifies compliance with the ScribeHealth Data Protocol.
-        </p>
-      </div>
     </div>
   )
 }
