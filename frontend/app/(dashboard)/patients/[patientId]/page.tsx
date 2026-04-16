@@ -84,7 +84,7 @@ export default function PatientDetailPage() {
   }
 
   return (
-    <div className="flex flex-col gap-10 max-w-3xl">
+    <div className="flex flex-col gap-10 w-full">
       <RecordingModal
         isOpen={isRecordingModalOpen}
         onClose={() => setIsRecordingModalOpen(false)}
@@ -138,15 +138,15 @@ export default function PatientDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <Button
             variant="outline"
             onClick={() => { setConfirmConfig({ type: "patient", id: patientId as string }); setIsConfirmOpen(true) }}
-            className="text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/5"
+            className="text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/5 justify-center"
           >
             Delete patient
           </Button>
-          <Button onClick={() => setIsRecordingModalOpen(true)} className="gap-2">
+          <Button onClick={() => setIsRecordingModalOpen(true)} className="gap-2 justify-center">
             <Plus className="size-4" />
             New session
           </Button>
@@ -155,13 +155,13 @@ export default function PatientDetailPage() {
 
       {/* Sessions */}
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-foreground">Sessions</h2>
-          <div className="relative w-56">
+          <div className="relative w-full sm:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
               placeholder="Search sessions..."
-              className="pl-9 h-9 text-sm"
+              className="pl-9 h-9 text-sm w-full"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -174,10 +174,10 @@ export default function PatientDetailPage() {
               <TableRow className="hover:bg-transparent border-b border-border">
                 <TableHead className="w-[40%]">Session</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead />
+                <TableHead className="hidden sm:table-cell">ID</TableHead>
+                <TableHead className="hidden sm:table-cell">Date</TableHead>
+                <TableHead className="hidden sm:table-cell">Time</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -221,13 +221,13 @@ export default function PatientDetailPage() {
                           {session.status === "COMPLETED" ? "Completed" : isProcessing ? "Processing" : "Failed"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
+                      <TableCell className="font-mono text-xs text-muted-foreground hidden sm:table-cell">
                         {session.id.toUpperCase().slice(0, 8)}
                       </TableCell>
-                      <TableCell className="text-sm text-foreground">
+                      <TableCell className="text-sm text-foreground hidden sm:table-cell">
                         {format(new Date(session.createdAt), "MMM dd, yy")}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">
                         {format(new Date(session.createdAt), "HH:mm")}
                       </TableCell>
                       <TableCell className="text-right pr-4">
@@ -235,7 +235,7 @@ export default function PatientDetailPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
+                            className="size-8 text-muted-foreground hover:text-destructive opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all"
                             onClick={e => { e.stopPropagation(); setConfirmConfig({ type: "session", id: session.id }); setIsConfirmOpen(true) }}
                           >
                             <Trash2 className="size-4" />

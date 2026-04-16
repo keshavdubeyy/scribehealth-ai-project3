@@ -45,15 +45,15 @@ export default function DashboardPage() {
   if (!mounted) return null
 
   return (
-    <div className="flex flex-col gap-8 max-w-3xl">
+    <div className="flex flex-col gap-8 w-full">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Hello, {firstName}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{today}</p>
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Hello, {firstName}</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{today}</p>
         </div>
         <Button
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto justify-center"
           onClick={() => router.push("/patients")}
         >
           <Plus className="size-4" />
@@ -62,12 +62,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="border border-border shadow-none">
-          <CardContent className="flex items-center justify-between p-5">
+          <CardContent className="flex items-center justify-between p-4 sm:p-5">
             <div>
-              <p className="text-sm text-muted-foreground">Total sessions</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{sessions.length}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total sessions</p>
+              <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{sessions.length}</p>
             </div>
             <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <FileText className="size-5 text-primary" />
@@ -75,10 +75,10 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         <Card className="border border-border shadow-none">
-          <CardContent className="flex items-center justify-between p-5">
+          <CardContent className="flex items-center justify-between p-4 sm:p-5">
             <div>
-              <p className="text-sm text-muted-foreground">Patients</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{patients.length}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Patients</p>
+              <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{patients.length}</p>
             </div>
             <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <Users className="size-5 text-primary" />
@@ -113,7 +113,7 @@ export default function DashboardPage() {
               {recentSessions.map((s) => (
                 <div
                   key={s.id}
-                  className="flex items-center justify-between px-5 py-3.5 hover:bg-muted/50 cursor-pointer transition-colors gap-4"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-5 py-3.5 hover:bg-muted/50 cursor-pointer transition-colors gap-3 sm:gap-4"
                   onClick={() => router.push(`/patients/${s.patientId}/sessions/${s.id}`)}
                 >
                   <div className="flex flex-col gap-0.5 min-w-0">
@@ -122,24 +122,24 @@ export default function DashboardPage() {
                       <span className="text-xs text-muted-foreground truncate">{s.chiefComplaint}</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="secondary" className="text-xs font-medium bg-primary/10 text-primary border-0 hover:bg-primary/10">
+                  <div className="flex items-center gap-2 sm:shrink-0 flex-wrap sm:flex-nowrap">
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs font-medium bg-primary/10 text-primary border-0 hover:bg-primary/10">
                       General OPD
                     </Badge>
                     <Badge
                       variant="secondary"
-                      className={
+                      className={`text-[10px] sm:text-xs ${
                         s.status === "COMPLETED"
                           ? "bg-emerald-500/10 text-emerald-700 border-0 hover:bg-emerald-500/10"
                           : s.status === "PROCESSING"
                           ? "bg-amber-500/10 text-amber-700 border-0 hover:bg-amber-500/10"
                           : "bg-muted text-muted-foreground border-0"
-                      }
+                      }`}
                     >
                       {s.status === "COMPLETED" ? "Completed" : s.status === "PROCESSING" ? "Processing" : "In progress"}
                     </Badge>
                     {s.confidence !== null && (
-                      <span className="text-xs text-muted-foreground tabular-nums">{s.confidence}%</span>
+                      <span className="text-[10px] sm:text-xs text-muted-foreground tabular-nums">{s.confidence}%</span>
                     )}
                   </div>
                 </div>

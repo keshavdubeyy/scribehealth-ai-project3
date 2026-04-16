@@ -140,7 +140,7 @@ export default function SessionPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-2xl pb-20 animate-in fade-in duration-300">
+    <div className="flex flex-col gap-6 w-full pb-20 animate-in fade-in duration-300">
 
       {/* Delete confirmation */}
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
@@ -165,7 +165,7 @@ export default function SessionPage() {
 
       {/* Header */}
       <div className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           {/* Left: back + title */}
           <div className="space-y-1 min-w-0">
             <Button
@@ -183,23 +183,23 @@ export default function SessionPage() {
           </div>
 
           {/* Right: actions */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 sm:shrink-0 w-full sm:w-auto">
             <Button
               variant="outline"
               size="sm"
-              className="text-sm"
+              className="text-xs sm:text-sm flex-1 sm:flex-none"
               onClick={() => router.push(`/patients/${patientId}`)}
             >
               Change patient
             </Button>
-            <Button size="sm" className="gap-1.5">
+            <Button size="sm" className="gap-1.5 text-xs sm:text-sm flex-1 sm:flex-none">
               <Share2 className="size-3.5" />
               View report
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="size-8 text-muted-foreground hover:text-destructive"
+              className="size-8 text-muted-foreground hover:text-destructive shrink-0"
               onClick={() => setIsDeleteOpen(true)}
             >
               <Trash2 className="size-4" />
@@ -218,8 +218,8 @@ export default function SessionPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="h-9 bg-transparent border-b border-border w-full justify-start rounded-none p-0 gap-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="w-full sm:w-auto h-10 p-1 bg-muted/50">
           {[
             { value: "note",       label: "Clinical note", icon: FileText     },
             { value: "transcript", label: "Transcript",    icon: MessageSquare },
@@ -228,9 +228,9 @@ export default function SessionPage() {
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="rounded-none border-b-2 border-transparent px-0 pb-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground text-muted-foreground text-sm font-medium flex items-center gap-1.5 transition-colors"
+              className="px-4 py-2 text-sm font-medium transition-all"
             >
-              <tab.icon className="size-3.5" />
+              <tab.icon className="mr-2" />
               {tab.label}
             </TabsTrigger>
           ))}
@@ -239,10 +239,10 @@ export default function SessionPage() {
         {/* Clinical note tab */}
         <TabsContent value="note" className="mt-5 space-y-5">
           {/* Template selector */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <span className="text-sm text-muted-foreground">Template detected:</span>
             <Select value={template} onValueChange={setTemplate}>
-              <SelectTrigger className="w-52 h-8 text-sm">
+              <SelectTrigger className="w-full sm:w-52 h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

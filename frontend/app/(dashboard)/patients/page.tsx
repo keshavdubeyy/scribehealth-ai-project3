@@ -93,12 +93,12 @@ export default function PatientsPage() {
   if (!mounted) return null
 
   return (
-    <div className="flex flex-col gap-8 max-w-3xl">
+    <div className="flex flex-col gap-8 w-full">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-xl font-semibold text-foreground">Patients</h1>
-        <div className="flex items-center gap-3">
-          <div className="relative w-64">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               placeholder="Search patients..."
@@ -110,7 +110,7 @@ export default function PatientsPage() {
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
+              <Button className="gap-2 justify-center">
                 <Plus className="size-4" />
                 New patient
               </Button>
@@ -174,9 +174,9 @@ export default function PatientsPage() {
           <TableHeader>
             <TableRow className="hover:bg-transparent border-b border-border">
               <TableHead className="w-[50%]">Name</TableHead>
-              <TableHead>Gender</TableHead>
-              <TableHead>Age</TableHead>
-              <TableHead />
+              <TableHead className="hidden sm:table-cell">Gender</TableHead>
+              <TableHead className="hidden sm:table-cell">Age</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -203,14 +203,14 @@ export default function PatientsPage() {
                       <span className="text-sm font-medium text-foreground">{p.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{p.gender}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{p.age} yrs</TableCell>
-                  <TableCell className="text-right pr-4">
+                  <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">{p.gender}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">{p.age} yrs</TableCell>
+                  <TableCell className="text-right pr-2 sm:pr-4">
                     <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
+                        className="size-8 text-muted-foreground hover:text-destructive opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all"
                         onClick={e => { e.stopPropagation(); setPatientToDelete(p.id); setIsDeleteOpen(true) }}
                       >
                         <Trash2 className="size-4" />
