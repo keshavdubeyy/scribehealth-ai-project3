@@ -246,16 +246,16 @@ export function NoteSection({ session }: NoteSectionProps) {
 
   // Build note from session data
   const initialNote: Record<string, string> = session.soap
-    ? {
-        subjective:   session.soap.s ?? "",
-        objective:    session.soap.o ?? "",
-        assessment:   session.soap.a ?? "",
-        plan:         session.soap.p ?? "",
-        diagnosis:    session.soap.a ?? "",
-        prescription: "",
-        follow_up:    session.soap.p ?? "",
-        advice:       "",
-      }
+    ? ("subjective" in session.soap
+        ? session.soap
+        : {
+            subjective:   session.soap.s ?? "",
+            objective:    session.soap.o ?? "",
+            assessment:   session.soap.a ?? "",
+            plan:         session.soap.p ?? "",
+            diagnosis:    session.soap.a ?? "",
+            follow_up:    session.soap.p ?? "",
+          })
     : {}
 
   const template = "general_opd"

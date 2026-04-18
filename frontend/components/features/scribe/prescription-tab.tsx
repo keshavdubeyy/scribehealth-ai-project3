@@ -60,7 +60,7 @@ interface PrescriptionTabProps {
 }
 
 export function PrescriptionTab({ session, patient }: PrescriptionTabProps) {
-  const { updateSession, prescriptionTemplate } = useScribeStore()
+  const { prescriptionTemplate } = useScribeStore()
 
   const [patientName, setPatientName] = React.useState(patient.name)
   const [age, setAge] = React.useState(String(patient.age ?? ""))
@@ -72,7 +72,7 @@ export function PrescriptionTab({ session, patient }: PrescriptionTabProps) {
     })
   )
   const [reasonForVisit, setReasonForVisit] = React.useState(
-    session.soap?.s?.split("\n")[0] ?? ""
+    (session.soap?.subjective ?? session.soap?.s ?? "").split("\n")[0]
   )
   const [whatsWrong, setWhatsWrong] = React.useState("")
   const [medicines, setMedicines] = React.useState<Medicine[]>(

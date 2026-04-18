@@ -306,21 +306,22 @@ export default function SessionPage() {
   const hash = session.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0)
   const confidence: number | null = session.status === "COMPLETED" ? 80 + (hash % 19) : null
 
+  // Support both new (template keys) and old (s/o/a/p) soap shapes
   const finalNote: Record<string, string> = session.soap
-    ? {
-        subjective:   session.soap.s ?? "",
-        objective:    session.soap.o ?? "",
-        assessment:   session.soap.a ?? "",
-        plan:         session.soap.p ?? "",
-        diagnosis:    session.soap.a ?? "",
-        prescription: "",
-        follow_up:    session.soap.p ?? "",
-        advice:       "",
-      }
+    ? ("subjective" in session.soap
+        ? session.soap
+        : {
+            subjective:   session.soap.s ?? "",
+            objective:    session.soap.o ?? "",
+            assessment:   session.soap.a ?? "",
+            plan:         session.soap.p ?? "",
+            diagnosis:    session.soap.a ?? "",
+            follow_up:    session.soap.p ?? "",
+          })
     : {}
   const hasNote = Object.values(finalNote).some(v => v?.trim())
   const hasEdits = (session.edits?.length ?? 0) > 0
-  const chiefComplaint = session.soap?.s?.split("\n")[0]?.trim() ?? ""
+  const chiefComplaint = (session.soap?.subjective ?? session.soap?.s ?? "").split("\n")[0]?.trim()
 
   // ── Header shared between both render paths ──
   const header = (

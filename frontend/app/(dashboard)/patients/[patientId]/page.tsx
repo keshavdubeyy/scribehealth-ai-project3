@@ -33,7 +33,7 @@ import { toast } from "sonner"
 export default function PatientDetailPage() {
   const { patientId } = useParams()
   const router = useRouter()
-  const { getPatient, getSessions, fetchSessions, addSession, deleteSession } = useScribeStore()
+  const { getPatient, getSessions, fetchSessions, deleteSession } = useScribeStore()
 
   const [mounted,              setMounted]              = React.useState(false)
   const [isRecordingModalOpen, setIsRecordingModalOpen] = React.useState(false)
@@ -77,10 +77,9 @@ export default function PatientDetailPage() {
     }
   }
 
-  async function onRecordingComplete(audioData: string) {
-    const id = await addSession(patient!.id)
+  function onSessionReady(sessionId: string) {
     setIsRecordingModalOpen(false)
-    router.push(`/patients/${patient!.id}/sessions/${id}?audio=${audioData}`)
+    router.push(`/patients/${patient!.id}/sessions/${sessionId}`)
   }
 
   return (
@@ -88,7 +87,9 @@ export default function PatientDetailPage() {
       <RecordingModal
         isOpen={isRecordingModalOpen}
         onClose={() => setIsRecordingModalOpen(false)}
-        onRecordingComplete={onRecordingComplete}
+        patientId={patientId as string}
+        patientName={patient?.name ?? ""}
+        onSessionReady={onSessionReady}
       />
 
       {/* Delete confirmation */}
