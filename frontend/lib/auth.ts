@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
+import { logAuditServer } from "@/lib/audit-server"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -65,5 +66,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   pages: {
     signIn: "/login",
+  },
+  events: {
+    async signIn({ user }) {
+      const email = user.email ?? "unknown"
+      await logAuditServer(email, "login_success", "user", email, { name: user.name ?? "" })
+    },
+    async signOut(message) {
+      const email = "token" in message && message.token?.email
+        ? String(message.token.email)
+        : "unknown"
+      await logAuditServer(email, "logout", "user", email)
+    },
   },
 })
