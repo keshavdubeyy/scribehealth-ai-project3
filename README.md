@@ -287,12 +287,13 @@ The frontend uses Turbopack for high-speed development.
 
 ```bash
 cd frontend
+cp .env.example .env.local
 npm install
 npm run dev
 ```
 
 - **Web Interface:** [http://localhost:3000](http://localhost:3000)
-- **Environment:** Ensure `.env.local` contains `NEXT_PUBLIC_API_BASE=http://localhost:8081/api`.
+- **Environment:** Copy `.env.example` to `.env.local` — it is pre-configured for the local backend on port 8081.
 
 ### 4. Admin Credentials
 
