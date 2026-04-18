@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface SessionRepository extends MongoRepository<ClinicalSession, String> {
     List<ClinicalSession> findByPatientId(String patientId);
+    List<ClinicalSession> findByPatientIdAndDoctorId(String patientId, String doctorId);
 }
