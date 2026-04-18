@@ -37,6 +37,24 @@ create table if not exists prescription_templates (
   updated_at   timestamptz not null default now()
 );
 
+-- audit logs: immutable append-only table, one row per system action
+create table if not exists audit_logs (
+  id           uuid        primary key default gen_random_uuid(),
+  user_email   text        not null,
+  action       text        not null,
+  entity_type  text        not null,
+  entity_id    text        not null,
+  metadata     jsonb       not null default '{}'::jsonb,
+  created_at   timestamptz not null default now()
+);
+
+-- Indexes
+create index if not exists idx_audit_logs_user_email on audit_logs(user_email);
+create index if not exists idx_audit_logs_created_at on audit_logs(created_at desc);
+alter table audit_logs enable row level security;
+drop policy if exists "allow_all" on audit_logs;
+create policy "allow_all" on audit_logs for all to anon using (true) with check (true);
+
 -- Indexes
 create index if not exists idx_patients_user_email             on patients(user_email);
 create index if not exists idx_sessions_patient_id             on sessions(patient_id);
