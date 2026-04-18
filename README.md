@@ -26,10 +26,10 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 | Category | Done | Partial | Not done | Score | Progress |
 |---|:---:|:---:|:---:|:---:|---|
-| Functional Requirements (12) | 8 | 2 | 2 | **75%** | `███████░░░` |
+| Functional Requirements (12) | 9 | 1 | 2 | **79%** | `███████░░░` |
 | Non-Functional Requirements (5) | 4 | 1 | 0 | **90%** | `█████████░` |
 | Design Patterns (7) | 0 | 3 | 4 | **21%** | `██░░░░░░░░` |
-| **Overall (24 pts)** | **12** | **6** | **6** | **63%** | `██████░░░░` |
+| **Overall (24 pts)** | **13** | **5** | **6** | **65%** | `██████░░░░` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
 > **Critical gap:** Design patterns (0/7 fully implemented) is the single biggest drag on overall score.
@@ -52,7 +52,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | FR-08 | Doctors review, edit, approve, or reject AI-generated notes before permanent record storage | ✅ |
 | FR-09 | Approved notes can be shared via Email, SMS, or WhatsApp | ❌ |
 | FR-10 | Every system action (login, note approval, sharing) is logged with actor, timestamp, and entity | ✅ |
-| FR-11 | Consultation state transitions are enforced; illegal transitions are blocked | ⚠️ |
+| FR-11 | Consultation state transitions are enforced; illegal transitions are blocked | ✅ |
 | FR-12 | Stakeholders are notified automatically on lifecycle events (note ready, approved, failure) | ❌ |
 
 > **Legend:** ✅ Done &nbsp;|&nbsp; ⚠️ Partial &nbsp;|&nbsp; ❌ Not implemented
@@ -60,7 +60,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 > - **FR-02** — Admin user management UI done; global audit log built (`audit_logs` table + `/api/audit` + admin view at `/dashboard/audit-log`); login events not yet logged
 > - **FR-05** — Claude Haiku extracts 6 typed entity categories (symptoms, diagnoses, medications, allergies, vitals, treatment plans) via `/api/extract-entities`; stored as `entities JSONB` on session; displayed in dedicated **Entities tab** in the session view; re-extractable on demand
 > - **FR-10** — All system actions logged: `login_success`, `logout` (via NextAuth events), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`; sharing events pending FR-09
-> - **FR-11** — Full 7-state lifecycle implemented in code (`SCHEDULED → IN_PROGRESS → RECORDED → TRANSCRIBED → UNDER_REVIEW → APPROVED / REJECTED`); transitions are imperative calls — no formal state-class hierarchy that throws on illegal jumps
+> - **FR-11** — `lib/session-state-machine.ts` defines `VALID_TRANSITIONS` map + `assertTransition()` which throws on illegal jumps; `transitionSession()` in the store validates every status change before writing; `APPROVED` is terminal (no further transitions); `REJECTED → UNDER_REVIEW` is the only regeneration path; sessions now start in `SCHEDULED` and advance through the full 7-state chain
 
 ### Non-Functional Requirements
 
@@ -282,7 +282,7 @@ Each state class implements a `ConsultationState` interface and explicitly block
 - ✅ Recording modal advances status at each pipeline stage (session created → SCHEDULED, recording starts → IN_PROGRESS, audio saved → RECORDED, transcript ready → TRANSCRIBED, note generated → UNDER_REVIEW)
 - ✅ Status badges colour-coded across session list and session detail views for all 7 states
 - ✅ `APPROVED` state locks the note; `REJECTED` enables regeneration
-- ❌ No `ConsultationState` interface or state classes — transitions are imperative `updateSession({ status })` calls; illegal transitions (e.g. APPROVED → UNDER_REVIEW) not blocked at code level
+- ✅ **State machine enforced** — `lib/session-state-machine.ts` declares `VALID_TRANSITIONS` for all 9 statuses; `assertTransition(from, to)` throws on illegal jumps; `transitionSession()` in the store validates every status change before it hits the DB; `APPROVED` is terminal — no further transitions possible
 - ❌ No `ConsultationSubject` / Observer pattern — no event bus; components read store directly
 - ❌ No automatic notifications on any lifecycle event (email, push, in-app)
 
