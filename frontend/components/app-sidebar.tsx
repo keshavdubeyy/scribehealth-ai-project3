@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
-import { LayoutDashboard, Users, ClipboardList, Settings, LogOut } from "lucide-react"
+import { LayoutDashboard, Users, ClipboardList, Settings, LogOut, FileText } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 const navItems = [
   { title: "Dashboard",  href: "/patients/dashboard", icon: LayoutDashboard },
   { title: "Patients",   href: "/patients",           icon: Users            },
+  { title: "Sessions",   href: "/patients/sessions",  icon: FileText         },
   { title: "Templates",  href: "/patients/dashboard/prescription-template", icon: ClipboardList },
 ]
 
@@ -38,6 +39,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   function isActive(href: string) {
     if (href === "/patients/dashboard") return pathname === "/patients/dashboard"
+    if (href === "/patients/sessions") return pathname === "/patients/sessions"
     if (href === "/patients") return (
       pathname === "/patients" ||
       (pathname.startsWith("/patients/") &&
