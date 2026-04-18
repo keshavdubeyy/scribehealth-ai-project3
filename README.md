@@ -24,30 +24,46 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 ### Functional Requirements
 
-| ID | Requirement |
-|---|---|
-| FR-01 | Doctors can register, log in, and manage only their own patients and consultations |
-| FR-02 | Administrators can manage users (create, activate, deactivate) and view audit logs |
-| FR-03 | The system records doctor-patient audio with start, stop, pause, and resume controls |
-| FR-04 | Audio is transcribed asynchronously; failed transcriptions are retried automatically |
-| FR-05 | Transcripts are processed to extract symptoms, diagnoses, medications, allergies, vitals, and treatment plans |
-| FR-06 | Extracted entities are assembled into a structured SOAP note pre-filled for doctor review |
-| FR-07 | Doctors can select from specialty templates (General OPD, Cardiology, Pediatric, etc.) |
-| FR-08 | Doctors review, edit, approve, or reject AI-generated notes before permanent record storage |
-| FR-09 | Approved notes can be shared via Email, SMS, or WhatsApp |
-| FR-10 | Every system action (login, note approval, sharing) is logged with actor, timestamp, and entity |
-| FR-11 | Consultation state transitions are enforced; illegal transitions are blocked |
-| FR-12 | Stakeholders are notified automatically on lifecycle events (note ready, approved, failure) |
+| ID | Requirement | Status |
+|---|---|:---:|
+| FR-01 | Doctors can register, log in, and manage only their own patients and consultations | ✅ |
+| FR-02 | Administrators can manage users (create, activate, deactivate) and view audit logs | ⚠️ |
+| FR-03 | The system records doctor-patient audio with start, stop, pause, and resume controls | ⚠️ |
+| FR-04 | Audio is transcribed asynchronously; failed transcriptions are retried automatically | ⚠️ |
+| FR-05 | Transcripts are processed to extract symptoms, diagnoses, medications, allergies, vitals, and treatment plans | ⚠️ |
+| FR-06 | Extracted entities are assembled into a structured SOAP note pre-filled for doctor review | ✅ |
+| FR-07 | Doctors can select from specialty templates (General OPD, Cardiology, Pediatric, etc.) | ✅ |
+| FR-08 | Doctors review, edit, approve, or reject AI-generated notes before permanent record storage | ⚠️ |
+| FR-09 | Approved notes can be shared via Email, SMS, or WhatsApp | ❌ |
+| FR-10 | Every system action (login, note approval, sharing) is logged with actor, timestamp, and entity | ⚠️ |
+| FR-11 | Consultation state transitions are enforced; illegal transitions are blocked | ⚠️ |
+| FR-12 | Stakeholders are notified automatically on lifecycle events (note ready, approved, failure) | ❌ |
+
+> **Legend:** ✅ Done &nbsp;|&nbsp; ⚠️ Partial &nbsp;|&nbsp; ❌ Not implemented
+>
+> - **FR-02** — Admin user management UI done; audit logs only cover note edits, not all system actions
+> - **FR-03** — Start/stop done; pause/resume controls not implemented
+> - **FR-04** — Transcription fires asynchronously; no automatic retry on failure (toast shown, user retries manually)
+> - **FR-05** — SOAP note populated from transcript; individual entity extraction (allergies, vitals as typed separate objects) not isolated
+> - **FR-08** — Doctor can freely edit notes; no formal Approve/Reject button that locks the record
+> - **FR-10** — Note field edits are logged with old/new values and timestamps; login and sharing events not logged
+> - **FR-11** — Status progresses IDLE → PROCESSING → COMPLETED in code; no formal state-machine class blocking illegal jumps
 
 ### Non-Functional Requirements
 
-| ID | Requirement | Architectural Significance |
-|---|---|---|
-| NFR-01 | **Security** — PHI data must be encrypted in transit (TLS) and at rest; JWT tokens expire in 8 hours | Drives auth filter chain, HTTPS enforcement, token expiry config |
-| NFR-02 | **Performance** — Transcription pipeline must not block the UI; API responses under 500ms for CRUD | Drives async processing, non-blocking transcription handoff |
-| NFR-03 | **Extensibility** — New transcription providers or sharing channels added without modifying core logic | Drives Factory Method and Strategy patterns |
-| NFR-04 | **Auditability** — All actions traceable; logs immutable and admin-only | Drives AuditLog collection, Facade pattern, role-based access |
-| NFR-05 | **Reliability** — Transcription failures recovered via retry; no data loss on pipeline error | Drives retry mechanism, session status persistence |
+| ID | Requirement | Architectural Significance | Status |
+|---|---|---|:---:|
+| NFR-01 | **Security** — PHI data must be encrypted in transit (TLS) and at rest; JWT tokens expire in 8 hours | Drives auth filter chain, HTTPS enforcement, token expiry config | ✅ |
+| NFR-02 | **Performance** — Transcription pipeline must not block the UI; API responses under 500ms for CRUD | Drives async processing, non-blocking transcription handoff | ✅ |
+| NFR-03 | **Extensibility** — New transcription providers or sharing channels added without modifying core logic | Drives Factory Method and Strategy patterns | ⚠️ |
+| NFR-04 | **Auditability** — All actions traceable; logs immutable and admin-only | Drives AuditLog collection, Facade pattern, role-based access | ⚠️ |
+| NFR-05 | **Reliability** — Transcription failures recovered via retry; no data loss on pipeline error | Drives retry mechanism, session status persistence | ⚠️ |
+
+> - **NFR-01** — Supabase enforces TLS; NextAuth JWT with configurable expiry; all data in Supabase at-rest encryption
+> - **NFR-02** — Transcription runs server-side async; CRUD under 500ms via Supabase direct queries
+> - **NFR-03** — Template extensibility via config map; no formal Factory/Strategy classes for provider swapping
+> - **NFR-04** — Note edits are logged per session; no append-only AuditLog table; admin-only view not enforced at DB level
+> - **NFR-05** — Transcript saved even if note generation fails (fallback handled); no automatic retry logic
 
 ---
 
@@ -57,22 +73,23 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 |---|---|
 | Frontend | Next.js (React 19, Tailwind CSS, Zustand) |
 | Backend | Java 17 / Spring Boot 3.2 |
-| Transcription | OpenAI Whisper (via Python FastAPI service) |
-| NLP | GPT-4o + SciSpacy / SciBERT (medical entity extraction) |
-| Database | MongoDB (users, patients, sessions, audit logs) |
+| Transcription | Sarvam AI `saarika:v2.5` (Hindi/English speech-to-text) |
+| NLP & Note Generation | Anthropic Claude — Haiku (template detection) + Sonnet (SOAP generation) |
+| Database | Supabase (PostgreSQL + Storage) |
 | Communication | External APIs — Email, SMS, WhatsApp |
 
 ### Subsystems
 
-| Subsystem | Role |
-|---|---|
-| **Auth & Access** | JWT login/register, role enforcement, session management |
-| **Patient & Session** | CRUD for patient records and clinical sessions; SOAP note storage |
-| **AI Pipeline** | Audio capture → async transcription → NLP extraction → SOAP note generation |
-| **Review & Sharing** | Doctor approval workflow; multi-channel note distribution |
-| **Audit & Admin** | Immutable action logging; admin dashboard via Facade |
-| **Lifecycle & Notifications** | State machine for consultation stages; Observer-driven stakeholder alerts |
-| **Profile Builder** | Validated construction of complex patient profiles |
+| Subsystem | Role | Status |
+|---|---|:---:|
+| **Auth & Access** | JWT login/register, role enforcement, session management | ✅ |
+| **Patient & Session** | CRUD for patient records and clinical sessions; SOAP note storage | ✅ |
+| **AI Pipeline** | Audio capture → async transcription → NLP extraction → SOAP note generation | ⚠️ |
+| **Review & Sharing** | Doctor approval workflow; multi-channel note distribution | ⚠️ |
+| **Audit & Admin** | Immutable action logging; admin dashboard via Facade | ⚠️ |
+| **Lifecycle & Notifications** | State machine for consultation stages; Observer-driven stakeholder alerts | ⚠️ |
+| **Profile Builder** | Validated construction of complex patient profiles | ⚠️ |
+| **Prescription Generator** | AI auto-fill prescription, canvas template setup, PDF generation | ✅ |
 
 ### Architectural Tactics
 
@@ -96,6 +113,8 @@ Key trade-offs to quantify:
 
 ## Features & Tasks
 
+> **Legend:** ✅ Fully implemented &nbsp;|&nbsp; ⚠️ Partially implemented &nbsp;|&nbsp; ❌ Not implemented
+
 ---
 
 ### 1. User Authentication & Role-Based Access ✅
@@ -107,6 +126,12 @@ Implement secure login and account management for two roles:
 - **Administrators**: can manage users, configure templates, and view system audit logs.
 
 **Design Pattern:** Service Layer Pattern - separates business logic from the UI and domain entities.
+
+**Implementation status:**
+- ✅ Login/signup via NextAuth Credentials provider (JWT strategy, delegated to Spring Boot backend)
+- ✅ All patient and session queries scoped by `user_email` — cross-doctor data leakage impossible
+- ✅ Role stored in JWT token; admin-only routes guarded in layout
+- ⚠️ Service Layer conceptually implemented via Zustand store abstraction; not a formally named `PatientService` / `SessionService` class hierarchy
 
 ---
 
@@ -121,6 +146,12 @@ The system stores and manages:
 
 Consultation is the central domain entity of the entire system.
 
+**Implementation status:**
+- ✅ Full CRUD for patients persisted in Supabase (PostgreSQL), scoped by doctor email
+- ✅ Sessions created per consultation, linked to patient via foreign key
+- ✅ SOAP notes stored as JSONB on the session row; edit history (field, old value, new value, timestamp) stored as JSONB array
+- ✅ Audio recordings uploaded to Supabase Storage; public URL stored on session
+
 ---
 
 ### 3. Template-Based Documentation ✅
@@ -131,9 +162,15 @@ Doctors can choose from predefined specialty templates (General OPD, Cardiology,
 
 **Design Pattern:** Factory Method Pattern - dynamically instantiates the correct template type based on consultation specialty.
 
+**Implementation status:**
+- ✅ 6 specialty templates implemented: `general_opd`, `cardiology`, `pediatric`, `mental_health_soap`, `physiotherapy`, `surgical_followup`
+- ✅ Claude Haiku auto-detects the appropriate template from the consultation transcript
+- ✅ Each template has its own field schema; note editor adapts to the selected template's fields
+- ⚠️ Factory Method conceptually present via the `NOTE_FIELDS` config map and template detection step; not implemented as explicit `TemplateFactory` / `NoteTemplate` class hierarchy
+
 ---
 
-### 4. AI Pipeline — Recording, Transcription, NLP & Note Generation
+### 4. AI Pipeline — Recording, Transcription, NLP & Note Generation ⚠️
 
 When the doctor stops recording, the system handles everything: audio capture → transcription → entity extraction → structured SOAP note, all without blocking the UI.
 
@@ -148,9 +185,21 @@ This task covers the full end-to-end AI pipeline:
 - **Factory Method** — `TranscriptionServiceFactory` dynamically creates the correct transcription provider instance (e.g. OpenAI Whisper, Google STT), keeping provider-switching open/closed
 - **Template Method** — `SoapNoteGenerator` defines the fixed SOAP skeleton; each specialty subclass overrides only the sections relevant to its domain
 
+**Implementation status:**
+- ✅ Real `MediaRecorder` audio capture with start/stop; audio blob collected in 1s chunks
+- ✅ Audio uploaded to Supabase Storage; URL stored on session
+- ✅ Sarvam AI `saarika:v2.5` transcription via `/api/transcribe`
+- ✅ Claude Sonnet note generation via `/api/generate-note` — produces structured SOAP note pre-filled in the editor
+- ✅ Pipeline is non-blocking: recording modal shows "Processing…" state while pipeline runs server-side
+- ⚠️ **Pause/resume controls** not implemented — only start/stop
+- ⚠️ **No automatic retry** on transcription failure — error toast shown, user retries manually
+- ⚠️ **NLP entity extraction** not isolated as typed objects — symptoms/medications/vitals are embedded in SOAP prose, not separate structured fields
+- ❌ `TranscriptionServiceFactory` class not implemented — Sarvam is hardcoded; no provider-swapping abstraction
+- ❌ `SoapNoteGenerator` Template Method class hierarchy not implemented — template selection is config-driven, not subclass-driven
+
 ---
 
-### 5. Review, Approval & Note Sharing
+### 5. Review, Approval & Note Sharing ⚠️
 
 No AI output enters a patient's permanent record without a doctor's review. Once approved, the note can be distributed to the relevant parties.
 
@@ -163,9 +212,17 @@ No AI output enters a patient's permanent record without a doctor's review. Once
 
 **Design Pattern:** Strategy Pattern - a common `NoteShareStrategy` interface with interchangeable `EmailShareStrategy`, `SmsShareStrategy`, and `WhatsAppShareStrategy` implementations.
 
+**Implementation status:**
+- ✅ Doctor can view, edit, and save any field of the generated note
+- ✅ Every field edit is logged with old value, new value, and timestamp (edit history tab)
+- ⚠️ No formal **Approve / Reject** action — notes are edited in place; no locked "approved" state that prevents further edits
+- ⚠️ No **notification** to the doctor when a note is ready (session page is navigated to directly after pipeline completes)
+- ❌ **Email / SMS / WhatsApp sharing** not implemented
+- ❌ `NoteShareStrategy` interface and concrete strategy classes not implemented
+
 ---
 
-### 6. Audit Logging & Admin Dashboard
+### 6. Audit Logging & Admin Dashboard ⚠️
 
 In healthcare, every action leaves a paper trail.
 
@@ -173,9 +230,17 @@ All system actions are logged (who, what entity, when) and are accessible only t
 
 **Design Pattern:** Facade Pattern - `AdminFacade` wraps `UserService`, `TemplateService`, and `AuditService` behind a single interface, shielding the UI from internal service complexity.
 
+**Implementation status:**
+- ✅ Admin dashboard UI with user management table
+- ✅ Per-session edit history: field name, old value, new value, ISO timestamp — stored as JSONB on session row
+- ⚠️ Edit history is **per session**, not a global append-only `AuditLog` table across all actions
+- ⚠️ Login events, approval events, and sharing events are **not logged**
+- ⚠️ Admin audit log view **not yet built** — edit history is visible only inside each session detail page
+- ❌ `AdminFacade` class not implemented — admin UI calls Supabase directly via the store
+
 ---
 
-### 7. Consultation Lifecycle & Notification Hub
+### 7. Consultation Lifecycle & Notification Hub ⚠️
 
 A consultation moves through well-defined stages. The system enforces legal transitions and automatically notifies stakeholders at each milestone — no manual polling required.
 
@@ -196,9 +261,17 @@ Each state class implements a `ConsultationState` interface and explicitly block
 - **State Pattern** — each lifecycle stage is a class; illegal transitions throw checked exceptions
 - **Observer Pattern** — `ConsultationSubject` broadcasts lifecycle events; `DoctorNotifier`, `AuditLogger`, and `DashboardRefresher` are registered observers
 
+**Implementation status:**
+- ✅ Session `status` field transitions: `IDLE → PROCESSING → COMPLETED` stored in DB
+- ✅ UI reflects status (processing spinner, completed badge)
+- ⚠️ Simplified 3-state flow — full `SCHEDULED → IN_PROGRESS → RECORDED → TRANSCRIBED → UNDER_REVIEW → APPROVED/REJECTED` chain **not implemented**
+- ❌ No `ConsultationState` interface or state classes — transitions are imperative `updateSession({ status: "..." })` calls with no illegal-transition enforcement
+- ❌ No `ConsultationSubject` / Observer pattern — no event bus; components read store directly
+- ❌ No automatic notifications on any lifecycle event (email, push, in-app)
+
 ---
 
-### 8. Patient Profile Builder
+### 8. Patient Profile Builder ⚠️
 
 A patient record is not a single form. It is a complex object assembled from many optional, domain-validated parts.
 
@@ -212,19 +285,29 @@ The builder enforces step-by-step, validated construction so no partially-initia
 
 **Design Pattern:** Builder Pattern - `PatientProfileBuilder` with fluent API and a terminal `build()` that runs all validations before persisting.
 
+**Implementation status:**
+- ✅ Basic patient creation: name, age, gender — persisted to Supabase
+- ❌ **Chronic conditions** field not implemented
+- ❌ **Allergies** with severity metadata not implemented
+- ❌ **Emergency contact** not implemented
+- ❌ **Insurance details** not implemented
+- ❌ `PatientProfileBuilder` with fluent API and `build()` validation not implemented — patient is created with a direct `insert()` call
+
 ---
 
 ## Design Patterns Summary
 
-| Task | Pattern(s) |
-|---|---|
-| User Authentication & Role-Based Access | Service Layer |
-| Template-Based Documentation | Factory Method |
-| AI Pipeline (Transcription + Note Generation) | Factory Method + Template Method |
-| Review, Approval & Note Sharing | Strategy |
-| Audit Logging & Admin Dashboard | Facade |
-| Consultation Lifecycle & Notification Hub | State + Observer |
-| Patient Profile Builder | Builder |
+| Task | Pattern(s) | Status |
+|---|---|:---:|
+| User Authentication & Role-Based Access | Service Layer | ⚠️ |
+| Template-Based Documentation | Factory Method | ⚠️ |
+| AI Pipeline (Transcription + Note Generation) | Factory Method + Template Method | ⚠️ |
+| Review, Approval & Note Sharing | Strategy | ❌ |
+| Audit Logging & Admin Dashboard | Facade | ❌ |
+| Consultation Lifecycle & Notification Hub | State + Observer | ❌ |
+| Patient Profile Builder | Builder | ❌ |
+
+> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **0 patterns** are implemented as class hierarchies. All patterns are conceptually present in the architecture but need to be expressed as explicit classes/interfaces to satisfy the requirement.
 
 ---
 
@@ -234,19 +317,19 @@ The builder enforces step-by-step, validated construction so no partially-initia
 > **Format:** `Project3_<team_number>.pdf` or `.zip` — submitted via Moodle (one member submits)
 
 ### Task 1 — Requirements and Subsystems
-- [ ] Functional and non-functional requirements (with architectural significance explained)
-- [ ] Subsystem overview — each subsystem's role and functionality
+- [x] Functional and non-functional requirements (with architectural significance explained)
+- [x] Subsystem overview — each subsystem's role and functionality
 
 ### Task 2 — Architecture Framework
 - [ ] Stakeholder identification per IEEE 42010 (stakeholders → concerns → viewpoints → views)
 - [ ] 3–4 Architecture Decision Records (ADRs) using the Nygard template
 
 ### Task 3 — Architectural Tactics and Patterns
-- [ ] 4–5 architectural tactics with explanation of which non-functional requirements they address
+- [x] 4–5 architectural tactics with explanation of which non-functional requirements they address
 - [ ] 2 design patterns described with diagrams (UML or C4 model)
 
 ### Task 4 — Prototype Implementation and Analysis
-- [ ] At least 1 end-to-end non-trivial functionality implemented and demonstrated *(recommended: Task 4 AI Pipeline — Recording → Transcription → NLP → SOAP Note)*
+- [x] At least 1 end-to-end non-trivial functionality implemented and demonstrated *(AI Pipeline: Recording → Sarvam Transcription → Claude SOAP Note Generation — fully working)*
 - [ ] Architecture analysis: compare implemented architecture against an alternative pattern
 - [ ] Quantification of at least 2 non-functional requirements (e.g., response time, throughput)
 - [ ] Trade-off discussion
@@ -263,15 +346,18 @@ The builder enforces step-by-step, validated construction so no partially-initia
 
 To get the ScribeHealth AI system running locally, follow these steps:
 
-### 1. Database Initialization
+### 1. Database Setup (Supabase)
 
-Ensure you have **MongoDB** running locally on its default port:
-- **Connection String:** `mongodb://localhost:27017/scribehealth`
-- The system will automatically create the necessary collections upon first run.
+The system uses **Supabase** (PostgreSQL + Storage) instead of MongoDB.
+
+- Run `frontend/supabase/schema.sql` in your Supabase project's SQL Editor
+- Create a **public** Storage bucket named `sessions`
+- Create a **public** Storage bucket named `prescription-templates`
+- Copy your Supabase URL and keys into `frontend/.env.local`
 
 ### 2. Backend Execution (Spring Boot)
 
-The backend is configured to run on **Port 8081** to avoid local system conflicts.
+The backend handles authentication and is configured to run on **Port 8081**.
 
 ```bash
 cd backend/java
@@ -292,7 +378,7 @@ npm run dev
 ```
 
 - **Web Interface:** [http://localhost:3000](http://localhost:3000)
-- **Environment:** Ensure `.env.local` contains `NEXT_PUBLIC_API_BASE=http://localhost:8081/api`.
+- **Required `.env.local` keys:** `NEXT_PUBLIC_API_BASE`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SARVAM_API_KEY`, `ANTHROPIC_API_KEY`, `AUTH_SECRET`
 
 ### 4. Admin Credentials
 
