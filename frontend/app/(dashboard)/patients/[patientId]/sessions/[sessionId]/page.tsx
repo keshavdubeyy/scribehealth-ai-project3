@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils"
 import { NoteSection } from "@/components/features/scribe/note-section"
 import { TranscriptPanel } from "@/components/features/scribe/transcript-panel"
 import { PrescriptionTab } from "@/components/features/scribe/prescription-tab"
+import { EntitiesPanel } from "@/components/features/scribe/entities-panel"
 
 // ── Confidence helpers ──────────────────────────────────────────────────────
 
@@ -507,6 +508,7 @@ export default function SessionPage() {
       <Tabs defaultValue="note">
         <TabsList>
           <TabsTrigger value="note">Clinical note</TabsTrigger>
+          <TabsTrigger value="entities">Entities</TabsTrigger>
           <TabsTrigger value="prescription">Prescription</TabsTrigger>
           <TabsTrigger value="transcript">Transcript</TabsTrigger>
           {session.audioUrl && <TabsTrigger value="audio">Audio</TabsTrigger>}
@@ -516,6 +518,15 @@ export default function SessionPage() {
         {/* Clinical Note */}
         <TabsContent value="note" className="mt-4">
           <NoteSection session={session} />
+        </TabsContent>
+
+        {/* Entities */}
+        <TabsContent value="entities" className="mt-4">
+          <Card>
+            <CardContent className="pt-5">
+              <EntitiesPanel session={session} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Prescription */}
