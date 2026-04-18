@@ -53,7 +53,7 @@ export function RecordingModal({
   patientName,
   onSessionReady,
 }: RecordingModalProps) {
-  const { addSession, updateSession } = useScribeStore()
+  const { addSession, transitionSession } = useScribeStore()
 
   const [step, setStep]                   = React.useState<Step>("consent")
   const [consented, setConsented]         = React.useState(false)
@@ -65,6 +65,7 @@ export function RecordingModal({
   const chunksRef        = React.useRef<Blob[]>([])
   const streamRef        = React.useRef<MediaStream | null>(null)
   const timerRef         = React.useRef<ReturnType<typeof setInterval> | null>(null)
+  const sessionIdRef     = React.useRef<string | null>(null)
 
   // Reset when modal opens
   React.useEffect(() => {
@@ -73,11 +74,11 @@ export function RecordingModal({
       setConsented(false)
       setElapsed(0)
       setPaused(false)
-      chunksRef.current = []
+      chunksRef.current   = []
+      sessionIdRef.current = null
     }
   }, [isOpen])
 
-  // Timer ticks only while recording and not paused
   const startTimer = React.useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
     timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000)
@@ -93,7 +94,7 @@ export function RecordingModal({
     onClose()
   }
 
-  // ── Consent → mic → start ────────────────────────────────────────────────
+  // ── Consent → create session (SCHEDULED) → start mic → IN_PROGRESS ────────
   const handleConsentConfirmed = async () => {
     let stream: MediaStream
     try {
@@ -103,6 +104,18 @@ export function RecordingModal({
       return
     }
     streamRef.current = stream
+
+    // Create session in SCHEDULED state, then immediately transition to IN_PROGRESS
+    try {
+      const id = await addSession(patientId)           // SCHEDULED
+      await transitionSession(id, "IN_PROGRESS")       // SCHEDULED → IN_PROGRESS
+      sessionIdRef.current = id
+      await logAudit("session_created", "session", id, { patientId })
+    } catch (err) {
+      stream.getTracks().forEach(t => t.stop())
+      toast.error(err instanceof Error ? err.message : "Failed to create session")
+      return
+    }
 
     const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
       ? "audio/webm;codecs=opus"
@@ -134,8 +147,9 @@ export function RecordingModal({
 
   // ── End session → pipeline ───────────────────────────────────────────────
   const handleStop = React.useCallback(async () => {
-    const recorder = mediaRecorderRef.current
-    if (!recorder) return
+    const recorder  = mediaRecorderRef.current
+    const sessionId = sessionIdRef.current
+    if (!recorder || !sessionId) return
 
     setStep("processing")
     stopTimer()
@@ -147,14 +161,11 @@ export function RecordingModal({
 
     const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" })
 
-    // Create session → SCHEDULED then immediately RECORDED
-    let sessionId: string
+    // IN_PROGRESS → RECORDED
     try {
-      sessionId = await addSession(patientId)
-      await updateSession(sessionId, { status: "RECORDED" })
-      await logAudit("session_created", "session", sessionId, { patientId })
-    } catch {
-      toast.error("Failed to create session. Please try again.")
+      await transitionSession(sessionId, "RECORDED")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to advance session state")
       setStep("consent")
       return
     }
@@ -162,6 +173,7 @@ export function RecordingModal({
     // Transcribe with retry (FR-04)
     setProcessing("Transcribing audio…")
     let transcript = ""
+    let audioUrl: string | undefined
     try {
       const transcribeData = await withRetry(async () => {
         const fd = new FormData()
@@ -173,13 +185,17 @@ export function RecordingModal({
       }, 3)
 
       transcript = transcribeData.transcript
-      const updates: Parameters<typeof updateSession>[1] = { status: "TRANSCRIBED" }
-      if (transcribeData.audioUrl) updates.audioUrl = transcribeData.audioUrl
-      await updateSession(sessionId, updates)
+      audioUrl   = transcribeData.audioUrl
+
+      // RECORDED → TRANSCRIBED
+      await transitionSession(sessionId, "TRANSCRIBED", {
+        transcription: transcript,
+        ...(audioUrl ? { audioUrl } : {}),
+      })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Transcription failed after 3 attempts")
-      await updateSession(sessionId, { status: "IDLE" })
-      setStep("consent")
+      // Session stays RECORDED — doctor can retry from the session page
+      onSessionReady(sessionId)
       return
     }
 
@@ -209,24 +225,18 @@ export function RecordingModal({
     const entities = entitiesResult.status === "fulfilled" ? entitiesResult.value  : null
 
     if (note) {
-      await updateSession(sessionId, {
-        soap:          note,
-        transcription: transcript,
-        entities:      entities ?? undefined,
-        status:        "UNDER_REVIEW",
+      // TRANSCRIBED → UNDER_REVIEW
+      await transitionSession(sessionId, "UNDER_REVIEW", {
+        soap:      note,
+        entities:  entities ?? undefined,
       })
     } else {
-      // Note failed — save transcript + entities (if any), let doctor regenerate
-      await updateSession(sessionId, {
-        transcription: transcript,
-        entities:      entities ?? undefined,
-        status:        "IDLE",
-      })
+      // Note failed — stays TRANSCRIBED; doctor can generate from session page
       toast.error("Note generation failed. Transcript saved — you can generate from the session page.", { duration: 6000 })
     }
 
     onSessionReady(sessionId)
-  }, [patientId, addSession, updateSession, onSessionReady, stopTimer])
+  }, [patientId, addSession, transitionSession, onSessionReady, stopTimer])
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && handleClose()}>
