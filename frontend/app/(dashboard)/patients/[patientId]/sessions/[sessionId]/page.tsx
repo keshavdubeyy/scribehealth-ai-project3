@@ -40,6 +40,8 @@ import {
   UserPlus,
   UserMinus,
   Loader2,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -405,7 +407,9 @@ export default function SessionPage() {
   )
 
   // ── Processing path ──
-  if (session.status === "PROCESSING") {
+  const PIPELINE_STATUSES = ["PROCESSING", "RECORDED", "TRANSCRIBED", "IN_PROGRESS"] as const
+  type PipelineStatus = typeof PIPELINE_STATUSES[number]
+  if (PIPELINE_STATUSES.includes(session.status as PipelineStatus)) {
     return (
       <div className="p-6 max-w-3xl space-y-5">
         {dialogs}
@@ -425,13 +429,26 @@ export default function SessionPage() {
 
       {/* Badges Row */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Status */}
-        <Badge
-          variant={session.status === "COMPLETED" ? "default" : "outline"}
-          className="capitalize"
-        >
-          {session.status === "COMPLETED" ? "Completed" : session.status.toLowerCase()}
-        </Badge>
+        {/* Status — all 7 lifecycle states */}
+        {session.status === "APPROVED" ? (
+          <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-600">
+            <CheckCircle2 className="w-3 h-3" /> Approved
+          </Badge>
+        ) : session.status === "REJECTED" ? (
+          <Badge variant="destructive" className="gap-1">
+            <XCircle className="w-3 h-3" /> Rejected
+          </Badge>
+        ) : session.status === "UNDER_REVIEW" || session.status === "COMPLETED" ? (
+          <Badge variant="default" className="gap-1">Under review</Badge>
+        ) : session.status === "TRANSCRIBED" ? (
+          <Badge variant="secondary">Transcribed</Badge>
+        ) : session.status === "RECORDED" ? (
+          <Badge variant="secondary">Recorded</Badge>
+        ) : session.status === "IN_PROGRESS" ? (
+          <Badge variant="secondary">In progress</Badge>
+        ) : (
+          <Badge variant="outline" className="capitalize">{session.status.toLowerCase()}</Badge>
+        )}
 
         {/* Template */}
         {session.soap && (

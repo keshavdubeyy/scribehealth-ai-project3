@@ -212,14 +212,30 @@ export default function PatientDetailPage() {
                         <Badge
                           variant="secondary"
                           className={cn(
-                            session.status === "COMPLETED"
+                            session.status === "APPROVED"
                               ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/10"
+                              : session.status === "REJECTED"
+                              ? "bg-destructive/10 text-destructive hover:bg-destructive/10"
+                              : session.status === "UNDER_REVIEW" || session.status === "COMPLETED"
+                              ? "bg-blue-500/10 text-blue-700 hover:bg-blue-500/10"
                               : isProcessing
                               ? "bg-amber-500/10 text-amber-700 hover:bg-amber-500/10"
-                              : "bg-destructive/10 text-destructive hover:bg-destructive/10"
+                              : "bg-muted text-muted-foreground"
                           )}
                         >
-                          {session.status === "COMPLETED" ? "Completed" : isProcessing ? "Processing" : "Failed"}
+                          {session.status === "APPROVED"
+                            ? "Approved"
+                            : session.status === "REJECTED"
+                            ? "Rejected"
+                            : session.status === "UNDER_REVIEW" || session.status === "COMPLETED"
+                            ? "Under review"
+                            : session.status === "TRANSCRIBED"
+                            ? "Transcribed"
+                            : session.status === "RECORDED"
+                            ? "Recorded"
+                            : isProcessing
+                            ? "Processing"
+                            : "Scheduled"}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground hidden sm:table-cell">
