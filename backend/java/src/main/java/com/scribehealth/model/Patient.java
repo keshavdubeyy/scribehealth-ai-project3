@@ -10,7 +10,7 @@ public class Patient {
     private String name;
     private Integer age;
     private String gender;
-    private String doctorId; // Associate with the logged-in doctor
+    private String doctorId;
 
     public Patient() {}
 
