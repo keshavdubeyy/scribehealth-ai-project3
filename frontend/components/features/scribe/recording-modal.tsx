@@ -183,24 +183,45 @@ export function RecordingModal({
       return
     }
 
-    // Generate note
-    setProcessing("Generating clinical note…")
-    try {
-      const res = await fetch("/api/generate-note", {
+    // Extract entities + generate note in parallel (FR-05)
+    setProcessing("Extracting entities & generating clinical note…")
+    const [noteResult, entitiesResult] = await Promise.allSettled([
+      fetch("/api/generate-note", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ transcript }),
-      })
-      if (!res.ok) throw new Error((await res.json()).error ?? "Note generation failed")
-      const { note } = await res.json() as { note: Record<string, string> }
+      }).then(async r => {
+        if (!r.ok) throw new Error((await r.json()).error ?? "Note generation failed")
+        return r.json() as Promise<{ note: Record<string, string> }>
+      }),
+      fetch("/api/extract-entities", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ transcript }),
+      }).then(async r => {
+        if (!r.ok) return null
+        const { entities } = await r.json()
+        return entities
+      }),
+    ])
+
+    const note     = noteResult.status     === "fulfilled" ? noteResult.value.note : null
+    const entities = entitiesResult.status === "fulfilled" ? entitiesResult.value  : null
+
+    if (note) {
       await updateSession(sessionId, {
         soap:          note,
         transcription: transcript,
+        entities:      entities ?? undefined,
         status:        "UNDER_REVIEW",
       })
-    } catch {
-      // Transcript saved; doctor can regenerate from session page
-      await updateSession(sessionId, { transcription: transcript, status: "IDLE" })
+    } else {
+      // Note failed — save transcript + entities (if any), let doctor regenerate
+      await updateSession(sessionId, {
+        transcription: transcript,
+        entities:      entities ?? undefined,
+        status:        "IDLE",
+      })
       toast.error("Note generation failed. Transcript saved — you can generate from the session page.", { duration: 6000 })
     }
 
