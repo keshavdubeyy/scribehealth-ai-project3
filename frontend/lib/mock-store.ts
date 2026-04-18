@@ -22,6 +22,25 @@ export interface Session {
     p: string
   }
   transcription?: string
+  audioUrl?: string
+  edits?: Array<{
+    field: string
+    oldValue: string
+    newValue: string
+    timestamp: string
+  }>
+  prescription?: {
+    diagnosis: string
+    medicines: Array<{
+      id: string
+      name: string
+      dose: string
+      frequency: string
+      duration: string
+      timing: string
+    }>
+    nextSteps: string
+  }
 }
 
 export interface PrescriptionTemplate {

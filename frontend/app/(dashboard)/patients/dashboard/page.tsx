@@ -5,11 +5,12 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useScribeStore } from "@/lib/mock-store"
-import { Plus, FileText, Users, ChevronRight, TrendingUp, Clock } from "lucide-react"
+import { Plus, FileText, Users, ChevronRight, TrendingUp, Clock, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { formatDate, generateSessionName } from "@/lib/design-system/formatters"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -20,10 +21,14 @@ export default function DashboardPage() {
   React.useEffect(() => { setMounted(true) }, [])
 
   const firstName = session?.user?.name?.split(" ")[0] ?? "Doctor"
-  const today = formatDate(new Date())
+  const today = new Date().toLocaleDateString("en-IN", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  })
 
-  const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-  const recentCount = sessions.filter(s => new Date(s.createdAt).getTime() > oneWeekAgo).length
+  const thisWeekCount = React.useMemo(() => {
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    return sessions.filter(s => new Date(s.createdAt).getTime() > oneWeekAgo).length
+  }, [sessions])
 
   const recentSessions = React.useMemo(() => {
     return [...sessions]
@@ -31,163 +36,144 @@ export default function DashboardPage() {
       .slice(0, 5)
       .map(s => {
         const patient = patients.find(p => p.id === s.patientId)
-        const sessionName = generateSessionName(patient?.name ?? "Unknown", new Date(s.createdAt))
+        const createdAt = new Date(s.createdAt)
+        const sessionLabel = `${patient?.name.replace(/\s+/g, "") || "Unknown"}_${format(createdAt, "ddMMMyyyy_hhmma").replace(" ", "").toUpperCase()}`
         const chiefComplaint = s.soap?.s ? s.soap.s.split("\n")[0].trim() : null
         const hash = s.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0)
-        const confidence = s.status === "COMPLETED" ? 80 + (hash % 20) : null
-        return { ...s, sessionName, patientName: patient?.name ?? "Unknown", chiefComplaint, confidence }
+        const confidence = s.status === "COMPLETED" ? 80 + (hash % 19) : null
+        return { ...s, sessionLabel, patientName: patient?.name ?? "Unknown", chiefComplaint, confidence }
       })
   }, [sessions, patients])
 
   if (!mounted) return null
 
   return (
-    <div className="flex flex-col gap-6 w-full">
-
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-[22px] font-semibold text-foreground tracking-tight">
+    <div className="flex flex-col gap-6 max-w-5xl w-full animate-in fade-in duration-500">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">
             Hello, {firstName}
           </h1>
-          <p className="text-sm text-muted-foreground">{today}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {today}
+          </p>
         </div>
-        <Button
-          size="sm"
-          className="gap-1.5 w-full sm:w-auto justify-center h-9 px-4 text-[13px] font-medium"
+        <Button 
+          className="gap-2 h-10 px-5 font-semibold shadow-sm shadow-primary/20"
           onClick={() => router.push("/patients")}
         >
-          <Plus className="size-3.5" />
+          <Plus className="w-4 h-4" />
           New Session
         </Button>
       </div>
 
-      {/* ── Stat cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Card className="border border-border shadow-none bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col gap-1">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Total sessions</p>
-                <p className="text-3xl font-bold text-foreground tracking-tight">{sessions.length}</p>
+      {/* Stats row */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow cursor-default">
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total sessions</p>
+                <p className="text-3xl font-bold mt-1 tracking-tight">{sessions.length}</p>
               </div>
-              <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center mt-0.5">
-                <FileText className="size-4 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border shadow-none bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col gap-1">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Patients</p>
-                <p className="text-3xl font-bold text-foreground tracking-tight">{patients.length}</p>
-              </div>
-              <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center mt-0.5">
-                <Users className="size-4 text-primary" />
+              <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center">
+                <FileText className="w-5 h-5 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-border shadow-none bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col gap-1">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">This week</p>
-                <p className="text-3xl font-bold text-foreground tracking-tight">{recentCount}</p>
+        <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow cursor-default">
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Patients</p>
+                <p className="text-3xl font-bold mt-1 tracking-tight">{patients.length}</p>
               </div>
-              <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center mt-0.5">
-                <TrendingUp className="size-4 text-primary" />
+              <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center">
+                <Users className="w-5 h-5 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* ── Recent sessions ── */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[13px] font-semibold text-foreground">Recent sessions</h2>
-          <Link
-            href="/patients"
-            className="text-[12px] text-muted-foreground hover:text-primary flex items-center gap-0.5 transition-colors"
-          >
-            View all <ChevronRight className="size-3" />
-          </Link>
+      {/* This week mini stat */}
+      {thisWeekCount > 0 && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 w-fit px-3 py-1 rounded-full border border-border/50">
+          <Clock className="w-3.5 h-3.5" />
+          <span><strong className="text-foreground">{thisWeekCount}</strong> session{thisWeekCount !== 1 ? "s" : ""} this week</span>
         </div>
+      )}
 
-        <Card className="border border-border shadow-none overflow-hidden">
+      {/* Recent sessions */}
+      <Card className="border-border/50 shadow-sm">
+        <div className="flex items-center justify-between p-5 pb-3">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground/70">Recent sessions</h2>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="gap-1 text-xs font-bold uppercase tracking-wider hover:bg-muted"
+            onClick={() => router.push("/patients")}
+          >
+            View all
+            <ArrowRight className="w-3 h-3 ml-1" />
+          </Button>
+        </div>
+        <CardContent className="pt-0">
           {recentSessions.length === 0 ? (
-            <CardContent className="py-14 text-center flex flex-col items-center gap-3">
-              <div className="size-10 rounded-full bg-muted flex items-center justify-center">
-                <Clock className="size-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">No sessions yet</p>
-                <p className="text-[12px] text-muted-foreground mt-0.5">Start by adding a patient and creating a session.</p>
-              </div>
-              <Button size="sm" variant="outline" className="mt-1 h-8 text-xs" onClick={() => router.push("/patients")}>
-                Add patient
-              </Button>
-            </CardContent>
+            <div className="text-center py-12 text-muted-foreground text-sm border-2 border-dashed border-muted rounded-xl bg-muted/10">
+              No sessions yet.{" "}
+              <button 
+                onClick={() => router.push("/patients")}
+                className="font-semibold text-primary underline underline-offset-4 hover:opacity-80 transition-opacity"
+              >
+                Start your first session
+              </button>
+            </div>
           ) : (
-            <div className="divide-y divide-border">
-              {recentSessions.map((s, idx) => (
+            <div className="space-y-1">
+              {recentSessions.map((session) => (
                 <div
-                  key={s.id}
-                  className="group flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 hover:bg-muted/40 cursor-pointer transition-colors gap-2"
-                  onClick={() => router.push(`/patients/${s.patientId}/sessions/${s.id}`)}
+                  key={session.id}
+                  onClick={() => router.push(`/patients/${session.patientId}/sessions/${session.id}`)}
+                  className="flex items-center justify-between px-3 py-3 rounded-xl hover:bg-primary/[0.03] transition-all group cursor-pointer border border-transparent hover:border-primary/10"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-[11px] text-muted-foreground/40 tabular-nums w-4 shrink-0 group-hover:text-muted-foreground transition-colors">
-                      {idx + 1}
-                    </span>
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[13px] font-medium text-foreground truncate leading-tight">
-                        {s.sessionName}
-                      </span>
-                      {s.chiefComplaint && (
-                        <span className="text-[11px] text-muted-foreground truncate leading-tight">
-                          {s.chiefComplaint}
-                        </span>
-                      )}
-                    </div>
+                  <div className="min-w-0 pr-4">
+                    <p className="text-sm font-bold truncate font-mono tracking-tight text-foreground group-hover:text-primary transition-colors">
+                      {session.sessionLabel}
+                    </p>
+                    {session.chiefComplaint && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate leading-relaxed">
+                        {session.chiefComplaint}
+                      </p>
+                    )}
                   </div>
-
-                  <div className="flex items-center gap-2 sm:shrink-0 pl-7 sm:pl-0">
-                    <Badge
-                      variant="secondary"
-                      className="text-[10px] font-medium bg-primary/10 text-primary border-0 hover:bg-primary/10 h-5 px-2"
-                    >
-                      General OPD
-                    </Badge>
-                    <Badge
-                      variant="secondary"
-                      className={`text-[10px] font-medium border-0 h-5 px-2 ${
-                        s.status === "COMPLETED"
-                          ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/10"
-                          : s.status === "PROCESSING"
-                          ? "bg-amber-500/10 text-amber-700 hover:bg-amber-500/10"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {s.status === "COMPLETED" ? "Completed" : s.status === "PROCESSING" ? "Processing" : "In progress"}
-                    </Badge>
-                    {s.confidence !== null && (
-                      <span className="text-[11px] text-muted-foreground tabular-nums w-8 text-right">
-                        {s.confidence}%
+                  <div className="flex items-center gap-3 shrink-0">
+                    {session.confidence != null && (
+                      <span className="text-[10px] font-bold text-muted-foreground/60 tabular-nums">
+                        {session.confidence}%
                       </span>
                     )}
+                    <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest h-5 px-1.5 bg-muted/50 border-0">
+                      GENERAL OPD
+                    </Badge>
+                    <Badge 
+                      variant={session.status === "COMPLETED" ? "default" : "outline"} 
+                      className={cn(
+                        "text-[9px] font-black uppercase tracking-widest h-5 px-2",
+                        session.status === "COMPLETED" ? "bg-emerald-500 text-white hover:bg-emerald-600" : "text-amber-600 border-amber-500/30"
+                      )}
+                    >
+                      {session.status.toLowerCase()}
+                    </Badge>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </Card>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

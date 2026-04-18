@@ -28,7 +28,7 @@ export default async function DashboardLayout({
       >
         <div className="flex min-h-screen w-full">
           <AppSidebar collapsible="icon" />
-          <SidebarInset className="bg-background">
+          <SidebarInset className="bg-[#F7F6F5]">
             <SiteHeader />
             <main className="flex flex-1 flex-col overflow-hidden">
               <div className="flex flex-1 flex-col overflow-y-auto">

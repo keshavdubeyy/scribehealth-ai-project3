@@ -5,13 +5,22 @@ import { useParams, useRouter } from "next/navigation"
 import { useScribeStore } from "@/lib/mock-store"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -20,290 +29,536 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { ArrowLeft, Trash2, Share2, Loader2, MessageSquare, Mic, FileText } from "lucide-react"
-import { Label } from "@/components/ui/label"
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from "@/components/ui/empty"
+  ArrowLeft,
+  Trash2,
+  FileText,
+  Clock,
+  Mic,
+  User,
+  ShieldCheck,
+  UserCheck,
+  UserPlus,
+  UserMinus,
+  Loader2,
+} from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
+import Link from "next/link"
+import { cn } from "@/lib/utils"
 
-// Note fields shown in the General OPD / SOAP template
-const GENERAL_OPD_FIELDS = [
-  { key: "chief_complaint",            label: "Chief complaint" },
-  { key: "history_of_present_illness", label: "History of present illness" },
-  { key: "examination",                label: "Examination" },
-  { key: "diagnosis",                  label: "Diagnosis" },
-  { key: "prescription",               label: "Prescription" },
-  { key: "follow_up",                  label: "Follow-up" },
-]
+import { NoteSection } from "@/components/features/scribe/note-section"
+import { TranscriptPanel } from "@/components/features/scribe/transcript-panel"
+import { PrescriptionTab } from "@/components/features/scribe/prescription-tab"
 
-const TEMPLATES = [
-  "General OPD / SOAP",
-  "Mental Health (SOAP)",
-  "Physiotherapy",
-  "Pediatric",
-  "Cardiology",
-  "Surgical Follow-up",
-]
+// ── Confidence helpers ──────────────────────────────────────────────────────
 
-type NoteFields = Record<string, string>
+function confidenceColor(score: number) {
+  if (score >= 80) return "text-green-700 bg-green-50 border-green-200"
+  if (score >= 60) return "text-yellow-700 bg-yellow-50 border-yellow-200"
+  return "text-red-700 bg-red-50 border-red-200"
+}
 
-export default function SessionPage() {
-  const { patientId, sessionId } = useParams()
+function confidenceLabel(score: number) {
+  if (score >= 80) return "High confidence"
+  if (score >= 60) return "Medium confidence"
+  return "Low confidence"
+}
+
+// ── Link Patient Dialog ─────────────────────────────────────────────────────
+
+interface LinkPatientDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  sessionId: string
+  currentPatientId: string | null
+  currentPatientName: string | null
+}
+
+function LinkPatientDialog({
+  open,
+  onOpenChange,
+  sessionId,
+  currentPatientId,
+  currentPatientName,
+}: LinkPatientDialogProps) {
+  const { patients, updateSession } = useScribeStore()
   const router = useRouter()
-  const { getPatient, getSessions, updateSession, deleteSession } = useScribeStore()
+  const [selected, setSelected] = React.useState<string>("")
+  const [isSaving, setIsSaving] = React.useState(false)
 
-  const [mounted,        setMounted]        = React.useState(false)
-  const [activeTab,      setActiveTab]      = React.useState("note")
-  const [template,       setTemplate]       = React.useState("General OPD / SOAP")
-  const [note,           setNote]           = React.useState<NoteFields>({})
-  const [isSaving,       setIsSaving]       = React.useState(false)
-  const [isDeleteOpen,   setIsDeleteOpen]   = React.useState(false)
-  const [isDeleting,     setIsDeleting]     = React.useState(false)
+  const isLinked = !!currentPatientId
 
-  const patient  = React.useMemo(() => mounted ? getPatient(patientId as string)  : null, [patientId, getPatient,  mounted])
-  const sessions = React.useMemo(() => mounted ? getSessions(patientId as string) : [],   [patientId, getSessions, mounted])
-  const session  = React.useMemo(() => sessions.find(s => s.id === sessionId),             [sessions, sessionId])
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Seed note with demo content when session loads
-  React.useEffect(() => {
-    if (!session) return
-    setNote({
-      chief_complaint:            session.soap?.s ? session.soap.s.split("\n")[0] : "",
-      history_of_present_illness: session.soap?.s || "",
-      examination:                session.soap?.o || "",
-      diagnosis:                  session.soap?.a || "",
-      prescription:               "",
-      follow_up:                  session.soap?.p || "",
-    })
-  }, [session])
-
-  // Auto-save debounce
-  const saveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  function handleNoteChange(key: string, value: string) {
-    setNote(prev => ({ ...prev, [key]: value }))
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => {
-      // persist to store if needed
-    }, 800)
-  }
-
-  if (!mounted || !patient || !session) return null
-
-  // Generate session name: PatientFirstName_DDMonYYYY_HHMMam/pm
-  const createdAt   = new Date(session.createdAt)
-  const sessionName = `${patient.name.replace(/\s+/g, "")}_${format(createdAt, "ddMMMyyyy_hhmma").replace(" ", "").toUpperCase()}`
-  const sessionDate = format(createdAt, "d MMMM yyyy 'at' hh:mm aa")
-
-  const statusBadge = session.status === "COMPLETED"
-    ? { label: "Completed", className: "bg-primary text-white hover:bg-primary" }
-    : session.status === "PROCESSING"
-    ? { label: "Processing", className: "bg-amber-500/10 text-amber-700 border-amber-500/20" }
-    : { label: "In progress", className: "bg-muted text-muted-foreground" }
-
-  async function handleSaveComplete() {
+  const handleLink = async () => {
+    if (!selected) {
+      toast.error("Select a patient")
+      return
+    }
     setIsSaving(true)
     try {
-      await updateSession(session!.id, { status: "COMPLETED" })
-      toast.success("Session saved and marked as complete.")
-      router.push(`/patients/${patientId}`)
+      const p = patients.find(p => p.id === selected)
+      await updateSession(sessionId, { patientId: selected })
+      toast.success(`Linked to ${p?.name ?? selected}`)
+      onOpenChange(false)
+      router.refresh()
     } catch {
-      toast.error("Could not save the session. Please try again.")
+      toast.error("Failed to link patient")
     } finally {
       setIsSaving(false)
     }
   }
 
-  async function handleDelete() {
-    setIsDeleting(true)
+  const handleUnlink = async () => {
+    setIsSaving(true)
     try {
-      await deleteSession(session!.id)
-      toast.success("Session deleted.")
-      router.push(`/patients/${patientId}`)
+      await updateSession(sessionId, { patientId: "" })
+      toast.success("Patient unlinked")
+      onOpenChange(false)
+      router.refresh()
     } catch {
-      toast.error("Something went wrong. Please try again.")
+      toast.error("Failed to unlink patient")
     } finally {
-      setIsDeleting(false)
-      setIsDeleteOpen(false)
+      setIsSaving(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full pb-20 animate-in fade-in duration-300">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{isLinked ? "Change patient" : "Link to patient"}</DialogTitle>
+          {isLinked && currentPatientName && (
+            <DialogDescription>
+              Currently linked to <strong>{currentPatientName}</strong>. Select a
+              different patient or unlink.
+            </DialogDescription>
+          )}
+        </DialogHeader>
 
-      {/* Delete confirmation */}
-      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete session?</AlertDialogTitle>
-            <p className="text-sm text-muted-foreground">
-              This will permanently delete this session and its note. This cannot be undone.
+        <div className="py-2 space-y-3">
+          {patients.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No patients found. Add a patient first from the Patients page.
             </p>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? <Loader2 className="animate-spin size-4" /> : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          {/* Left: back + title */}
-          <div className="space-y-1 min-w-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push(`/patients/${patientId}`)}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground -ml-2 h-auto px-2 py-1"
-            >
-              <ArrowLeft className="size-3.5" />
-              <span className="truncate">{sessionName}</span>
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              {patient.name} · {sessionDate}
-            </p>
-          </div>
-
-          {/* Right: actions */}
-          <div className="flex items-center gap-2 sm:shrink-0 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs sm:text-sm flex-1 sm:flex-none"
-              onClick={() => router.push(`/patients/${patientId}`)}
-            >
-              Change patient
-            </Button>
-            <Button size="sm" className="gap-1.5 text-xs sm:text-sm flex-1 sm:flex-none">
-              <Share2 className="size-3.5" />
-              View report
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 text-muted-foreground hover:text-destructive shrink-0"
-              onClick={() => setIsDeleteOpen(true)}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Badge row */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge className={statusBadge.className}>{statusBadge.label}</Badge>
-          <Badge variant="secondary">{template}</Badge>
-          {session.soap && <Badge variant="secondary">{Math.floor(Math.random() * 60 + 10)}s</Badge>}
-          {patient.age && <Badge variant="secondary">{patient.age} yrs</Badge>}
-          <Badge variant="secondary">Recording saved</Badge>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full sm:w-auto h-10 p-1 bg-muted/50">
-          {[
-            { value: "note",       label: "Clinical note", icon: FileText     },
-            { value: "transcript", label: "Transcript",    icon: MessageSquare },
-            { value: "audio",      label: "Audio",         icon: Mic           },
-          ].map(tab => (
-            <TabsTrigger
-              key={tab.value}
-              value={tab.value}
-              className="px-4 py-2 text-sm font-medium transition-all"
-            >
-              <tab.icon className="mr-2" />
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        {/* Clinical note tab */}
-        <TabsContent value="note" className="mt-5 space-y-5">
-          {/* Template selector */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <span className="text-sm text-muted-foreground">Template detected:</span>
-            <Select value={template} onValueChange={setTemplate}>
-              <SelectTrigger className="w-full sm:w-52 h-8 text-sm">
-                <SelectValue />
+          ) : (
+            <Select value={selected} onValueChange={setSelected}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a patient..." />
               </SelectTrigger>
               <SelectContent>
-                {TEMPLATES.map(t => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                {patients.map(p => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}{p.age ? ` · ${p.age} yrs` : ""}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          )}
+        </div>
 
-          {/* Note fields */}
-          <div className="space-y-4">
-            {GENERAL_OPD_FIELDS.map(field => (
-              <div key={field.key} className="space-y-1.5">
-                <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-                  {field.label}
-                </Label>
-                <Textarea
-                  value={note[field.key] ?? ""}
-                  onChange={e => handleNoteChange(field.key, e.target.value)}
-                  className="min-h-[72px] resize-none text-sm leading-relaxed bg-card border-border focus-visible:ring-1 focus-visible:ring-primary/30"
-                  placeholder={`Enter ${field.label.toLowerCase()}...`}
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Save button */}
-          <div className="flex justify-end pt-2">
-            <Button onClick={handleSaveComplete} disabled={isSaving} className="gap-2">
-              {isSaving && <Loader2 className="size-4 animate-spin" />}
-              Save & complete
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {isLinked && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground hover:text-destructive sm:mr-auto"
+              onClick={handleUnlink}
+              disabled={isSaving}
+            >
+              <UserMinus className="w-3.5 h-3.5" />
+              Unlink
             </Button>
-          </div>
+          )}
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button onClick={handleLink} disabled={isSaving || !selected}>
+            {isSaving ? "Saving…" : isLinked ? "Change" : "Link patient"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Delete Session Dialog ────────────────────────────────────────────────────
+
+interface DeleteDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  sessionId: string
+  onDeleted: () => void
+}
+
+function DeleteDialog({ open, onOpenChange, sessionId, onDeleted }: DeleteDialogProps) {
+  const { deleteSession } = useScribeStore()
+  const [deleteAudio, setDeleteAudio] = React.useState(false)
+  const [isDeleting, setIsDeleting] = React.useState(false)
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    try {
+      await deleteSession(sessionId)
+      toast.success("Session deleted")
+      onOpenChange(false)
+      onDeleted()
+    } catch {
+      toast.error("Failed to delete session")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete session</DialogTitle>
+          <DialogDescription>
+            This will permanently delete the clinical note and transcript. This cannot be
+            undone.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex items-start gap-3 py-2">
+          <input
+            type="checkbox"
+            id="deleteAudio"
+            checked={deleteAudio}
+            onChange={e => setDeleteAudio(e.target.checked)}
+            className="mt-0.5"
+          />
+          <label htmlFor="deleteAudio" className="text-sm cursor-pointer">
+            Also delete the audio recording
+          </label>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isDeleting}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+            {isDeleting ? "Deleting…" : "Delete session"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Processing View ──────────────────────────────────────────────────────────
+
+function SessionProcessingView() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 space-y-4">
+      <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
+        <Loader2 className="w-7 h-7 animate-spin text-muted-foreground" />
+      </div>
+      <div className="text-center space-y-1">
+        <p className="font-medium">Processing session…</p>
+        <p className="text-sm text-muted-foreground">
+          Transcribing audio and generating clinical note
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Session Page ─────────────────────────────────────────────────────────────
+
+export default function SessionPage() {
+  const { patientId, sessionId } = useParams()
+  const router = useRouter()
+  const { getPatient, getSessions } = useScribeStore()
+
+  const [mounted, setMounted] = React.useState(false)
+  const [isLinkOpen, setIsLinkOpen] = React.useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = React.useState(false)
+
+  React.useEffect(() => { setMounted(true) }, [])
+
+  const patient = React.useMemo(
+    () => (mounted ? getPatient(patientId as string) : null),
+    [patientId, getPatient, mounted]
+  )
+  const sessions = React.useMemo(
+    () => (mounted ? getSessions(patientId as string) : []),
+    [patientId, getSessions, mounted]
+  )
+  const session = React.useMemo(
+    () => sessions.find(s => s.id === sessionId),
+    [sessions, sessionId]
+  )
+
+  if (!mounted || !patient || !session) return null
+
+  const createdAt = new Date(session.createdAt)
+  // Session name: PatientName_10Apr2026_0542PM
+  const sessionName = `${patient.name.replace(/\s+/g, "")}_${format(createdAt, "ddMMMyyy_hhmma")}`
+  const sessionDateText = new Date(session.createdAt).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+
+  // Mock AI confidence for demo
+  const hash = session.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0)
+  const confidence: number | null = session.status === "COMPLETED" ? 80 + (hash % 19) : null
+
+  const finalNote: Record<string, string> = session.soap
+    ? {
+        subjective:   session.soap.s ?? "",
+        objective:    session.soap.o ?? "",
+        assessment:   session.soap.a ?? "",
+        plan:         session.soap.p ?? "",
+        diagnosis:    session.soap.a ?? "",
+        prescription: "",
+        follow_up:    session.soap.p ?? "",
+        advice:       "",
+      }
+    : {}
+  const hasNote = Object.values(finalNote).some(v => v?.trim())
+  const hasEdits = (session.edits?.length ?? 0) > 0
+  const chiefComplaint = session.soap?.s?.split("\n")[0]?.trim() ?? ""
+
+  // ── Header shared between both render paths ──
+  const header = (
+    <div className="flex items-center gap-3">
+      <Link href={`/patients/${patientId}`}>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+      </Link>
+
+      <div className="flex-1 min-w-0">
+        <h1 className="text-xl font-semibold truncate font-mono tracking-tight">
+          {sessionName}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          <span
+            className="hover:text-primary transition-colors cursor-pointer"
+            onClick={() => router.push(`/patients/${patientId}`)}
+          >
+            {patient.name}
+          </span>
+          {" · "}
+          {sessionDateText}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Link patient button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={() => setIsLinkOpen(true)}
+        >
+          {session.patientId
+            ? <><UserCheck className="w-3.5 h-3.5" /> Change patient</>
+            : <><UserPlus className="w-3.5 h-3.5" /> Link patient</>
+          }
+        </Button>
+
+        {/* View report (only if note has content) */}
+        {hasNote && (
+          <Link href={`/sessions/${sessionId}/report`} target="_blank">
+            <Button size="sm" className="gap-1.5 text-xs">
+              <FileText className="w-3.5 h-3.5" />
+              View report
+            </Button>
+          </Link>
+        )}
+
+        {/* Delete */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          onClick={() => setIsDeleteOpen(true)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  )
+
+  // ── Dialogs ──
+  const dialogs = (
+    <>
+      <LinkPatientDialog
+        open={isLinkOpen}
+        onOpenChange={setIsLinkOpen}
+        sessionId={session.id}
+        currentPatientId={session.patientId ?? null}
+        currentPatientName={patient.name ?? null}
+      />
+      <DeleteDialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        sessionId={session.id}
+        onDeleted={() => router.push(`/patients/${patientId}`)}
+      />
+    </>
+  )
+
+  // ── Processing path ──
+  if (session.status === "PROCESSING") {
+    return (
+      <div className="p-6 max-w-3xl space-y-5">
+        {dialogs}
+        {header}
+        <SessionProcessingView />
+      </div>
+    )
+  }
+
+  // ── Ready path ──
+  return (
+    <div className="p-6 max-w-5xl space-y-5 animate-in fade-in duration-300">
+      {dialogs}
+
+      {/* Header */}
+      {header}
+
+      {/* Badges Row */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Status */}
+        <Badge
+          variant={session.status === "COMPLETED" ? "default" : "outline"}
+          className="capitalize"
+        >
+          {session.status === "COMPLETED" ? "Completed" : session.status.toLowerCase()}
+        </Badge>
+
+        {/* Template */}
+        {session.soap && (
+          <Badge variant="secondary">General OPD</Badge>
+        )}
+
+        {/* Duration — mocked */}
+        <Badge variant="outline" className="gap-1">
+          <Clock className="w-3 h-3" />
+          55s
+        </Badge>
+
+        {/* Patient age */}
+        {patient.age && (
+          <Badge variant="outline" className="gap-1">
+            <User className="w-3 h-3" />
+            {patient.age} yrs
+          </Badge>
+        )}
+
+        {/* Recording saved */}
+        {session.audioUrl && (
+          <Badge variant="outline" className="gap-1">
+            <Mic className="w-3 h-3" />
+            Recording saved
+          </Badge>
+        )}
+
+        {/* AI Confidence */}
+        {confidence !== null && (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border",
+              confidenceColor(confidence)
+            )}
+          >
+            <ShieldCheck className="w-3 h-3" />
+            {confidence}% · {confidenceLabel(confidence)}
+          </span>
+        )}
+      </div>
+
+      {/* Chief Complaint Card */}
+      {chiefComplaint && (
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <p className="text-xs uppercase tracking-wide font-medium text-muted-foreground mb-1">
+              Chief complaint
+            </p>
+            <p className="text-sm">{chiefComplaint}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Tabs */}
+      <Tabs defaultValue="note">
+        <TabsList>
+          <TabsTrigger value="note">Clinical note</TabsTrigger>
+          <TabsTrigger value="prescription">Prescription</TabsTrigger>
+          <TabsTrigger value="transcript">Transcript</TabsTrigger>
+          {session.audioUrl && <TabsTrigger value="audio">Audio</TabsTrigger>}
+          {hasEdits && <TabsTrigger value="history">Edit history</TabsTrigger>}
+        </TabsList>
+
+        {/* Clinical Note */}
+        <TabsContent value="note" className="mt-4">
+          <NoteSection session={session} />
         </TabsContent>
 
-        {/* Transcript tab */}
-        <TabsContent value="transcript" className="mt-5">
-          <Empty className="border-2 py-24">
-            <EmptyMedia variant="icon">
-              <MessageSquare />
-            </EmptyMedia>
-            <EmptyHeader>
-              <EmptyTitle>No transcript</EmptyTitle>
-              <EmptyDescription>No transcript is available for this session.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+        {/* Prescription */}
+        <TabsContent value="prescription" className="mt-4">
+          <PrescriptionTab session={session} patient={patient} />
         </TabsContent>
 
-        {/* Audio tab */}
-        <TabsContent value="audio" className="mt-5">
-          <Empty className="border-2 py-24">
-            <EmptyMedia variant="icon">
-              <Mic />
-            </EmptyMedia>
-            <EmptyHeader>
-              <EmptyTitle>No audio</EmptyTitle>
-              <EmptyDescription>No audio recording was saved for this session.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+        {/* Transcript — force mount to avoid layout shift */}
+        <TabsContent
+          value="transcript"
+          forceMount
+          className="mt-4 data-[state=inactive]:hidden"
+        >
+          <Card>
+            <CardContent className="pt-5">
+              <TranscriptPanel session={session} />
+            </CardContent>
+          </Card>
         </TabsContent>
+
+        {/* Audio */}
+        {session.audioUrl && (
+          <TabsContent value="audio" className="mt-4">
+            <Card>
+              <CardContent className="pt-5 space-y-3">
+                <p className="text-sm font-medium">Session recording</p>
+                <audio controls src={session.audioUrl} className="w-full" />
+                <p className="text-xs text-muted-foreground">
+                  Recording is stored securely and linked to this session only.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Edit History */}
+        {hasEdits && (
+          <TabsContent value="history" className="mt-4">
+            <Card>
+              <CardContent className="pt-5">
+                <div className="space-y-3">
+                  {(session.edits ?? []).map((edit, i) => (
+                    <div key={i} className="text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{edit.field}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(edit.timestamp).toLocaleTimeString("en-IN")}
+                        </span>
+                      </div>
+                      <Separator className="my-1.5" />
+                      <p className="text-xs text-muted-foreground line-through">
+                        {edit.oldValue || "(empty)"}
+                      </p>
+                      <p className="text-xs mt-1">{edit.newValue || "(empty)"}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )
