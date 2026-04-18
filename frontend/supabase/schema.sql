@@ -24,20 +24,24 @@ create table if not exists sessions (
   prescription   jsonb
 );
 
--- prescription templates (one row per user, upserted on save)
+-- prescription templates (multiple per user, each is one letterhead setup)
+-- safe_zone stores percentage-based coords: { x_pct, y_pct, width_pct, height_pct, font_size_pt, line_height_pt }
 create table if not exists prescription_templates (
-  user_email   text        primary key,
-  image_url    text        not null,
+  id           uuid        primary key default gen_random_uuid(),
+  user_email   text        not null,
+  image_path   text        not null,
+  image_width  integer     not null,
+  image_height integer     not null,
   safe_zone    jsonb       not null,
-  font_size    integer     not null,
-  line_height  real        not null,
+  created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
 
 -- Indexes
-create index if not exists idx_patients_user_email  on patients(user_email);
-create index if not exists idx_sessions_patient_id  on sessions(patient_id);
-create index if not exists idx_sessions_user_email  on sessions(user_email);
+create index if not exists idx_patients_user_email             on patients(user_email);
+create index if not exists idx_sessions_patient_id             on sessions(patient_id);
+create index if not exists idx_sessions_user_email             on sessions(user_email);
+create index if not exists idx_prescription_templates_user_email on prescription_templates(user_email);
 
 -- RLS: enabled with permissive anon policies.
 -- The anon key requires RLS to be on; access is scoped by user_email in queries.
