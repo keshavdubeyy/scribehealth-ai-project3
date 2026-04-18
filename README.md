@@ -20,6 +20,22 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 ---
 
+## Project Completion Tracker
+
+> ✅ = fully done (1.0 pt) &nbsp;|&nbsp; ⚠️ = partial (0.5 pt) &nbsp;|&nbsp; ❌ = not done (0 pt)
+
+| Category | Done | Partial | Not done | Score | Progress |
+|---|:---:|:---:|:---:|:---:|---|
+| Functional Requirements (12) | 8 | 2 | 2 | **75%** | `███████░░░` |
+| Non-Functional Requirements (5) | 4 | 1 | 0 | **90%** | `█████████░` |
+| Design Patterns (7) | 0 | 3 | 4 | **21%** | `██░░░░░░░░` |
+| **Overall (24 pts)** | **12** | **6** | **6** | **63%** | `██████░░░░` |
+
+> **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
+> **Critical gap:** Design patterns (0/7 fully implemented) is the single biggest drag on overall score.
+
+---
+
 ## Requirements
 
 ### Functional Requirements
