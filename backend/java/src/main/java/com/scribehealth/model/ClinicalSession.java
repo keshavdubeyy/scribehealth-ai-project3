@@ -9,9 +9,10 @@ public class ClinicalSession {
     @Id
     private String id;
     private String patientId;
-    private String status; // IDLE, RECORDING, PROCESSING, COMPLETED
+    private String doctorId;
+    private String status;
     private LocalDateTime createdAt = LocalDateTime.now();
-    
+
     private SoapNote soap;
     private String transcription;
 
@@ -22,6 +23,9 @@ public class ClinicalSession {
 
     public String getPatientId() { return patientId; }
     public void setPatientId(String patientId) { this.patientId = patientId; }
+
+    public String getDoctorId() { return doctorId; }
+    public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
