@@ -3,6 +3,7 @@
 import { create } from "zustand"
 import { createClient } from "@/utils/supabase/client"
 import { logAudit } from "@/lib/audit"
+import { assertTransition } from "@/lib/session-state-machine"
 
 export interface Patient {
   id: string
@@ -93,6 +94,7 @@ interface ScribeStore {
   fetchSessions: (patientId: string) => Promise<void>
   addSession: (patientId: string) => Promise<string>
   updateSession: (id: string, data: Partial<Session>) => Promise<void>
+  transitionSession: (id: string, status: SessionStatus, extraData?: Omit<Partial<Session>, "status">) => Promise<void>
   deleteSession: (id: string) => Promise<void>
 
   getPatient: (id: string) => Patient | undefined
@@ -209,7 +211,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
       patient_id: patientId,
       user_email: email,
       created_at: createdAt,
-      status:     "IDLE",
+      status:     "SCHEDULED",
       edits:      [],
     })
     if (error) throw new Error(error.message)
@@ -217,7 +219,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
       id,
       patientId,
       createdAt,
-      status: "IDLE",
+      status: "SCHEDULED",
     }
     set(state => ({ sessions: [newSession, ...state.sessions] }))
     return id
@@ -239,6 +241,13 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     set(state => ({
       sessions: state.sessions.map(s => s.id === id ? { ...s, ...data } : s),
     }))
+  },
+
+  transitionSession: async (id, status, extraData) => {
+    const session = get().sessions.find(s => s.id === id)
+    if (!session) throw new Error(`Session ${id} not found`)
+    assertTransition(session.status, status)
+    await get().updateSession(id, { ...extraData, status })
   },
 
   deleteSession: async (id) => {

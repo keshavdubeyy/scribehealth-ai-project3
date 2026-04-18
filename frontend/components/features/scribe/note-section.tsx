@@ -93,7 +93,7 @@ interface NoteEditorProps {
 type SaveState = "idle" | "saving" | "saved"
 
 function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEditorProps) {
-  const { updateSession } = useScribeStore()
+  const { updateSession, transitionSession } = useScribeStore()
   const router = useRouter()
   const [template, setTemplate]         = React.useState(initialTemplate)
   const [note, setNote]                 = React.useState<Record<string, string>>(initialNote)
@@ -164,12 +164,13 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
   const handleApprove = async () => {
     setIsApproving(true)
     try {
-      await updateSession(session.id, { soap: note, status: "APPROVED" })
+      await updateSession(session.id, { soap: note })
+      await transitionSession(session.id, "APPROVED")    // UNDER_REVIEW → APPROVED
       await logAudit("note_approved", "session", session.id)
       toast.success("Note approved and locked")
       router.refresh()
-    } catch {
-      toast.error("Failed to approve note")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to approve note")
     } finally {
       setIsApproving(false)
     }
@@ -179,12 +180,12 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
   const handleReject = async () => {
     setIsRejecting(true)
     try {
-      await updateSession(session.id, { status: "REJECTED" })
+      await transitionSession(session.id, "REJECTED")    // UNDER_REVIEW → REJECTED
       await logAudit("note_rejected", "session", session.id)
       toast.info("Note rejected — use 'Regenerate' to create a new one")
       router.refresh()
-    } catch {
-      toast.error("Failed to reject note")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to reject note")
     } finally {
       setIsRejecting(false)
     }
@@ -202,12 +203,12 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
       if (!res.ok) throw new Error("Regeneration failed")
       const { note: newNote } = await res.json() as { note: Record<string, string> }
       setNote(newNote)
-      await updateSession(session.id, { soap: newNote, status: "UNDER_REVIEW" })
+      await transitionSession(session.id, "UNDER_REVIEW", { soap: newNote })  // REJECTED → UNDER_REVIEW
       await logAudit("note_regenerated", "session", session.id)
       toast.success("Note regenerated — review and approve when ready")
       router.refresh()
-    } catch {
-      toast.error("Regeneration failed")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Regeneration failed")
     } finally {
       setIsRegenerating(false)
     }
@@ -366,7 +367,7 @@ interface NoteSectionProps {
 
 export function NoteSection({ session }: NoteSectionProps) {
   const router = useRouter()
-  const { updateSession } = useScribeStore()
+  const { updateSession, transitionSession } = useScribeStore()
   const [isGenerating, setIsGenerating] = React.useState(false)
 
   const initialNote: Record<string, string> = session.soap
@@ -405,7 +406,8 @@ export function NoteSection({ session }: NoteSectionProps) {
         })
         if (!res.ok) throw new Error("Generation failed")
         const { note } = await res.json() as { note: Record<string, string> }
-        await updateSession(session.id, { soap: note, status: "UNDER_REVIEW" })
+        await updateSession(session.id, { soap: note })
+        await transitionSession(session.id, "UNDER_REVIEW")   // TRANSCRIBED → UNDER_REVIEW
         await logAudit("note_generated", "session", session.id)
         toast.success("Clinical note generated")
         router.refresh()
