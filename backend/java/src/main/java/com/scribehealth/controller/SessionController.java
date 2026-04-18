@@ -33,6 +33,7 @@ public class SessionController {
         return sessionRepository.findByPatientIdAndDoctorId(patientId, currentUser().getId());
     }
 
+    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping
     public ClinicalSession createSession(@RequestBody ClinicalSession session) {
         session.setDoctorId(currentUser().getId());
@@ -51,6 +52,7 @@ public class SessionController {
         return sessionRepository.save(session);
     }
 
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{id}")
     public void deleteSession(@PathVariable String id) {
         ClinicalSession existing = sessionRepository.findById(id)
