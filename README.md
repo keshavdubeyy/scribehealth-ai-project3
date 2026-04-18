@@ -20,24 +20,77 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 ---
 
+## Requirements
+
+### Functional Requirements
+
+| ID | Requirement |
+|---|---|
+| FR-01 | Doctors can register, log in, and manage only their own patients and consultations |
+| FR-02 | Administrators can manage users (create, activate, deactivate) and view audit logs |
+| FR-03 | The system records doctor-patient audio with start, stop, pause, and resume controls |
+| FR-04 | Audio is transcribed asynchronously; failed transcriptions are retried automatically |
+| FR-05 | Transcripts are processed to extract symptoms, diagnoses, medications, allergies, vitals, and treatment plans |
+| FR-06 | Extracted entities are assembled into a structured SOAP note pre-filled for doctor review |
+| FR-07 | Doctors can select from specialty templates (General OPD, Cardiology, Pediatric, etc.) |
+| FR-08 | Doctors review, edit, approve, or reject AI-generated notes before permanent record storage |
+| FR-09 | Approved notes can be shared via Email, SMS, or WhatsApp |
+| FR-10 | Every system action (login, note approval, sharing) is logged with actor, timestamp, and entity |
+| FR-11 | Consultation state transitions are enforced; illegal transitions are blocked |
+| FR-12 | Stakeholders are notified automatically on lifecycle events (note ready, approved, failure) |
+
+### Non-Functional Requirements
+
+| ID | Requirement | Architectural Significance |
+|---|---|---|
+| NFR-01 | **Security** — PHI data must be encrypted in transit (TLS) and at rest; JWT tokens expire in 8 hours | Drives auth filter chain, HTTPS enforcement, token expiry config |
+| NFR-02 | **Performance** — Transcription pipeline must not block the UI; API responses under 500ms for CRUD | Drives async processing, non-blocking transcription handoff |
+| NFR-03 | **Extensibility** — New transcription providers or sharing channels added without modifying core logic | Drives Factory Method and Strategy patterns |
+| NFR-04 | **Auditability** — All actions traceable; logs immutable and admin-only | Drives AuditLog collection, Facade pattern, role-based access |
+| NFR-05 | **Reliability** — Transcription failures recovered via retry; no data loss on pipeline error | Drives retry mechanism, session status persistence |
+
+---
+
 ## System Architecture
 
 | Layer | Technology |
 |---|---|
-| Frontend | Web or Mobile Interface |
-| Backend | Java / Spring Boot |
-| Transcription | Speech-to-Text Engine (external API) |
-| NLP | Medical Entity Extraction Module |
-| Database | Relational DB (users, patients, consultations, notes) |
-| Communication | External APIs - Email, SMS, WhatsApp |
+| Frontend | Next.js (React 19, Tailwind CSS, Zustand) |
+| Backend | Java 17 / Spring Boot 3.2 |
+| Transcription | OpenAI Whisper (via Python FastAPI service) |
+| NLP | GPT-4o + SciSpacy / SciBERT (medical entity extraction) |
+| Database | MongoDB (users, patients, sessions, audit logs) |
+| Communication | External APIs — Email, SMS, WhatsApp |
+
+### Subsystems
+
+| Subsystem | Role |
+|---|---|
+| **Auth & Access** | JWT login/register, role enforcement, session management |
+| **Patient & Session** | CRUD for patient records and clinical sessions; SOAP note storage |
+| **AI Pipeline** | Audio capture → async transcription → NLP extraction → SOAP note generation |
+| **Review & Sharing** | Doctor approval workflow; multi-channel note distribution |
+| **Audit & Admin** | Immutable action logging; admin dashboard via Facade |
+| **Lifecycle & Notifications** | State machine for consultation stages; Observer-driven stakeholder alerts |
+| **Profile Builder** | Validated construction of complex patient profiles |
 
 ### Architectural Tactics
 
-- **Separation of Concerns** - each module (recording, transcription, NLP, note generation) is independently isolated
-- **Extensibility through Interfaces** - new transcription providers or sharing channels can be added without modifying core logic
-- **Retry Mechanisms** - for transcription or delivery failures
-- **Human-in-the-loop verification** - doctor must review and approve all generated notes
-- **Audit Logging** - all system actions are recorded for traceability and governance
+| Tactic | NFR Addressed | How |
+|---|---|---|
+| **Separation of Concerns** | NFR-03 Extensibility | Each pipeline stage (recording, transcription, NLP, generation) is an isolated module with a defined interface |
+| **Extensibility through Interfaces** | NFR-03 Extensibility | Factory Method and Strategy patterns mean new providers/channels require only a new implementing class |
+| **Async Transcription with Retry** | NFR-02 Performance, NFR-05 Reliability | Transcription runs off the request thread; exponential backoff retries on failure |
+| **Human-in-the-loop Verification** | NFR-01 Security, NFR-04 Auditability | No AI output enters permanent records without explicit doctor approval |
+| **Immutable Audit Logging** | NFR-04 Auditability | Every state-changing action writes an append-only AuditLog entry accessible only to ADMIN role |
+
+### Architecture Analysis (for report)
+
+The implemented architecture is a **Layered + Event-Driven Microservice** approach (Spring Boot backend + async Python AI pipeline + Observer-driven notifications). The alternative to compare against is a **Monolithic Synchronous** architecture where transcription and NLP run in-process on the Java thread.
+
+Key trade-offs to quantify:
+- **Response time** — async pipeline keeps API response < 500ms vs synchronous blocking (expected 3–15s per transcription)
+- **Throughput** — concurrent session processing capacity with async vs single-threaded bottleneck
 
 ---
 
@@ -45,7 +98,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 ---
 
-### 1. User Authentication & Role-Based Access
+### 1. User Authentication & Role-Based Access ✅
 
 Access control is critical in healthcare. Doctors should not see other doctors' patients, and admins should not create consultation records.
 
@@ -57,7 +110,7 @@ Implement secure login and account management for two roles:
 
 ---
 
-### 2. Patient & Consultation Management
+### 2. Patient & Consultation Management ✅
 
 Every consultation must be traceable. Every patient must have a continuous, accurate medical history.
 
@@ -70,183 +123,139 @@ Consultation is the central domain entity of the entire system.
 
 ---
 
-### 3. Consultation Recording
-
-When the doctor presses record, everything else should happen automatically.
-
-Doctors can record doctor-patient conversations during consultations. The recording module supports:
-- Start, Stop, Pause, and Resume controls
-- Audio stored temporarily for transcription
-- Clean handoff to the transcription pipeline after recording ends
-
----
-
-### 4. Speech-to-Text Transcription
-
-Turning spoken words into structured text is the first technical bottleneck. Handle it gracefully.
-
-Audio recordings are passed to a Speech-to-Text Engine that converts them into text transcripts. Requirements:
-- Transcription must happen asynchronously (do not block the UI)
-- Implement retry mechanisms for failed transcriptions
-- The transcript is the mandatory input to the NLP and Note Generation stages
-
-**Design Pattern:** Factory Method Pattern - dynamically creates transcription service instances.
-
----
-
-### 5. Medical Entity Extraction (NLP)
-
-A transcript alone is not a medical note. You need to pull out what matters: symptoms, diagnoses, medications, allergies, vitals, and treatment plans.
-
-The NLP module processes the transcript and extracts structured medical entities:
-- Symptoms and chief complaints
-- Diagnoses and clinical observations
-- Medications and dosages
-- Allergies
-- Vitals (if mentioned verbally)
-- Treatment plans and follow-up instructions
-
-This extracted data feeds directly into clinical note generation. You can use rule-based extraction, pre-trained NLP models, or LLM-based extraction - justify your choice.
-
----
-
-### 6. Clinical Note Generation
-
-The extracted entities need to be assembled into a structured, doctor-readable note. SOAP format is the target.
-
-Generate structured clinical notes using the SOAP format:
-- **S**ubjective - what the patient reports
-- **O**bjective - clinical observations and vitals
-- **A**ssessment - diagnosis or differential diagnosis
-- **P**lan - treatment plan, medications, and follow-up
-
-Notes must be generated before the doctor sees them and must be editable before final approval.
-
-**Design Pattern:** Template Method Pattern - defines the note generation structure (SOAP skeleton) while allowing customization at each step.
-
----
-
-### 7. Template-Based Documentation
+### 3. Template-Based Documentation ✅
 
 Not every doctor documents the same way. A cardiologist's note looks different from a GP's.
 
-Doctors should be able to:
-- Choose from predefined documentation templates
-- Create and save custom templates
-- Associate templates with specific consultation types
+Doctors can choose from predefined specialty templates (General OPD, Cardiology, Pediatric, Mental Health, Physiotherapy, Surgical Follow-up). Administrators manage the global template library.
 
-Administrators manage the global template library.
-
-**Design Pattern:** Factory Method Pattern (shared with note creation) - dynamically instantiates the correct template type.
+**Design Pattern:** Factory Method Pattern - dynamically instantiates the correct template type based on consultation specialty.
 
 ---
 
-### 8. Review & Approval Workflow
+### 4. AI Pipeline — Recording, Transcription, NLP & Note Generation
 
-No AI output should enter a patient's permanent medical record without a doctor's eyes on it.
+When the doctor stops recording, the system handles everything: audio capture → transcription → entity extraction → structured SOAP note, all without blocking the UI.
 
-After a note is generated, it enters a review pipeline:
-1. Doctor is notified that a note is ready for review
-2. Doctor reads, edits if necessary, and approves the note
-3. Approved note is saved permanently to the patient's record
-4. Rejected notes are flagged and can be regenerated
+This task covers the full end-to-end AI pipeline:
 
-This is the human-in-the-loop checkpoint of the entire system.
+- **Recording** — real `MediaRecorder`/WebRTC audio capture with start, stop, pause, resume; audio blob uploaded to backend on stop
+- **Transcription** — audio passed asynchronously to a Speech-to-Text engine; retry on failure; transcript stored against the session
+- **NLP Extraction** — transcript processed to extract structured medical entities: symptoms, diagnoses, medications, dosages, allergies, vitals, treatment plans
+- **Note Generation** — extracted entities assembled into a SOAP note (Subjective, Objective, Assessment, Plan) and pre-filled in the session editor for doctor review
 
----
-
-### 9. Note Sharing
-
-A consultation note sometimes needs to go to a specialist, a pharmacy, or the patient themselves.
-
-Approved clinical notes can be shared via:
-- **Email**
-- **SMS**
-- **WhatsApp**
-
-The system must be designed so that new sharing channels (e.g., Slack, MS Teams) can be added without modifying existing channel logic.
-
-**Design Pattern:** Strategy Pattern - interchangeable sharing channels behind a common interface.
+**Design Patterns:**
+- **Factory Method** — `TranscriptionServiceFactory` dynamically creates the correct transcription provider instance (e.g. OpenAI Whisper, Google STT), keeping provider-switching open/closed
+- **Template Method** — `SoapNoteGenerator` defines the fixed SOAP skeleton; each specialty subclass overrides only the sections relevant to its domain
 
 ---
 
-### 10. Audit Logging & Admin Dashboard
+### 5. Review, Approval & Note Sharing
 
-In healthcare, every action leaves a paper trail. Your system is no different.
+No AI output enters a patient's permanent record without a doctor's review. Once approved, the note can be distributed to the relevant parties.
 
-All system actions must be logged:
-- Who performed the action, when, and on what entity
-- Logs must be accessible only by administrators
+**Review workflow:**
+1. Doctor is notified that a generated note is ready
+2. Doctor reads, edits if necessary, and approves or rejects the note
+3. Approved notes are saved permanently; rejected notes are flagged for regeneration
 
-The Admin Dashboard provides a centralized view for:
-- User management (create, disable, assign roles)
-- Template management
-- Viewing and filtering audit logs
+**Sharing:** Approved notes can be sent via Email, SMS, or WhatsApp. New channels (e.g. Slack) can be added without touching existing logic.
 
-**Design Pattern:** Facade Pattern - simplifies the UI's interaction with multiple internal services (user service, template service, audit service).
+**Design Pattern:** Strategy Pattern - a common `NoteShareStrategy` interface with interchangeable `EmailShareStrategy`, `SmsShareStrategy`, and `WhatsAppShareStrategy` implementations.
 
 ---
 
-### 11. Consultation Lifecycle Manager
+### 6. Audit Logging & Admin Dashboard
 
-A consultation is not a static object. It transitions through well-defined stages, and not every action is valid at every stage.
+In healthcare, every action leaves a paper trail.
 
-Model the consultation workflow as an explicit state machine with legal transitions:
+All system actions are logged (who, what entity, when) and are accessible only to administrators. The Admin Dashboard provides a unified view for user management, template management, and audit log browsing/filtering.
+
+**Design Pattern:** Facade Pattern - `AdminFacade` wraps `UserService`, `TemplateService`, and `AuditService` behind a single interface, shielding the UI from internal service complexity.
+
+---
+
+### 7. Consultation Lifecycle & Notification Hub
+
+A consultation moves through well-defined stages. The system enforces legal transitions and automatically notifies stakeholders at each milestone — no manual polling required.
+
+**Lifecycle state machine:**
 
 ```
 SCHEDULED -> IN_PROGRESS -> RECORDED -> TRANSCRIBED -> UNDER_REVIEW -> APPROVED / REJECTED
 ```
 
-Each state encapsulates what actions are permissible (e.g., you cannot "approve" a note that has not been transcribed yet). In Java, each state is a class implementing a `ConsultationState` interface with methods like `startReview()`, `approve()`, `reject()`.
+Each state class implements a `ConsultationState` interface and explicitly blocks illegal transitions (e.g. cannot approve a note that has not been transcribed).
 
-**Design Pattern:** State Pattern - behavior changes based on the consultation's current stage, with illegal transitions explicitly blocked.
+**Notification events fired on transitions:**
+- `TRANSCRIBED` → doctor alerted that note is ready for review
+- `APPROVED` → patient record updated, audit log written, dashboard refreshes
+- Transcription failure → admin alerted
 
----
-
-### 12. Event-Driven Notification Hub
-
-The doctor should not have to manually check if a note is ready. The system should tell them.
-
-Build a notification hub that listens to consultation lifecycle events and broadcasts to relevant subscribers:
-- **Note ready for review** - Doctor receives in-app alert
-- **Note approved** - Patient record updated, audit log written, admin dashboard refreshes
-- **Transcription failed** - Admin is alerted
-
-New subscribers can be added without touching the consultation logic, directly extending the extensibility principle outlined for Note Sharing.
-
-**Design Pattern:** Observer Pattern - consultation acts as the Subject; notification channels, dashboard, and logger act as Observers.
+**Design Patterns:**
+- **State Pattern** — each lifecycle stage is a class; illegal transitions throw checked exceptions
+- **Observer Pattern** — `ConsultationSubject` broadcasts lifecycle events; `DoctorNotifier`, `AuditLogger`, and `DashboardRefresher` are registered observers
 
 ---
 
-### 13. Patient Profile Builder
+### 8. Patient Profile Builder
 
 A patient record is not a single form. It is a complex object assembled from many optional, domain-validated parts.
 
-Patient profiles have deeply nested, optional components:
+Patient profiles support deeply nested, optional components:
 - **Chronic Conditions** - optional list, validated against known ICD codes
 - **Allergies** - optional list with severity metadata
 - **Emergency Contact** - name and phone, validated at build time
 - **Insurance Details** - optional structured block
 
-The builder enforces step-by-step, validated construction of `PatientProfile` objects, ensuring no partially-initialized records reach the database.
+The builder enforces step-by-step, validated construction so no partially-initialized records reach the database.
 
-**Design Pattern:** Builder Pattern - complex domain object construction with validation guardrails.
+**Design Pattern:** Builder Pattern - `PatientProfileBuilder` with fluent API and a terminal `build()` that runs all validations before persisting.
 
 ---
 
 ## Design Patterns Summary
 
-| Task | Pattern |
+| Task | Pattern(s) |
 |---|---|
 | User Authentication & Role-Based Access | Service Layer |
-| Speech-to-Text Transcription | Factory Method |
-| Clinical Note Generation | Template Method |
 | Template-Based Documentation | Factory Method |
-| Note Sharing | Strategy |
+| AI Pipeline (Transcription + Note Generation) | Factory Method + Template Method |
+| Review, Approval & Note Sharing | Strategy |
 | Audit Logging & Admin Dashboard | Facade |
-| Consultation Lifecycle Manager | State Pattern |
-| Event-Driven Notification Hub | Observer Pattern |
-| Patient Profile Builder | Builder Pattern |
+| Consultation Lifecycle & Notification Hub | State + Observer |
+| Patient Profile Builder | Builder |
+
+---
+
+## Submission Deliverables (S26CS6.401)
+
+> **Soft Deadline:** 21 April 2026 &nbsp;|&nbsp; **Hard Deadline:** 28 April 2026  
+> **Format:** `Project3_<team_number>.pdf` or `.zip` — submitted via Moodle (one member submits)
+
+### Task 1 — Requirements and Subsystems
+- [ ] Functional and non-functional requirements (with architectural significance explained)
+- [ ] Subsystem overview — each subsystem's role and functionality
+
+### Task 2 — Architecture Framework
+- [ ] Stakeholder identification per IEEE 42010 (stakeholders → concerns → viewpoints → views)
+- [ ] 3–4 Architecture Decision Records (ADRs) using the Nygard template
+
+### Task 3 — Architectural Tactics and Patterns
+- [ ] 4–5 architectural tactics with explanation of which non-functional requirements they address
+- [ ] 2 design patterns described with diagrams (UML or C4 model)
+
+### Task 4 — Prototype Implementation and Analysis
+- [ ] At least 1 end-to-end non-trivial functionality implemented and demonstrated *(recommended: Task 4 AI Pipeline — Recording → Transcription → NLP → SOAP Note)*
+- [ ] Architecture analysis: compare implemented architecture against an alternative pattern
+- [ ] Quantification of at least 2 non-functional requirements (e.g., response time, throughput)
+- [ ] Trade-off discussion
+
+### Final Report
+- [ ] Comprehensive technical report (design decisions, architecture, implementation, analysis)
+- [ ] Reflections and lessons learned
+- [ ] Individual contributions section
+- [ ] Link to this GitHub repository
 
 ---
 
