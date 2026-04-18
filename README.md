@@ -30,7 +30,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | FR-02 | Administrators can manage users (create, activate, deactivate) and view audit logs | ⚠️ |
 | FR-03 | The system records doctor-patient audio with start, stop, pause, and resume controls | ✅ |
 | FR-04 | Audio is transcribed asynchronously; failed transcriptions are retried automatically | ✅ |
-| FR-05 | Transcripts are processed to extract symptoms, diagnoses, medications, allergies, vitals, and treatment plans | ⚠️ |
+| FR-05 | Transcripts are processed to extract symptoms, diagnoses, medications, allergies, vitals, and treatment plans | ✅ |
 | FR-06 | Extracted entities are assembled into a structured SOAP note pre-filled for doctor review | ✅ |
 | FR-07 | Doctors can select from specialty templates (General OPD, Cardiology, Pediatric, etc.) | ✅ |
 | FR-08 | Doctors review, edit, approve, or reject AI-generated notes before permanent record storage | ✅ |
@@ -42,7 +42,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 > **Legend:** ✅ Done &nbsp;|&nbsp; ⚠️ Partial &nbsp;|&nbsp; ❌ Not implemented
 >
 > - **FR-02** — Admin user management UI done; global audit log built (`audit_logs` table + `/api/audit` + admin view at `/dashboard/audit-log`); login events not yet logged
-> - **FR-05** — SOAP note populated from transcript; individual entity extraction (allergies, vitals as typed separate objects) not isolated
+> - **FR-05** — Claude Haiku extracts 6 typed entity categories (symptoms, diagnoses, medications, allergies, vitals, treatment plans) via `/api/extract-entities`; stored as `entities JSONB` on session; displayed in dedicated **Entities tab** in the session view; re-extractable on demand
 > - **FR-10** — Note edits, approvals, rejections, session creates, and note generations all logged to global `audit_logs` table; login and sharing events not yet logged
 > - **FR-11** — Full 7-state lifecycle implemented in code (`SCHEDULED → IN_PROGRESS → RECORDED → TRANSCRIBED → UNDER_REVIEW → APPROVED / REJECTED`); transitions are imperative calls — no formal state-class hierarchy that throws on illegal jumps
 
@@ -190,7 +190,7 @@ This task covers the full end-to-end AI pipeline:
 - ✅ **Auto-retry** — `withRetry()` retries transcription up to 3 times with 1s/2s linear backoff (FR-04)
 - ✅ Claude Sonnet note generation via `/api/generate-note` — produces structured SOAP note pre-filled in the editor
 - ✅ Pipeline is non-blocking: recording modal shows "Processing…" state while pipeline runs server-side
-- ⚠️ **NLP entity extraction** not isolated as typed objects — symptoms/medications/vitals are embedded in SOAP prose, not separate structured fields
+- ✅ **NLP entity extraction** — Claude Haiku extracts symptoms, diagnoses, medications (with dosage/frequency), allergies (with severity), vitals, and treatment plans into typed `MedicalEntities` object; runs in parallel with note generation; stored in `entities` DB column; shown in dedicated Entities tab
 - ❌ `TranscriptionServiceFactory` class not implemented — Sarvam is hardcoded; no provider-swapping abstraction
 - ❌ `SoapNoteGenerator` Template Method class hierarchy not implemented — template selection is config-driven, not subclass-driven
 
