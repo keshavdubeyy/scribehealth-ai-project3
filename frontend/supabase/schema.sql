@@ -21,7 +21,8 @@ create table if not exists sessions (
   transcription  text,
   audio_url      text,
   edits          jsonb       not null default '[]'::jsonb,
-  prescription   jsonb
+  prescription   jsonb,
+  entities       jsonb
 );
 
 -- prescription templates (multiple per user, each is one letterhead setup)
