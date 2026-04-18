@@ -22,6 +22,16 @@ export type SessionStatus =
   // legacy statuses for backward compat
   | "IDLE" | "PROCESSING" | "COMPLETED"
 
+// FR-05: structured medical entities extracted from transcript
+export interface MedicalEntities {
+  symptoms:      string[]
+  diagnoses:     string[]
+  medications:   Array<{ name: string; dosage: string; frequency: string }>
+  allergies:     Array<{ substance: string; severity: string }>
+  vitals:        Array<{ metric: string; value: string; unit: string }>
+  treatmentPlans: string[]
+}
+
 export interface Session {
   id: string
   patientId: string
@@ -30,6 +40,7 @@ export interface Session {
   soap?: Record<string, string>
   transcription?: string
   audioUrl?: string
+  entities?: MedicalEntities
   edits?: Array<{
     field: string
     oldValue: string
@@ -100,6 +111,7 @@ function rowToSession(row: Record<string, unknown>): Session {
     soap:          row.soap as Session["soap"] ?? undefined,
     transcription: (row.transcription as string) ?? undefined,
     audioUrl:      (row.audio_url as string) ?? undefined,
+    entities:      row.entities as Session["entities"] ?? undefined,
     edits:         (row.edits as Session["edits"]) ?? [],
     prescription:  row.prescription as Session["prescription"] ?? undefined,
   }
@@ -217,6 +229,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     if (data.audioUrl      !== undefined) updates.audio_url    = data.audioUrl
     if (data.edits         !== undefined) updates.edits        = data.edits
     if (data.prescription  !== undefined) updates.prescription = data.prescription
+    if (data.entities      !== undefined) updates.entities     = data.entities
     if (data.patientId     !== undefined) updates.patient_id   = data.patientId || null
     const { error } = await supabase.from("sessions").update(updates).eq("id", id)
     if (error) throw new Error(error.message)
