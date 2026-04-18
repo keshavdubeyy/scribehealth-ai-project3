@@ -35,7 +35,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | FR-07 | Doctors can select from specialty templates (General OPD, Cardiology, Pediatric, etc.) | ✅ |
 | FR-08 | Doctors review, edit, approve, or reject AI-generated notes before permanent record storage | ✅ |
 | FR-09 | Approved notes can be shared via Email, SMS, or WhatsApp | ❌ |
-| FR-10 | Every system action (login, note approval, sharing) is logged with actor, timestamp, and entity | ⚠️ |
+| FR-10 | Every system action (login, note approval, sharing) is logged with actor, timestamp, and entity | ✅ |
 | FR-11 | Consultation state transitions are enforced; illegal transitions are blocked | ⚠️ |
 | FR-12 | Stakeholders are notified automatically on lifecycle events (note ready, approved, failure) | ❌ |
 
@@ -43,7 +43,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 >
 > - **FR-02** — Admin user management UI done; global audit log built (`audit_logs` table + `/api/audit` + admin view at `/dashboard/audit-log`); login events not yet logged
 > - **FR-05** — Claude Haiku extracts 6 typed entity categories (symptoms, diagnoses, medications, allergies, vitals, treatment plans) via `/api/extract-entities`; stored as `entities JSONB` on session; displayed in dedicated **Entities tab** in the session view; re-extractable on demand
-> - **FR-10** — Note edits, approvals, rejections, session creates, and note generations all logged to global `audit_logs` table; login and sharing events not yet logged
+> - **FR-10** — All system actions logged: `login_success`, `logout` (via NextAuth events), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`; sharing events pending FR-09
 > - **FR-11** — Full 7-state lifecycle implemented in code (`SCHEDULED → IN_PROGRESS → RECORDED → TRANSCRIBED → UNDER_REVIEW → APPROVED / REJECTED`); transitions are imperative calls — no formal state-class hierarchy that throws on illegal jumps
 
 ### Non-Functional Requirements
@@ -234,9 +234,8 @@ All system actions are logged (who, what entity, when) and are accessible only t
 - ✅ **Global `audit_logs` table** (Supabase PostgreSQL) — append-only, one row per action with `user_email`, `action`, `entity_type`, `entity_id`, `metadata`, `created_at`
 - ✅ **`/api/audit` route** — `POST` writes entries (service-role client, bypasses RLS); `GET` fetches with pagination
 - ✅ **`/dashboard/audit-log` page** — searchable, colour-coded admin view of all audit entries
-- ✅ Events logged: `session_created`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`
-- ⚠️ Login events not yet logged (requires NextAuth callback integration)
-- ⚠️ Sharing events not logged (sharing not implemented)
+- ✅ Events logged: `login_success`, `logout` (NextAuth events → `audit-server.ts`), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`
+- ⚠️ Sharing events not logged (sharing not implemented — FR-09)
 - ❌ `AdminFacade` class not implemented — admin routes call service layer directly
 
 ---
