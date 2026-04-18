@@ -36,12 +36,12 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/patients/**").permitAll()
-                        .requestMatchers("/api/sessions/**").permitAll()
-                        .requestMatchers("/api/transcribe/**").permitAll()
-                        .requestMatchers("/api/generate-note/**").permitAll()
-                        .requestMatchers("/api/prescriptions/**").permitAll()
-                        .anyRequest().permitAll())
+                        .requestMatchers("/api/patients/**").authenticated()
+                        .requestMatchers("/api/sessions/**").authenticated()
+                        .requestMatchers("/api/transcribe/**").authenticated()
+                        .requestMatchers("/api/generate-note/**").authenticated()
+                        .requestMatchers("/api/prescriptions/**").authenticated()
+                        .anyRequest().authenticated())
                 .addFilterBefore(
                         new JwtAuthFilter(jwtUtil),
                         UsernamePasswordAuthenticationFilter.class);
