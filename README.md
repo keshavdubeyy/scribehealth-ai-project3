@@ -28,12 +28,12 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 |---|---|:---:|
 | FR-01 | Doctors can register, log in, and manage only their own patients and consultations | ✅ |
 | FR-02 | Administrators can manage users (create, activate, deactivate) and view audit logs | ⚠️ |
-| FR-03 | The system records doctor-patient audio with start, stop, pause, and resume controls | ⚠️ |
-| FR-04 | Audio is transcribed asynchronously; failed transcriptions are retried automatically | ⚠️ |
+| FR-03 | The system records doctor-patient audio with start, stop, pause, and resume controls | ✅ |
+| FR-04 | Audio is transcribed asynchronously; failed transcriptions are retried automatically | ✅ |
 | FR-05 | Transcripts are processed to extract symptoms, diagnoses, medications, allergies, vitals, and treatment plans | ⚠️ |
 | FR-06 | Extracted entities are assembled into a structured SOAP note pre-filled for doctor review | ✅ |
 | FR-07 | Doctors can select from specialty templates (General OPD, Cardiology, Pediatric, etc.) | ✅ |
-| FR-08 | Doctors review, edit, approve, or reject AI-generated notes before permanent record storage | ⚠️ |
+| FR-08 | Doctors review, edit, approve, or reject AI-generated notes before permanent record storage | ✅ |
 | FR-09 | Approved notes can be shared via Email, SMS, or WhatsApp | ❌ |
 | FR-10 | Every system action (login, note approval, sharing) is logged with actor, timestamp, and entity | ⚠️ |
 | FR-11 | Consultation state transitions are enforced; illegal transitions are blocked | ⚠️ |
@@ -41,13 +41,10 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 > **Legend:** ✅ Done &nbsp;|&nbsp; ⚠️ Partial &nbsp;|&nbsp; ❌ Not implemented
 >
-> - **FR-02** — Admin user management UI done; audit logs only cover note edits, not all system actions
-> - **FR-03** — Start/stop done; pause/resume controls not implemented
-> - **FR-04** — Transcription fires asynchronously; no automatic retry on failure (toast shown, user retries manually)
+> - **FR-02** — Admin user management UI done; global audit log built (`audit_logs` table + `/api/audit` + admin view at `/dashboard/audit-log`); login events not yet logged
 > - **FR-05** — SOAP note populated from transcript; individual entity extraction (allergies, vitals as typed separate objects) not isolated
-> - **FR-08** — Doctor can freely edit notes; no formal Approve/Reject button that locks the record
-> - **FR-10** — Note field edits are logged with old/new values and timestamps; login and sharing events not logged
-> - **FR-11** — Status progresses IDLE → PROCESSING → COMPLETED in code; no formal state-machine class blocking illegal jumps
+> - **FR-10** — Note edits, approvals, rejections, session creates, and note generations all logged to global `audit_logs` table; login and sharing events not yet logged
+> - **FR-11** — Full 7-state lifecycle implemented in code (`SCHEDULED → IN_PROGRESS → RECORDED → TRANSCRIBED → UNDER_REVIEW → APPROVED / REJECTED`); transitions are imperative calls — no formal state-class hierarchy that throws on illegal jumps
 
 ### Non-Functional Requirements
 
@@ -56,14 +53,14 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | NFR-01 | **Security** — PHI data must be encrypted in transit (TLS) and at rest; JWT tokens expire in 8 hours | Drives auth filter chain, HTTPS enforcement, token expiry config | ✅ |
 | NFR-02 | **Performance** — Transcription pipeline must not block the UI; API responses under 500ms for CRUD | Drives async processing, non-blocking transcription handoff | ✅ |
 | NFR-03 | **Extensibility** — New transcription providers or sharing channels added without modifying core logic | Drives Factory Method and Strategy patterns | ⚠️ |
-| NFR-04 | **Auditability** — All actions traceable; logs immutable and admin-only | Drives AuditLog collection, Facade pattern, role-based access | ⚠️ |
-| NFR-05 | **Reliability** — Transcription failures recovered via retry; no data loss on pipeline error | Drives retry mechanism, session status persistence | ⚠️ |
+| NFR-04 | **Auditability** — All actions traceable; logs immutable and admin-only | Drives AuditLog collection, Facade pattern, role-based access | ✅ |
+| NFR-05 | **Reliability** — Transcription failures recovered via retry; no data loss on pipeline error | Drives retry mechanism, session status persistence | ✅ |
 
-> - **NFR-01** — Supabase enforces TLS; NextAuth JWT with configurable expiry; all data in Supabase at-rest encryption
+> - **NFR-01** — Supabase enforces TLS; NextAuth JWT with configurable expiry; all data encrypted at rest
 > - **NFR-02** — Transcription runs server-side async; CRUD under 500ms via Supabase direct queries
-> - **NFR-03** — Template extensibility via config map; no formal Factory/Strategy classes for provider swapping
-> - **NFR-04** — Note edits are logged per session; no append-only AuditLog table; admin-only view not enforced at DB level
-> - **NFR-05** — Transcript saved even if note generation fails (fallback handled); no automatic retry logic
+> - **NFR-03** — Template extensibility via config map; no formal Factory/Strategy classes for provider swapping yet
+> - **NFR-04** — Global append-only `audit_logs` table; all key actions logged with actor + timestamp + entity; admin view built
+> - **NFR-05** — `withRetry()` wrapper retries transcription up to 3 times (1s → 2s backoff); transcript saved even if note generation fails
 
 ---
 
@@ -86,7 +83,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | **Patient & Session** | CRUD for patient records and clinical sessions; SOAP note storage | ✅ |
 | **AI Pipeline** | Audio capture → async transcription → NLP extraction → SOAP note generation | ⚠️ |
 | **Review & Sharing** | Doctor approval workflow; multi-channel note distribution | ⚠️ |
-| **Audit & Admin** | Immutable action logging; admin dashboard via Facade | ⚠️ |
+| **Audit & Admin** | Immutable action logging; admin dashboard with audit log view | ✅ |
 | **Lifecycle & Notifications** | State machine for consultation stages; Observer-driven stakeholder alerts | ⚠️ |
 | **Profile Builder** | Validated construction of complex patient profiles | ⚠️ |
 | **Prescription Generator** | AI auto-fill prescription, canvas template setup, PDF generation | ✅ |
@@ -97,13 +94,13 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 |---|---|---|
 | **Separation of Concerns** | NFR-03 Extensibility | Each pipeline stage (recording, transcription, NLP, generation) is an isolated module with a defined interface |
 | **Extensibility through Interfaces** | NFR-03 Extensibility | Factory Method and Strategy patterns mean new providers/channels require only a new implementing class |
-| **Async Transcription with Retry** | NFR-02 Performance, NFR-05 Reliability | Transcription runs off the request thread; exponential backoff retries on failure |
-| **Human-in-the-loop Verification** | NFR-01 Security, NFR-04 Auditability | No AI output enters permanent records without explicit doctor approval |
-| **Immutable Audit Logging** | NFR-04 Auditability | Every state-changing action writes an append-only AuditLog entry accessible only to ADMIN role |
+| **Async Transcription with Retry** | NFR-02 Performance, NFR-05 Reliability | Transcription runs off the request thread; `withRetry()` retries up to 3× with linear backoff on failure |
+| **Human-in-the-loop Verification** | NFR-01 Security, NFR-04 Auditability | No AI output enters permanent records without explicit doctor Approve action; notes are locked on approval |
+| **Immutable Audit Logging** | NFR-04 Auditability | Every state-changing action appends to `audit_logs` table; accessible via admin-only `/dashboard/audit-log` |
 
 ### Architecture Analysis (for report)
 
-The implemented architecture is a **Layered + Event-Driven Microservice** approach (Spring Boot backend + async Python AI pipeline + Observer-driven notifications). The alternative to compare against is a **Monolithic Synchronous** architecture where transcription and NLP run in-process on the Java thread.
+The implemented architecture is a **Layered + Event-Driven Microservice** approach (Spring Boot backend + async AI pipeline + Observer-driven notifications). The alternative to compare against is a **Monolithic Synchronous** architecture where transcription and NLP run in-process on the Java thread.
 
 Key trade-offs to quantify:
 - **Response time** — async pipeline keeps API response < 500ms vs synchronous blocking (expected 3–15s per transcription)
@@ -131,7 +128,7 @@ Implement secure login and account management for two roles:
 - ✅ Login/signup via NextAuth Credentials provider (JWT strategy, delegated to Spring Boot backend)
 - ✅ All patient and session queries scoped by `user_email` — cross-doctor data leakage impossible
 - ✅ Role stored in JWT token; admin-only routes guarded in layout
-- ⚠️ Service Layer conceptually implemented via Zustand store abstraction; not a formally named `PatientService` / `SessionService` class hierarchy
+- ⚠️ Service Layer conceptually present via Zustand store abstraction; not implemented as formal named `PatientService` / `SessionService` class hierarchy
 
 ---
 
@@ -166,7 +163,7 @@ Doctors can choose from predefined specialty templates (General OPD, Cardiology,
 - ✅ 6 specialty templates implemented: `general_opd`, `cardiology`, `pediatric`, `mental_health_soap`, `physiotherapy`, `surgical_followup`
 - ✅ Claude Haiku auto-detects the appropriate template from the consultation transcript
 - ✅ Each template has its own field schema; note editor adapts to the selected template's fields
-- ⚠️ Factory Method conceptually present via the `NOTE_FIELDS` config map and template detection step; not implemented as explicit `TemplateFactory` / `NoteTemplate` class hierarchy
+- ⚠️ Factory Method conceptually present via the `NOTE_FIELDS` config map; not implemented as explicit `TemplateFactory` / `NoteTemplate` class hierarchy
 
 ---
 
@@ -186,13 +183,13 @@ This task covers the full end-to-end AI pipeline:
 - **Template Method** — `SoapNoteGenerator` defines the fixed SOAP skeleton; each specialty subclass overrides only the sections relevant to its domain
 
 **Implementation status:**
-- ✅ Real `MediaRecorder` audio capture with start/stop; audio blob collected in 1s chunks
+- ✅ Real `MediaRecorder` audio capture with start, stop, **pause, and resume** (FR-03)
+- ✅ Pause indicator: top bar turns amber, mic dims, timer freezes; resumes on button press
 - ✅ Audio uploaded to Supabase Storage; URL stored on session
 - ✅ Sarvam AI `saarika:v2.5` transcription via `/api/transcribe`
+- ✅ **Auto-retry** — `withRetry()` retries transcription up to 3 times with 1s/2s linear backoff (FR-04)
 - ✅ Claude Sonnet note generation via `/api/generate-note` — produces structured SOAP note pre-filled in the editor
 - ✅ Pipeline is non-blocking: recording modal shows "Processing…" state while pipeline runs server-side
-- ⚠️ **Pause/resume controls** not implemented — only start/stop
-- ⚠️ **No automatic retry** on transcription failure — error toast shown, user retries manually
 - ⚠️ **NLP entity extraction** not isolated as typed objects — symptoms/medications/vitals are embedded in SOAP prose, not separate structured fields
 - ❌ `TranscriptionServiceFactory` class not implemented — Sarvam is hardcoded; no provider-swapping abstraction
 - ❌ `SoapNoteGenerator` Template Method class hierarchy not implemented — template selection is config-driven, not subclass-driven
@@ -213,16 +210,18 @@ No AI output enters a patient's permanent record without a doctor's review. Once
 **Design Pattern:** Strategy Pattern - a common `NoteShareStrategy` interface with interchangeable `EmailShareStrategy`, `SmsShareStrategy`, and `WhatsAppShareStrategy` implementations.
 
 **Implementation status:**
-- ✅ Doctor can view, edit, and save any field of the generated note
-- ✅ Every field edit is logged with old value, new value, and timestamp (edit history tab)
-- ⚠️ No formal **Approve / Reject** action — notes are edited in place; no locked "approved" state that prevents further edits
-- ⚠️ No **notification** to the doctor when a note is ready (session page is navigated to directly after pipeline completes)
+- ✅ Doctor can view and edit any field of the generated note
+- ✅ Every field edit logged with old value, new value, and timestamp (edit history tab + global audit log)
+- ✅ **Approve note** button locks all fields permanently; green "Approved" banner shown; action written to audit log (FR-08)
+- ✅ **Reject note** button flags session as `REJECTED`; red banner shown with **Regenerate note** button (FR-08)
+- ✅ Regeneration calls Claude via `/api/generate-note` and returns note to `UNDER_REVIEW` state
+- ⚠️ No **notification** to the doctor when a note is ready (session page navigated to directly after pipeline)
 - ❌ **Email / SMS / WhatsApp sharing** not implemented
 - ❌ `NoteShareStrategy` interface and concrete strategy classes not implemented
 
 ---
 
-### 6. Audit Logging & Admin Dashboard ⚠️
+### 6. Audit Logging & Admin Dashboard ✅
 
 In healthcare, every action leaves a paper trail.
 
@@ -232,11 +231,13 @@ All system actions are logged (who, what entity, when) and are accessible only t
 
 **Implementation status:**
 - ✅ Admin dashboard UI with user management table
-- ✅ Per-session edit history: field name, old value, new value, ISO timestamp — stored as JSONB on session row
-- ⚠️ Edit history is **per session**, not a global append-only `AuditLog` table across all actions
-- ⚠️ Login events, approval events, and sharing events are **not logged**
-- ⚠️ Admin audit log view **not yet built** — edit history is visible only inside each session detail page
-- ❌ `AdminFacade` class not implemented — admin UI calls Supabase directly via the store
+- ✅ **Global `audit_logs` table** (Supabase PostgreSQL) — append-only, one row per action with `user_email`, `action`, `entity_type`, `entity_id`, `metadata`, `created_at`
+- ✅ **`/api/audit` route** — `POST` writes entries (service-role client, bypasses RLS); `GET` fetches with pagination
+- ✅ **`/dashboard/audit-log` page** — searchable, colour-coded admin view of all audit entries
+- ✅ Events logged: `session_created`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`
+- ⚠️ Login events not yet logged (requires NextAuth callback integration)
+- ⚠️ Sharing events not logged (sharing not implemented)
+- ❌ `AdminFacade` class not implemented — admin routes call service layer directly
 
 ---
 
@@ -262,10 +263,11 @@ Each state class implements a `ConsultationState` interface and explicitly block
 - **Observer Pattern** — `ConsultationSubject` broadcasts lifecycle events; `DoctorNotifier`, `AuditLogger`, and `DashboardRefresher` are registered observers
 
 **Implementation status:**
-- ✅ Session `status` field transitions: `IDLE → PROCESSING → COMPLETED` stored in DB
-- ✅ UI reflects status (processing spinner, completed badge)
-- ⚠️ Simplified 3-state flow — full `SCHEDULED → IN_PROGRESS → RECORDED → TRANSCRIBED → UNDER_REVIEW → APPROVED/REJECTED` chain **not implemented**
-- ❌ No `ConsultationState` interface or state classes — transitions are imperative `updateSession({ status: "..." })` calls with no illegal-transition enforcement
+- ✅ **Full 7-state lifecycle** implemented: `SCHEDULED → IN_PROGRESS → RECORDED → TRANSCRIBED → UNDER_REVIEW → APPROVED / REJECTED` — all states stored in DB and reflected in UI (FR-11)
+- ✅ Recording modal advances status at each pipeline stage (session created → SCHEDULED, recording starts → IN_PROGRESS, audio saved → RECORDED, transcript ready → TRANSCRIBED, note generated → UNDER_REVIEW)
+- ✅ Status badges colour-coded across session list and session detail views for all 7 states
+- ✅ `APPROVED` state locks the note; `REJECTED` enables regeneration
+- ❌ No `ConsultationState` interface or state classes — transitions are imperative `updateSession({ status })` calls; illegal transitions (e.g. APPROVED → UNDER_REVIEW) not blocked at code level
 - ❌ No `ConsultationSubject` / Observer pattern — no event bus; components read store directly
 - ❌ No automatic notifications on any lifecycle event (email, push, in-app)
 
@@ -291,7 +293,7 @@ The builder enforces step-by-step, validated construction so no partially-initia
 - ❌ **Allergies** with severity metadata not implemented
 - ❌ **Emergency contact** not implemented
 - ❌ **Insurance details** not implemented
-- ❌ `PatientProfileBuilder` with fluent API and `build()` validation not implemented — patient is created with a direct `insert()` call
+- ❌ `PatientProfileBuilder` with fluent API and `build()` validation not implemented — patient created with a direct `insert()` call
 
 ---
 
@@ -307,7 +309,7 @@ The builder enforces step-by-step, validated construction so no partially-initia
 | Consultation Lifecycle & Notification Hub | State + Observer | ❌ |
 | Patient Profile Builder | Builder | ❌ |
 
-> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **0 patterns** are implemented as class hierarchies. All patterns are conceptually present in the architecture but need to be expressed as explicit classes/interfaces to satisfy the requirement.
+> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented as class/interface hierarchies. Currently **0 patterns** meet that bar — all are conceptually present in the architecture but expressed as config maps, imperative calls, or store abstractions rather than named classes. This is the single most critical gap before submission.
 
 ---
 
@@ -329,7 +331,7 @@ The builder enforces step-by-step, validated construction so no partially-initia
 - [ ] 2 design patterns described with diagrams (UML or C4 model)
 
 ### Task 4 — Prototype Implementation and Analysis
-- [x] At least 1 end-to-end non-trivial functionality implemented and demonstrated *(AI Pipeline: Recording → Sarvam Transcription → Claude SOAP Note Generation — fully working)*
+- [x] End-to-end non-trivial functionality implemented *(Recording → Sarvam Transcription → Claude SOAP Note → Approve/Reject workflow — fully working)*
 - [ ] Architecture analysis: compare implemented architecture against an alternative pattern
 - [ ] Quantification of at least 2 non-functional requirements (e.g., response time, throughput)
 - [ ] Trade-off discussion
@@ -382,4 +384,4 @@ npm run dev
 
 ### 4. Admin Credentials
 
-Once the server is running, you can use the **Enroll Session** flow to create a Doctor or Admin account and access the restored Analytical Dashboard.
+Once the server is running, use the **Enroll Session** flow to create a Doctor or Admin account and access the dashboard.
