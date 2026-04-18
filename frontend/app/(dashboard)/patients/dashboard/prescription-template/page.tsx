@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Upload, Trash2, CheckCircle, Move, Loader2, Image as ImageIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
 
 export default function PrescriptionTemplatePage() {
   const { prescriptionTemplate, savePrescriptionTemplate, deletePrescriptionTemplate } = useScribeStore()
@@ -17,18 +16,20 @@ export default function PrescriptionTemplatePage() {
   const [safeZone, setSafeZone] = React.useState({ x: 0, y: 0, width: 0, height: 0 })
   const [fontSize, setFontSize] = React.useState(20)
   const [lineHeight, setLineHeight] = React.useState(32)
-  
+
   const [isDrawing, setIsDrawing] = React.useState(false)
   const [startPos, setStartPos] = React.useState({ x: 0, y: 0 })
   const [isSaving, setIsSaving] = React.useState(false)
-  
+
   const containerRef = React.useRef<HTMLDivElement>(null)
   const imageRef = React.useRef<HTMLImageElement>(null)
+  const initialized = React.useRef(false)
 
-  // Initialize from store
+  // Populate form once the template loads from Supabase (may arrive after mount)
   React.useEffect(() => {
     setMounted(true)
-    if (prescriptionTemplate) {
+    if (prescriptionTemplate && !initialized.current) {
+      initialized.current = true
       setImageUrl(prescriptionTemplate.imageUrl)
       setSafeZone(prescriptionTemplate.safeZone)
       setFontSize(prescriptionTemplate.fontSize)
