@@ -10,11 +10,23 @@ export interface Patient {
   gender: string
 }
 
+// Full 7-stage lifecycle (FR-11). Old values kept for backward compat with existing DB rows.
+export type SessionStatus =
+  | "SCHEDULED"    // session created, recording not started
+  | "IN_PROGRESS"  // recording in progress
+  | "RECORDED"     // recording stopped, transcription pending
+  | "TRANSCRIBED"  // transcript ready, note generation pending
+  | "UNDER_REVIEW" // note generated, awaiting doctor approval
+  | "APPROVED"     // doctor approved — note is locked
+  | "REJECTED"     // doctor rejected — flagged for regeneration
+  // legacy statuses for backward compat
+  | "IDLE" | "PROCESSING" | "COMPLETED"
+
 export interface Session {
   id: string
   patientId: string
   createdAt: string
-  status: "IDLE" | "RECORDING" | "PROCESSING" | "COMPLETED"
+  status: SessionStatus
   soap?: Record<string, string>
   transcription?: string
   audioUrl?: string
