@@ -28,9 +28,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse login(LoginRequest request) {
-
-        // TODO: add audit log call here
-
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
@@ -56,10 +53,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse register(RegisterRequest request) {
-
-        // TODO: add audit log call here
-        // TODO: add email notification on registration
-
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalStateException(
                     "An account with email " + request.getEmail() + " already exists");
