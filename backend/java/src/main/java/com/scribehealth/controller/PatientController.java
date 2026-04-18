@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
+
 @RestController
 @RequestMapping("/api/patients")
 public class PatientController {
@@ -33,6 +34,7 @@ public class PatientController {
         return patientRepository.findByDoctorId(currentUser().getId());
     }
 
+    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping
     public Patient createPatient(@RequestBody Patient patient) {
         patient.setDoctorId(currentUser().getId());
@@ -49,6 +51,7 @@ public class PatientController {
         return patient;
     }
 
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{id}")
     public void deletePatient(@PathVariable String id) {
         Patient patient = patientRepository.findById(id)
