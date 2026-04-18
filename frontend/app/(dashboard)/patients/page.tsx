@@ -65,8 +65,10 @@ export default function PatientsPage() {
       })
       setIsAddOpen(false)
       toast.success("Patient added.")
-    } catch {
-      toast.error("Something went wrong. Please try again.")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error("addPatient error:", err)
+      toast.error(msg || "Something went wrong.")
     } finally {
       setIsSubmitting(false)
     }
