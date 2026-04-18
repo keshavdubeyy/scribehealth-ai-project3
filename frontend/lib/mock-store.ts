@@ -2,6 +2,7 @@
 
 import { create } from "zustand"
 import { createClient } from "@/utils/supabase/client"
+import { logAudit } from "@/lib/audit"
 
 export interface Patient {
   id: string
@@ -162,6 +163,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     })
     if (error) throw new Error(error.message)
     set(state => ({ patients: [{ id, ...data }, ...state.patients] }))
+    await logAudit("patient_created", "patient", id, { name: data.name })
     return id
   },
 
@@ -173,6 +175,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
       patients: state.patients.filter(p => p.id !== id),
       sessions: state.sessions.filter(s => s.patientId !== id),
     }))
+    await logAudit("patient_deleted", "patient", id)
   },
 
   fetchSessions: async (patientId) => {
@@ -243,6 +246,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     const { error } = await supabase.from("sessions").delete().eq("id", id)
     if (error) throw new Error(error.message)
     set(state => ({ sessions: state.sessions.filter(s => s.id !== id) }))
+    await logAudit("session_deleted", "session", id)
   },
 
   getPatient:  (id) => get().patients.find(p => p.id === id),
