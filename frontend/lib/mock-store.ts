@@ -38,16 +38,22 @@ export interface Session {
   }
 }
 
+export interface SafeZone {
+  xPct: number
+  yPct: number
+  widthPct: number
+  heightPct: number
+  fontSizePt: number
+  lineHeightPt: number
+}
+
 export interface PrescriptionTemplate {
+  id: string
+  imagePath: string
   imageUrl: string
-  safeZone: {
-    x: number
-    y: number
-    width: number
-    height: number
-  }
-  fontSize: number
-  lineHeight: number
+  imageWidth: number
+  imageHeight: number
+  safeZone: SafeZone
 }
 
 interface ScribeStore {
@@ -70,8 +76,7 @@ interface ScribeStore {
 
   prescriptionTemplate: PrescriptionTemplate | null
   fetchPrescriptionTemplate: () => Promise<void>
-  savePrescriptionTemplate: (template: PrescriptionTemplate) => Promise<void>
-  deletePrescriptionTemplate: () => Promise<void>
+  setPrescriptionTemplate: (template: PrescriptionTemplate | null) => void
 }
 
 function rowToSession(row: Record<string, unknown>): Session {
@@ -228,44 +233,29 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
       .from("prescription_templates")
       .select()
       .eq("user_email", email)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle()
+    if (!data) { set({ prescriptionTemplate: null }); return }
+    const sz = data.safe_zone as Record<string, number>
     set({
-      prescriptionTemplate: data
-        ? {
-            imageUrl:   data.image_url,
-            safeZone:   data.safe_zone,
-            fontSize:   data.font_size,
-            lineHeight: data.line_height,
-          }
-        : null,
+      prescriptionTemplate: {
+        id:          data.id,
+        imagePath:   data.image_path,
+        imageUrl:    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/prescription-templates/${data.image_path}`,
+        imageWidth:  data.image_width,
+        imageHeight: data.image_height,
+        safeZone: {
+          xPct:         sz.x_pct,
+          yPct:         sz.y_pct,
+          widthPct:     sz.width_pct,
+          heightPct:    sz.height_pct,
+          fontSizePt:   sz.font_size_pt,
+          lineHeightPt: sz.line_height_pt,
+        },
+      },
     })
   },
 
-  savePrescriptionTemplate: async (template) => {
-    const email = get().userEmail
-    if (!email) throw new Error("Not authenticated")
-    const supabase = createClient()
-    const { error } = await supabase.from("prescription_templates").upsert({
-      user_email:  email,
-      image_url:   template.imageUrl,
-      safe_zone:   template.safeZone,
-      font_size:   template.fontSize,
-      line_height: template.lineHeight,
-      updated_at:  new Date().toISOString(),
-    })
-    if (error) throw new Error(error.message)
-    set({ prescriptionTemplate: template })
-  },
-
-  deletePrescriptionTemplate: async () => {
-    const email = get().userEmail
-    if (!email) return
-    const supabase = createClient()
-    const { error } = await supabase
-      .from("prescription_templates")
-      .delete()
-      .eq("user_email", email)
-    if (error) throw new Error(error.message)
-    set({ prescriptionTemplate: null })
-  },
+  setPrescriptionTemplate: (template) => set({ prescriptionTemplate: template }),
 }))
