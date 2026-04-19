@@ -26,13 +26,13 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 | Category | Done | Partial | Not done | Score | Progress |
 |---|:---:|:---:|:---:|:---:|---|
-| Functional Requirements (12) | 9 | 1 | 2 | **79%** | `███████░░░` |
+| Functional Requirements (12) | 12 | 0 | 0 | **100%** | `██████████` |
 | Non-Functional Requirements (5) | 4 | 1 | 0 | **90%** | `█████████░` |
-| Design Patterns (7) | 0 | 3 | 4 | **21%** | `██░░░░░░░░` |
-| **Overall (24 pts)** | **13** | **5** | **6** | **65%** | `██████░░░░` |
+| Design Patterns (7) | 1 | 4 | 2 | **43%** | `████░░░░░░` |
+| **Overall (24 pts)** | **17** | **5** | **2** | **81%** | `████████░░` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
-> **Critical gap:** Design patterns (0/7 fully implemented) is the single biggest drag on overall score.
+> **Critical gap:** Design patterns (only Strategy fully implemented as a class hierarchy) is the single biggest drag on overall score.
 
 ---
 
@@ -50,16 +50,16 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | FR-06 | Extracted entities are assembled into a structured SOAP note pre-filled for doctor review | ✅ |
 | FR-07 | Doctors can select from specialty templates (General OPD, Cardiology, Pediatric, etc.) | ✅ |
 | FR-08 | Doctors review, edit, approve, or reject AI-generated notes before permanent record storage | ✅ |
-| FR-09 | Approved notes can be shared via Email, SMS, or WhatsApp | ❌ |
+| FR-09 | Approved notes can be shared via Email, SMS, or WhatsApp | ✅ |
 | FR-10 | Every system action (login, note approval, sharing) is logged with actor, timestamp, and entity | ✅ |
 | FR-11 | Consultation state transitions are enforced; illegal transitions are blocked | ✅ |
-| FR-12 | Stakeholders are notified automatically on lifecycle events (note ready, approved, failure) | ❌ |
+| FR-12 | Stakeholders are notified automatically on lifecycle events (note ready, approved, failure) | ✅ |
 
 > **Legend:** ✅ Done &nbsp;|&nbsp; ⚠️ Partial &nbsp;|&nbsp; ❌ Not implemented
 >
 > - **FR-02** — Admin user management UI done; global audit log built (`audit_logs` table + `/api/audit` + admin view at `/dashboard/audit-log`); login events not yet logged
 > - **FR-05** — Claude Haiku extracts 6 typed entity categories (symptoms, diagnoses, medications, allergies, vitals, treatment plans) via `/api/extract-entities`; stored as `entities JSONB` on session; displayed in dedicated **Entities tab** in the session view; re-extractable on demand
-> - **FR-10** — All system actions logged: `login_success`, `logout` (via NextAuth events), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`; sharing events pending FR-09
+> - **FR-10** — All system actions logged: `login_success`, `logout` (via NextAuth events), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`
 > - **FR-11** — `lib/session-state-machine.ts` defines `VALID_TRANSITIONS` map + `assertTransition()` which throws on illegal jumps; `transitionSession()` in the store validates every status change before writing; `APPROVED` is terminal (no further transitions); `REJECTED → UNDER_REVIEW` is the only regeneration path; sessions now start in `SCHEDULED` and advance through the full 7-state chain
 
 ### Non-Functional Requirements
@@ -74,7 +74,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 > - **NFR-01** — Supabase enforces TLS; NextAuth JWT with configurable expiry; all data encrypted at rest
 > - **NFR-02** — Transcription runs server-side async; CRUD under 500ms via Supabase direct queries
-> - **NFR-03** — Template extensibility via config map; no formal Factory/Strategy classes for provider swapping yet
+> - **NFR-03** — Sharing channel extensibility fully achieved via Strategy pattern (`NotificationStrategy` interface + `EmailNotificationStrategy`, `WhatsAppNotificationStrategy`, `SmsNotificationStrategy`); transcription provider extensibility still config-driven (no formal `TranscriptionServiceFactory`)
 > - **NFR-04** — Global append-only `audit_logs` table; all key actions logged with actor + timestamp + entity; admin view built
 > - **NFR-05** — `withRetry()` wrapper retries transcription up to 3 times (1s → 2s backoff); transcript saved even if note generation fails
 
@@ -98,9 +98,9 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | **Auth & Access** | JWT login/register, role enforcement, session management | ✅ |
 | **Patient & Session** | CRUD for patient records and clinical sessions; SOAP note storage | ✅ |
 | **AI Pipeline** | Audio capture → async transcription → NLP extraction → SOAP note generation | ⚠️ |
-| **Review & Sharing** | Doctor approval workflow; multi-channel note distribution | ⚠️ |
+| **Review & Sharing** | Doctor approval workflow; multi-channel note distribution | ✅ |
 | **Audit & Admin** | Immutable action logging; admin dashboard with audit log view | ✅ |
-| **Lifecycle & Notifications** | State machine for consultation stages; Observer-driven stakeholder alerts | ⚠️ |
+| **Lifecycle & Notifications** | State machine for consultation stages; Strategy-driven multi-channel stakeholder alerts | ✅ |
 | **Profile Builder** | Validated construction of complex patient profiles | ⚠️ |
 | **Prescription Generator** | AI auto-fill prescription, canvas template setup, PDF generation | ✅ |
 
@@ -231,9 +231,10 @@ No AI output enters a patient's permanent record without a doctor's review. Once
 - ✅ **Approve note** button locks all fields permanently; green "Approved" banner shown; action written to audit log (FR-08)
 - ✅ **Reject note** button flags session as `REJECTED`; red banner shown with **Regenerate note** button (FR-08)
 - ✅ Regeneration calls Claude via `/api/generate-note` and returns note to `UNDER_REVIEW` state
-- ⚠️ No **notification** to the doctor when a note is ready (session page navigated to directly after pipeline)
-- ❌ **Email / SMS / WhatsApp sharing** not implemented
-- ❌ `NoteShareStrategy` interface and concrete strategy classes not implemented
+- ✅ **Strategy Pattern** — `NotificationStrategy` interface with `EmailNotificationStrategy` (mailto), `WhatsAppNotificationStrategy` (wa.me), `SmsNotificationStrategy` (sms:) as interchangeable implementations in `lib/notifications.ts`
+- ✅ **`NotificationService`** fans out to all registered strategies; `buildDoctorNotificationService(email, phone?)` factory pre-wires available channels
+- ✅ **Email / WhatsApp / SMS** notifications fire on: note ready (→ UNDER_REVIEW), note approved, note rejected, transcription failure, prescription sharing — pre-filled templates open the native client ready to send
+- ✅ **`/api/notify`** — server-side fire-and-forget POST that logs each notification dispatch to `audit_logs` as `notification_sent` (non-blocking, never throws)
 
 ---
 
@@ -250,8 +251,7 @@ All system actions are logged (who, what entity, when) and are accessible only t
 - ✅ **Global `audit_logs` table** (Supabase PostgreSQL) — append-only, one row per action with `user_email`, `action`, `entity_type`, `entity_id`, `metadata`, `created_at`
 - ✅ **`/api/audit` route** — `POST` writes entries (service-role client, bypasses RLS); `GET` fetches with pagination
 - ✅ **`/dashboard/audit-log` page** — searchable, colour-coded admin view of all audit entries
-- ✅ Events logged: `login_success`, `logout` (NextAuth events → `audit-server.ts`), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`
-- ⚠️ Sharing events not logged (sharing not implemented — FR-09)
+- ✅ Events logged: `login_success`, `logout` (NextAuth events → `audit-server.ts`), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`, `notification_sent` (Email/WhatsApp/SMS sharing events via `/api/notify`)
 - ❌ `AdminFacade` class not implemented — admin routes call service layer directly
 
 ---
@@ -284,7 +284,7 @@ Each state class implements a `ConsultationState` interface and explicitly block
 - ✅ `APPROVED` state locks the note; `REJECTED` enables regeneration
 - ✅ **State machine enforced** — `lib/session-state-machine.ts` declares `VALID_TRANSITIONS` for all 9 statuses; `assertTransition(from, to)` throws on illegal jumps; `transitionSession()` in the store validates every status change before it hits the DB; `APPROVED` is terminal — no further transitions possible
 - ❌ No `ConsultationSubject` / Observer pattern — no event bus; components read store directly
-- ❌ No automatic notifications on any lifecycle event (email, push, in-app)
+- ✅ **Automatic notifications** fire on every lifecycle event via `NotificationService` (note ready, approved, rejected, transcription failure) — Email/WhatsApp/SMS via Strategy pattern
 
 ---
 
@@ -319,12 +319,12 @@ The builder enforces step-by-step, validated construction so no partially-initia
 | User Authentication & Role-Based Access | Service Layer | ⚠️ |
 | Template-Based Documentation | Factory Method | ⚠️ |
 | AI Pipeline (Transcription + Note Generation) | Factory Method + Template Method | ⚠️ |
-| Review, Approval & Note Sharing | Strategy | ❌ |
+| Review, Approval & Note Sharing | Strategy | ✅ |
 | Audit Logging & Admin Dashboard | Facade | ❌ |
-| Consultation Lifecycle & Notification Hub | State + Observer | ❌ |
+| Consultation Lifecycle & Notification Hub | State + Observer | ⚠️ |
 | Patient Profile Builder | Builder | ❌ |
 
-> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented as class/interface hierarchies. Currently **0 patterns** meet that bar — all are conceptually present in the architecture but expressed as config maps, imperative calls, or store abstractions rather than named classes. This is the single most critical gap before submission.
+> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **1 pattern fully meets the bar** (Strategy — `NotificationStrategy` interface + 3 concrete classes). 4 more are conceptually present (Service Layer, Factory Method, Template Method, State) but expressed as config maps or data structures rather than named class hierarchies. Formalising those 4 is the remaining gap.
 
 ---
 
