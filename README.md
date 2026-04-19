@@ -26,13 +26,13 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 | Category | Done | Partial | Not done | Score | Progress |
 |---|:---:|:---:|:---:|:---:|---|
-| Functional Requirements (12) | 12 | 0 | 0 | **100%** | `██████████` |
+| Functional Requirements (12) | 11 | 1 | 0 | **96%** | `█████████░` |
 | Non-Functional Requirements (5) | 4 | 1 | 0 | **90%** | `█████████░` |
 | Design Patterns (7) | 1 | 4 | 2 | **43%** | `████░░░░░░` |
-| **Overall (24 pts)** | **17** | **5** | **2** | **81%** | `████████░░` |
+| **Overall (24 pts)** | **16** | **6** | **2** | **79%** | `███████░░░` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
-> **Critical gap:** Design patterns (only Strategy fully implemented as a class hierarchy) is the single biggest drag on overall score.
+> **Critical gap:** Design patterns (only Strategy fully implemented as a named class hierarchy) is the single biggest drag on overall score.
 
 ---
 
@@ -57,9 +57,10 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 > **Legend:** ✅ Done &nbsp;|&nbsp; ⚠️ Partial &nbsp;|&nbsp; ❌ Not implemented
 >
-> - **FR-02** — Admin user management UI done; global audit log built (`audit_logs` table + `/api/audit` + admin view at `/dashboard/audit-log`); login events not yet logged
+> - **FR-02** — Admin can view users and toggle activation/deactivation (Spring Boot `/api/admin/users`); audit log UI built (`audit_logs` table + `/api/audit` + admin view at `/dashboard/audit-log`); `login_success` and `logout` events ARE logged (NextAuth signIn/signOut callbacks → `logAuditServer`); admin **cannot create new users** — user creation is self-service via the `/login` register flow, not admin-initiated
 > - **FR-05** — Claude Haiku extracts 6 typed entity categories (symptoms, diagnoses, medications, allergies, vitals, treatment plans) via `/api/extract-entities`; stored as `entities JSONB` on session; displayed in dedicated **Entities tab** in the session view; re-extractable on demand
-> - **FR-10** — All system actions logged: `login_success`, `logout` (via NextAuth events), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`
+> - **FR-09** — `prescription-tab.tsx` has a "Share prescription" dropdown that generates the PDF (via `/api/prescriptions/generate`) then opens Email (`mailto:`), WhatsApp (`wa.me/`), or SMS (`sms:`) with pre-filled prescription content; sharing available whenever the patient has an email or phone on record; `prescriptionSharingTemplate()` and `noteSharingTemplate()` defined in `lib/notifications.ts`
+> - **FR-10** — All system actions logged: `login_success`, `logout` (via NextAuth signIn/signOut → `logAuditServer`), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`, `notification_sent` (via `/api/notify`)
 > - **FR-11** — `lib/session-state-machine.ts` defines `VALID_TRANSITIONS` map + `assertTransition()` which throws on illegal jumps; `transitionSession()` in the store validates every status change before writing; `APPROVED` is terminal (no further transitions); `REJECTED → UNDER_REVIEW` is the only regeneration path; sessions now start in `SCHEDULED` and advance through the full 7-state chain
 
 ### Non-Functional Requirements
@@ -212,7 +213,7 @@ This task covers the full end-to-end AI pipeline:
 
 ---
 
-### 5. Review, Approval & Note Sharing ⚠️
+### 5. Review, Approval & Note Sharing ✅
 
 No AI output enters a patient's permanent record without a doctor's review. Once approved, the note can be distributed to the relevant parties.
 
@@ -233,7 +234,8 @@ No AI output enters a patient's permanent record without a doctor's review. Once
 - ✅ Regeneration calls Claude via `/api/generate-note` and returns note to `UNDER_REVIEW` state
 - ✅ **Strategy Pattern** — `NotificationStrategy` interface with `EmailNotificationStrategy` (mailto), `WhatsAppNotificationStrategy` (wa.me), `SmsNotificationStrategy` (sms:) as interchangeable implementations in `lib/notifications.ts`
 - ✅ **`NotificationService`** fans out to all registered strategies; `buildDoctorNotificationService(email, phone?)` factory pre-wires available channels
-- ✅ **Email / WhatsApp / SMS** notifications fire on: note ready (→ UNDER_REVIEW), note approved, note rejected, transcription failure, prescription sharing — pre-filled templates open the native client ready to send
+- ✅ **Patient-facing sharing** — prescription tab has a "Share prescription" dropdown; on share: PDF is generated and downloaded, then Email (`mailto:`), WhatsApp (`wa.me/`), or SMS (`sms:`) opens with pre-filled prescription content; only shown when patient has email or phone on record (FR-09)
+- ✅ **Doctor-facing system notifications** — `note_approved` and `transcription_failed` events fire `sendSystemNotification()` → `/api/notify` → logged as `notification_sent` in `audit_logs`; note_ready notification intentionally skipped (doctor is already on the session page when pipeline completes)
 - ✅ **`/api/notify`** — server-side fire-and-forget POST that logs each notification dispatch to `audit_logs` as `notification_sent` (non-blocking, never throws)
 
 ---
@@ -283,8 +285,8 @@ Each state class implements a `ConsultationState` interface and explicitly block
 - ✅ Status badges colour-coded across session list and session detail views for all 7 states
 - ✅ `APPROVED` state locks the note; `REJECTED` enables regeneration
 - ✅ **State machine enforced** — `lib/session-state-machine.ts` declares `VALID_TRANSITIONS` for all 9 statuses; `assertTransition(from, to)` throws on illegal jumps; `transitionSession()` in the store validates every status change before it hits the DB; `APPROVED` is terminal — no further transitions possible
-- ❌ No `ConsultationSubject` / Observer pattern — no event bus; components read store directly
-- ✅ **Automatic notifications** fire on every lifecycle event via `NotificationService` (note ready, approved, rejected, transcription failure) — Email/WhatsApp/SMS via Strategy pattern
+- ❌ No `ConsultationSubject` / Observer pattern — no event bus; components read Zustand store directly; notifications are fired imperatively at call sites rather than via subscribed observers
+- ✅ **Automatic notifications** fire on key lifecycle events: `note_approved` (doctor notified, audit logged) and `transcription_failed` (doctor notified after 3 retries); patient prescription sharing triggered on-demand from the prescription tab
 
 ---
 
@@ -303,9 +305,9 @@ The builder enforces step-by-step, validated construction so no partially-initia
 **Design Pattern:** Builder Pattern - `PatientProfileBuilder` with fluent API and a terminal `build()` that runs all validations before persisting.
 
 **Implementation status:**
-- ✅ Basic patient creation: name, age, gender — persisted to Supabase
+- ✅ Patient creation form captures: name, age, gender, **email** (for note/prescription sharing), **phone** (for WhatsApp/SMS) — all persisted to Supabase
 - ❌ **Chronic conditions** field not implemented
-- ❌ **Allergies** with severity metadata not implemented
+- ❌ **Allergies** with severity metadata not implemented (per-session entity extraction exists, but not stored on patient profile)
 - ❌ **Emergency contact** not implemented
 - ❌ **Insurance details** not implemented
 - ❌ `PatientProfileBuilder` with fluent API and `build()` validation not implemented — patient created with a direct `insert()` call
