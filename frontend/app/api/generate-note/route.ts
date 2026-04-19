@@ -1,23 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import Anthropic from "@anthropic-ai/sdk"
+import { NoteGeneratorFactory } from "@/lib/soap-note-generator"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
 
-const NOTE_FIELDS: Record<string, string[]> = {
-  general_opd:        ["subjective", "objective", "assessment", "diagnosis", "prescription", "advice", "follow_up"],
-  mental_health_soap: ["subjective", "objective", "assessment", "plan", "safety_assessment"],
-  physiotherapy:      ["subjective", "objective", "assessment", "treatment", "home_exercise_program", "plan"],
-  pediatric:          ["subjective", "objective", "assessment", "plan", "parent_instructions", "follow_up"],
-  cardiology:         ["subjective", "objective", "assessment", "plan", "medications", "follow_up"],
-  surgical_followup:  ["wound_assessment", "subjective", "objective", "assessment", "plan", "next_review"],
-}
-
 function extractJson(text: string): Record<string, string> {
   const match = text.match(/\{[\s\S]*\}/)
   if (!match) return {}
-  try { return JSON.parse(match[0]) } catch { return {} }
+  try { return JSON.parse(match[0]) as Record<string, string> } catch { return {} }
 }
 
 export async function POST(req: NextRequest) {
@@ -33,13 +25,15 @@ export async function POST(req: NextRequest) {
   const client = new Anthropic({ apiKey })
 
   // Step 1 — Template detection + metadata extraction (Haiku, fast)
-  let template = "general_opd"
+  // Uses NoteGeneratorFactory.templateNames() so the detection prompt stays
+  // in sync with the registered generators automatically.
+  let templateName = "general_opd"
   let patientName: string | null = null
   let patientAge: number | null = null
 
   try {
     const detection = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model:      "claude-haiku-4-5-20251001",
       max_tokens: 256,
       messages: [{
         role: "user",
@@ -47,39 +41,21 @@ export async function POST(req: NextRequest) {
 ${transcript.slice(0, 2000)}
 
 Respond with exactly:
-{"template":"general_opd|mental_health_soap|physiotherapy|pediatric|cardiology|surgical_followup","patient_name":"string or null","patient_age":number or null}`,
+{"template":"${NoteGeneratorFactory.templateNames().join("|")}","patient_name":"string or null","patient_age":number or null}`,
       }],
     })
-    const raw = detection.content[0].type === "text" ? detection.content[0].text : ""
+    const raw    = detection.content[0].type === "text" ? detection.content[0].text : ""
     const parsed = extractJson(raw)
-    if (parsed.template && NOTE_FIELDS[parsed.template as string]) template = parsed.template as string
+    if (parsed.template && NoteGeneratorFactory.templateNames().includes(parsed.template)) {
+      templateName = parsed.template
+    }
     patientName = (parsed.patient_name as string) || null
-    patientAge = typeof parsed.patient_age === "number" ? parsed.patient_age : null
+    patientAge  = typeof parsed.patient_age === "number" ? parsed.patient_age : null
   } catch { /* use defaults */ }
 
-  // Step 2 — Note generation (Sonnet)
-  const fields = NOTE_FIELDS[template]
+  // Step 2 — Note generation via the Template Method hierarchy
+  const generator = NoteGeneratorFactory.get(templateName)
+  const note      = await generator.generate(transcript, client)
 
-  const noteRes = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 2048,
-    messages: [{
-      role: "user",
-      content: `You are a medical scribe. Generate a structured clinical note from this consultation transcript.
-
-TRANSCRIPT:
-${transcript}
-
-Return a JSON object with EXACTLY these keys: ${fields.join(", ")}
-Fill each key with concise, clinical prose from the transcript. Leave a key as "" if not mentioned.
-Respond with JSON only — no markdown, no explanation.`,
-    }],
-  })
-
-  const noteText = noteRes.content[0].type === "text" ? noteRes.content[0].text : "{}"
-  const note: Record<string, string> = extractJson(noteText)
-  // Ensure all fields present
-  for (const f of fields) { if (!note[f]) note[f] = "" }
-
-  return NextResponse.json({ note, template, patientName, patientAge })
+  return NextResponse.json({ note, template: templateName, patientName, patientAge })
 }

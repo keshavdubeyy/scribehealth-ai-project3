@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { createServiceClient } from "@/utils/supabase/service"
+import { TranscriptionServiceFactory } from "@/lib/transcription-factory"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -9,10 +10,7 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const apiKey = process.env.SARVAM_API_KEY
-  if (!apiKey) return NextResponse.json({ error: "SARVAM_API_KEY not configured" }, { status: 500 })
-
-  const formData = await req.formData()
+  const formData  = await req.formData()
   const audio     = formData.get("audio")     as File | null
   const sessionId = formData.get("sessionId") as string | null
 
@@ -24,7 +22,7 @@ export async function POST(req: NextRequest) {
   let audioUrl: string | null = null
   if (sessionId) {
     try {
-      const supabase = createServiceClient()
+      const supabase    = createServiceClient()
       const storagePath = `${session.user?.email ?? "unknown"}/${sessionId}.webm`
       const { error: uploadError } = await supabase.storage
         .from("sessions")
@@ -36,24 +34,18 @@ export async function POST(req: NextRequest) {
     } catch { /* storage failure is non-fatal */ }
   }
 
-  // Transcribe via Sarvam
-  const sarvamForm = new FormData()
-  sarvamForm.append("file", new File([audioBuffer], "recording.webm", { type: "audio/webm" }))
-  sarvamForm.append("model", "saarika:v2.5")
-
-  const res = await fetch("https://api.sarvam.ai/speech-to-text", {
-    method: "POST",
-    headers: { "api-subscription-key": apiKey },
-    body: sarvamForm,
-  })
-
-  if (!res.ok) {
-    const text = await res.text()
-    return NextResponse.json({ error: `Sarvam error: ${text}` }, { status: 500 })
+  // Transcribe via the factory-created provider (currently Sarvam; swap via TRANSCRIPTION_PROVIDER env var)
+  let provider
+  try {
+    provider = TranscriptionServiceFactory.create()
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Transcription provider not configured" },
+      { status: 500 },
+    )
   }
 
-  const data = await res.json()
-  const transcript: string = data.transcript ?? ""
+  const transcript = await provider.transcribe(audioBuffer, audio.type || "audio/webm")
 
   return NextResponse.json({ transcript, audioUrl })
 }
