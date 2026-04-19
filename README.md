@@ -27,12 +27,12 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | Category | Done | Partial | Not done | Score | Progress |
 |---|:---:|:---:|:---:|:---:|---|
 | Functional Requirements (12) | 11 | 1 | 0 | **96%** | `█████████░` |
-| Non-Functional Requirements (5) | 4 | 1 | 0 | **90%** | `█████████░` |
-| Design Patterns (7) | 1 | 4 | 2 | **43%** | `████░░░░░░` |
-| **Overall (24 pts)** | **16** | **6** | **2** | **79%** | `███████░░░` |
+| Non-Functional Requirements (5) | 5 | 0 | 0 | **100%** | `██████████` |
+| Design Patterns (7) | 3 | 2 | 2 | **57%** | `█████░░░░░` |
+| **Overall (24 pts)** | **19** | **3** | **2** | **85%** | `████████░░` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
-> **Critical gap:** Design patterns (only Strategy fully implemented as a named class hierarchy) is the single biggest drag on overall score.
+> **Remaining gap:** Facade (AdminFacade) and Builder (PatientProfileBuilder) patterns not yet formalised as class hierarchies.
 
 ---
 
@@ -69,13 +69,13 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 |---|---|---|:---:|
 | NFR-01 | **Security** — PHI data must be encrypted in transit (TLS) and at rest; JWT tokens expire in 8 hours | Drives auth filter chain, HTTPS enforcement, token expiry config | ✅ |
 | NFR-02 | **Performance** — Transcription pipeline must not block the UI; API responses under 500ms for CRUD | Drives async processing, non-blocking transcription handoff | ✅ |
-| NFR-03 | **Extensibility** — New transcription providers or sharing channels added without modifying core logic | Drives Factory Method and Strategy patterns | ⚠️ |
+| NFR-03 | **Extensibility** — New transcription providers or sharing channels added without modifying core logic | Drives Factory Method and Strategy patterns | ✅ |
 | NFR-04 | **Auditability** — All actions traceable; logs immutable and admin-only | Drives AuditLog collection, Facade pattern, role-based access | ✅ |
 | NFR-05 | **Reliability** — Transcription failures recovered via retry; no data loss on pipeline error | Drives retry mechanism, session status persistence | ✅ |
 
 > - **NFR-01** — Supabase enforces TLS; NextAuth JWT with configurable expiry; all data encrypted at rest
 > - **NFR-02** — Transcription runs server-side async; CRUD under 500ms via Supabase direct queries
-> - **NFR-03** — Sharing channel extensibility fully achieved via Strategy pattern (`NotificationStrategy` interface + `EmailNotificationStrategy`, `WhatsAppNotificationStrategy`, `SmsNotificationStrategy`); transcription provider extensibility still config-driven (no formal `TranscriptionServiceFactory`)
+> - **NFR-03** — Fully extensible on both axes: (1) sharing channels via Strategy pattern (`NotificationStrategy` interface + 3 concrete classes — add Slack with one new class); (2) transcription providers via `TranscriptionServiceFactory` (`TranscriptionProvider` interface + `SarvamTranscriptionProvider` — swap to Whisper/Google STT with one new class + one env var change); (3) SOAP note templates via `SoapNoteGenerator` Template Method (new specialty = new subclass only)
 > - **NFR-04** — Global append-only `audit_logs` table; all key actions logged with actor + timestamp + entity; admin view built
 > - **NFR-05** — `withRetry()` wrapper retries transcription up to 3 times (1s → 2s backoff); transcript saved even if note generation fails
 
@@ -98,7 +98,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 |---|---|:---:|
 | **Auth & Access** | JWT login/register, role enforcement, session management | ✅ |
 | **Patient & Session** | CRUD for patient records and clinical sessions; SOAP note storage | ✅ |
-| **AI Pipeline** | Audio capture → async transcription → NLP extraction → SOAP note generation | ⚠️ |
+| **AI Pipeline** | Audio capture → async transcription → NLP extraction → SOAP note generation | ✅ |
 | **Review & Sharing** | Doctor approval workflow; multi-channel note distribution | ✅ |
 | **Audit & Admin** | Immutable action logging; admin dashboard with audit log view | ✅ |
 | **Lifecycle & Notifications** | State machine for consultation stages; Strategy-driven multi-channel stakeholder alerts | ✅ |
@@ -208,8 +208,8 @@ This task covers the full end-to-end AI pipeline:
 - ✅ Claude Sonnet note generation via `/api/generate-note` — produces structured SOAP note pre-filled in the editor
 - ✅ Pipeline is non-blocking: recording modal shows "Processing…" state while pipeline runs server-side
 - ✅ **NLP entity extraction** — Claude Haiku extracts symptoms, diagnoses, medications (with dosage/frequency), allergies (with severity), vitals, and treatment plans into typed `MedicalEntities` object; runs in parallel with note generation; stored in `entities` DB column; shown in dedicated Entities tab
-- ❌ `TranscriptionServiceFactory` class not implemented — Sarvam is hardcoded; no provider-swapping abstraction
-- ❌ `SoapNoteGenerator` Template Method class hierarchy not implemented — template selection is config-driven, not subclass-driven
+- ✅ **`TranscriptionServiceFactory`** (`lib/transcription-factory.ts`) — `TranscriptionProvider` interface + `SarvamTranscriptionProvider` concrete class; factory reads `TRANSCRIPTION_PROVIDER` env var; new providers (Whisper, Google STT) require only a new class + one `case` — `/api/transcribe` route is untouched
+- ✅ **`SoapNoteGenerator` Template Method** (`lib/soap-note-generator.ts`) — abstract base defines the fixed generation algorithm; 6 concrete subclasses (`GeneralOpdNoteGenerator`, `CardiologyNoteGenerator`, etc.) override only `templateName`, `fields`, and the optional `specialtyContext()` hook; `NoteGeneratorFactory.get(name)` replaces the old config map; detection prompt auto-syncs via `NoteGeneratorFactory.templateNames()`
 
 ---
 
@@ -320,7 +320,7 @@ The builder enforces step-by-step, validated construction so no partially-initia
 |---|---|:---:|
 | User Authentication & Role-Based Access | Service Layer | ⚠️ |
 | Template-Based Documentation | Factory Method | ⚠️ |
-| AI Pipeline (Transcription + Note Generation) | Factory Method + Template Method | ⚠️ |
+| AI Pipeline (Transcription + Note Generation) | Factory Method + Template Method | ✅ |
 | Review, Approval & Note Sharing | Strategy | ✅ |
 | Audit Logging & Admin Dashboard | Facade | ❌ |
 | Consultation Lifecycle & Notification Hub | State + Observer | ⚠️ |
