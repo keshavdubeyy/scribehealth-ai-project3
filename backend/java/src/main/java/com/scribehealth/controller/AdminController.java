@@ -2,10 +2,18 @@ package com.scribehealth.controller;
 
 import com.scribehealth.model.Role;
 import com.scribehealth.model.User;
+import com.scribehealth.model.DoctorProfile;
 import com.scribehealth.repository.UserRepository;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -15,9 +23,11 @@ import java.util.NoSuchElementException;
 public class AdminController {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public AdminController(UserRepository userRepository) {
+    public AdminController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // GET /api/admin/users — list all users
@@ -58,6 +68,34 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "User activated", "userId", id));
     }
 
+    // POST /api/admin/users — admin creates a new user account (FR-02)
+    @PostMapping("/users")
+    public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "An account with email " + request.getEmail() + " already exists"));
+        }
+
+        User user = new User();
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setRole(request.getRole());
+        user.setActive(true);
+        user.setCreatedAt(Instant.now());
+
+        if (request.getSpecialization() != null || request.getLicenseNumber() != null) {
+            user.setDoctorProfile(new DoctorProfile(
+                    request.getSpecialization(),
+                    request.getLicenseNumber()
+            ));
+        }
+
+        User saved = userRepository.save(user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new UserSummary(saved));
+    }
+
     // GET /api/admin/stats — summary counts
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Long>> getStats() {
@@ -74,7 +112,41 @@ public class AdminController {
         ));
     }
 
-    // DTO — safe user summary (no password hash)
+    // ── Request DTO for POST /api/admin/users ───────────────────────────────
+    public static class CreateUserRequest {
+
+        @NotBlank(message = "Name is required")
+        private String name;
+
+        @NotBlank(message = "Email is required")
+        @Email(message = "Must be a valid email address")
+        private String email;
+
+        @NotBlank(message = "Password is required")
+        private String password;
+
+        @NotNull(message = "Role is required (DOCTOR or ADMIN)")
+        private Role role;
+
+        // Optional doctor profile fields
+        private String specialization;
+        private String licenseNumber;
+
+        public String getName()            { return name; }
+        public void   setName(String v)    { this.name = v; }
+        public String getEmail()           { return email; }
+        public void   setEmail(String v)   { this.email = v; }
+        public String getPassword()        { return password; }
+        public void   setPassword(String v){ this.password = v; }
+        public Role   getRole()            { return role; }
+        public void   setRole(Role v)      { this.role = v; }
+        public String getSpecialization()       { return specialization; }
+        public void   setSpecialization(String v){ this.specialization = v; }
+        public String getLicenseNumber()        { return licenseNumber; }
+        public void   setLicenseNumber(String v){ this.licenseNumber = v; }
+    }
+
+    // ── Response DTO — safe user summary (no password hash) ──────────────────
     public static class UserSummary {
         private final String id;
         private final String name;
