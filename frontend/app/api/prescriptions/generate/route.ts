@@ -77,8 +77,12 @@ export async function POST(req: NextRequest) {
   const zoneY      = sz.y_pct      * pageHeight
   const zoneWidth  = sz.width_pct  * A4_WIDTH_PT
   const zoneHeight = sz.height_pct * pageHeight
-  const fontSizePt    = sz.font_size_pt   ?? 10
-  const lineHeightPt  = sz.line_height_pt ?? 16
+  // font_size_pt / line_height_pt are stored in image-pixel units (same coordinate space
+  // as the pixel zone drawn on the canvas). Scale them to PDF points the same way the
+  // image itself is scaled: imageWidth px → A4_WIDTH_PT pt.
+  const imgScale      = A4_WIDTH_PT / tmpl.image_width
+  const fontSizePt    = (sz.font_size_pt   ?? 10) * imgScale
+  const lineHeightPt  = (sz.line_height_pt ?? 16) * imgScale
 
   // PDF coordinate system: origin at bottom-left, y increases upward
   // Convert: pdfY = pageHeight - imageY - zoneHeight

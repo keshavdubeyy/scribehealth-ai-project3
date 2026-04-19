@@ -10,6 +10,8 @@ export interface Patient {
   name: string
   age: number
   gender: string
+  email?: string   // for FR-09: sharing approved notes with patient
+  phone?: string   // for FR-09: WhatsApp / SMS sharing
 }
 
 // Full 7-stage lifecycle (FR-11). Old values kept for backward compat with existing DB rows.
@@ -137,8 +139,8 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     const supabase = createClient()
     const { data, error } = await supabase
       .from("patients")
-      .select("id, name, age, gender")
-      .eq("user_email", email)
+      .select("id, name, age, gender, email, phone")
+      .eq("doctor_email", email)
       .order("created_at", { ascending: false })
     if (error) throw new Error(error.message)
     set({
@@ -147,6 +149,8 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
         name:   row.name,
         age:    row.age,
         gender: row.gender,
+        email:  (row.email as string) ?? undefined,
+        phone:  (row.phone as string) ?? undefined,
       })),
     })
   },
@@ -158,10 +162,12 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     const id = Math.random().toString(36).substring(7)
     const { error } = await supabase.from("patients").insert({
       id,
-      user_email: email,
-      name:       data.name,
-      age:        data.age,
-      gender:     data.gender,
+      doctor_email: email,
+      name:         data.name,
+      age:          data.age,
+      gender:       data.gender,
+      email:        data.email ?? null,
+      phone:        data.phone ?? null,
     })
     if (error) throw new Error(error.message)
     set(state => ({ patients: [{ id, ...data }, ...state.patients] }))
@@ -188,7 +194,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
       .from("sessions")
       .select()
       .eq("patient_id", patientId)
-      .eq("user_email", email)
+      .eq("doctor_email", email)
       .order("created_at", { ascending: false })
     if (error) throw new Error(error.message)
     const mapped = (data ?? []).map(row => rowToSession(row as Record<string, unknown>))
@@ -208,8 +214,8 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     const createdAt = new Date().toISOString()
     const { error } = await supabase.from("sessions").insert({
       id,
-      patient_id: patientId,
-      user_email: email,
+      patient_id:   patientId,
+      doctor_email: email,
       created_at: createdAt,
       status:     "SCHEDULED",
       edits:      [],
@@ -270,7 +276,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     const { data } = await supabase
       .from("prescription_templates")
       .select()
-      .eq("user_email", email)
+      .eq("doctor_email", email)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
