@@ -15,7 +15,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("prescription_templates")
     .select()
-    .eq("user_email", email)
+    .eq("doctor_email", email)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -76,12 +76,12 @@ export async function POST(req: NextRequest) {
   if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 })
 
   // Delete any previous template rows for this user (one template per doctor)
-  await supabase.from("prescription_templates").delete().eq("user_email", email)
+  await supabase.from("prescription_templates").delete().eq("doctor_email", email)
 
   const { data, error: insertError } = await supabase
     .from("prescription_templates")
     .insert({
-      user_email:   email,
+      doctor_email:   email,
       image_path:   fileName,
       image_width:  meta.imageWidth,
       image_height: meta.imageHeight,
