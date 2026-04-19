@@ -16,6 +16,10 @@ import {
 import { Loader2, Sparkles, Check, CheckCircle2, XCircle, Lock } from "lucide-react"
 import { Session, useScribeStore } from "@/lib/mock-store"
 import { logAudit } from "@/lib/audit"
+import {
+  sendSystemNotification,
+  noteApprovedTemplate,
+} from "@/lib/notifications"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -93,8 +97,9 @@ interface NoteEditorProps {
 type SaveState = "idle" | "saving" | "saved"
 
 function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEditorProps) {
-  const { updateSession, transitionSession } = useScribeStore()
+  const { updateSession, transitionSession, userEmail, getPatient } = useScribeStore()
   const router = useRouter()
+  const patientName = getPatient(session.patientId)?.name ?? "Patient"
   const [template, setTemplate]         = React.useState(initialTemplate)
   const [note, setNote]                 = React.useState<Record<string, string>>(initialNote)
   const [saveState, setSaveState]       = React.useState<SaveState>("idle")
@@ -167,6 +172,10 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
       await updateSession(session.id, { soap: note })
       await transitionSession(session.id, "APPROVED")    // UNDER_REVIEW → APPROVED
       await logAudit("note_approved", "session", session.id)
+      if (userEmail) {
+        const { subject, body } = noteApprovedTemplate(patientName, session.id)
+        void sendSystemNotification(userEmail, subject, body, `note_approved:${session.id}`)
+      }
       toast.success("Note approved and locked")
       router.refresh()
     } catch (err) {

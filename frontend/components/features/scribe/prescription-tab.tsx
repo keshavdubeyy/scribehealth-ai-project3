@@ -21,8 +21,22 @@ import {
   RefreshCw,
   Eye,
   AlertCircle,
+  Share2,
+  Mail,
+  MessageCircle,
+  Phone,
+  ChevronDown,
 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Patient, Session, SafeZone, useScribeStore } from "@/lib/mock-store"
+import { prescriptionSharingTemplate } from "@/lib/notifications"
 import { toast } from "sonner"
 
 const FREQUENCIES = [
@@ -82,6 +96,7 @@ export function PrescriptionTab({ session, patient }: PrescriptionTabProps) {
   const [isAutoFilling, setIsAutoFilling]   = React.useState(false)
   const [isFillingMeds, setIsFillingMeds]   = React.useState(false)
   const [isGeneratingPdf, setIsGeneratingPdf] = React.useState(false)
+  const [isSharing, setIsSharing]           = React.useState(false)
   const autoFillRan = React.useRef(false)
 
   // Auto-fill on mount via Claude Haiku
@@ -181,10 +196,103 @@ export function PrescriptionTab({ session, patient }: PrescriptionTabProps) {
     }
   }
 
+  const handleSharePrescription = async (channel: "email" | "whatsapp" | "sms") => {
+    const hasEmail = !!patient.email
+    const hasPhone = !!patient.phone
+
+    const { subject, body } = prescriptionSharingTemplate(patientName, {
+      reasonForVisit, whatsWrong, medicines, nextSteps, dateStr,
+    })
+
+    // Generate and download the PDF first so the doctor has it to attach/send
+    if (prescriptionTemplate) {
+      setIsSharing(true)
+      try {
+        const res = await fetch("/api/prescriptions/generate", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({
+            templateId: prescriptionTemplate.id,
+            patientName, age, dateStr, reasonForVisit, whatsWrong, medicines, nextSteps,
+          }),
+        })
+        if (res.ok) {
+          const blob = await res.blob()
+          const url  = URL.createObjectURL(blob)
+          const a    = document.createElement("a")
+          a.href     = url
+          a.download = `prescription_${patientName.replace(/\s+/g, "_")}.pdf`
+          a.click()
+          URL.revokeObjectURL(url)
+        }
+      } catch {
+        // Continue to open the channel even if PDF generation fails
+      } finally {
+        setIsSharing(false)
+      }
+    }
+
+    if (channel === "email" && hasEmail) {
+      window.open(`mailto:${encodeURIComponent(patient.email!)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_blank")
+    } else if (channel === "whatsapp" && hasPhone) {
+      window.open(`https://wa.me/${patient.phone!.replace(/\D/g, "")}?text=${encodeURIComponent(`*${subject}*\n\n${body}`)}`, "_blank")
+    } else if (channel === "sms" && hasPhone) {
+      window.open(`sms:${patient.phone}?body=${encodeURIComponent(`${subject}\n\n${body}`)}`, "_blank")
+    }
+  }
+
+  const hasPatientContact = !!patient.email || !!patient.phone
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
       {/* ── LEFT COLUMN: Editor ── */}
       <div className="space-y-5">
+
+        {/* Share Prescription dropdown */}
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prescription</p>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                disabled={isSharing || !hasPatientContact}
+                title={!hasPatientContact ? "Add patient email or phone to enable sharing" : undefined}
+              >
+                {isSharing
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Preparing…</>
+                  : <><Share2 className="w-3.5 h-3.5" /> Share prescription <ChevronDown className="w-3 h-3" /></>
+                }
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel className="text-xs">Send to {patientName}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {patient.email && (
+                <DropdownMenuItem onClick={() => handleSharePrescription("email")} className="gap-2 text-xs cursor-pointer">
+                  <Mail className="w-3.5 h-3.5 text-blue-500" />
+                  Email
+                  <span className="text-muted-foreground truncate max-w-[140px]">{patient.email}</span>
+                </DropdownMenuItem>
+              )}
+              {patient.phone && (
+                <>
+                  <DropdownMenuItem onClick={() => handleSharePrescription("whatsapp")} className="gap-2 text-xs cursor-pointer">
+                    <MessageCircle className="w-3.5 h-3.5 text-emerald-500" />
+                    WhatsApp
+                    <span className="text-muted-foreground">{patient.phone}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleSharePrescription("sms")} className="gap-2 text-xs cursor-pointer">
+                    <Phone className="w-3.5 h-3.5 text-violet-500" />
+                    SMS
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         {/* Patient info */}
         <div className="grid grid-cols-3 gap-2">
           <div className="col-span-2 space-y-1">
@@ -303,6 +411,7 @@ export function PrescriptionTab({ session, patient }: PrescriptionTabProps) {
             : <><FileDown className="w-4 h-4" /> Download prescription PDF</>
           }
         </Button>
+
       </div>
 
       {/* ── RIGHT COLUMN: Live Preview ── */}
