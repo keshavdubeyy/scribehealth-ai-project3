@@ -15,6 +15,10 @@ import { Mic, Square, Pause, Play, Loader2, ShieldCheck, Info } from "lucide-rea
 import { toast } from "sonner"
 import { useScribeStore } from "@/lib/mock-store"
 import { logAudit } from "@/lib/audit"
+import {
+  sendSystemNotification,
+  transcriptionFailedTemplate,
+} from "@/lib/notifications"
 
 type Step = "consent" | "recording" | "processing"
 
@@ -53,7 +57,7 @@ export function RecordingModal({
   patientName,
   onSessionReady,
 }: RecordingModalProps) {
-  const { addSession, transitionSession } = useScribeStore()
+  const { addSession, transitionSession, userEmail } = useScribeStore()
 
   const [step, setStep]                   = React.useState<Step>("consent")
   const [consented, setConsented]         = React.useState(false)
@@ -194,6 +198,10 @@ export function RecordingModal({
       })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Transcription failed after 3 attempts")
+      if (userEmail) {
+        const { subject, body } = transcriptionFailedTemplate(patientName, sessionId)
+        void sendSystemNotification(userEmail, subject, body, `transcription_failed:${sessionId}`)
+      }
       // Session stays RECORDED — doctor can retry from the session page
       onSessionReady(sessionId)
       return
@@ -230,6 +238,7 @@ export function RecordingModal({
         soap:      note,
         entities:  entities ?? undefined,
       })
+      // No notification here — doctor is already viewing the session
     } else {
       // Note failed — stays TRANSCRIBED; doctor can generate from session page
       toast.error("Note generation failed. Transcript saved — you can generate from the session page.", { duration: 6000 })

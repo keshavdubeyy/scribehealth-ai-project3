@@ -62,6 +62,8 @@ export default function PatientsPage() {
         name:   fd.get("name")   as string,
         age:    parseInt(fd.get("age") as string),
         gender: fd.get("gender") as string,
+        email:  (fd.get("email")  as string) || undefined,
+        phone:  (fd.get("phone")  as string) || undefined,
       })
       setIsAddOpen(false)
       toast.success("Patient added.")
@@ -136,6 +138,18 @@ export default function PatientsPage() {
                       <Label htmlFor="gender">Gender</Label>
                       <Input id="gender" name="gender" placeholder="Male" required />
                     </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">
+                      Email <span className="text-muted-foreground font-normal">(optional — for note sharing)</span>
+                    </Label>
+                    <Input id="email" name="email" type="email" placeholder="patient@example.com" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="phone">
+                      Phone <span className="text-muted-foreground font-normal">(optional — for WhatsApp / SMS)</span>
+                    </Label>
+                    <Input id="phone" name="phone" type="tel" placeholder="+91 98765 43210" />
                   </div>
                 </div>
                 <DialogFooter>
