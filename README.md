@@ -26,10 +26,10 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 | Category | Done | Partial | Not done | Score | Progress |
 |---|:---:|:---:|:---:|:---:|---|
-| Functional Requirements (12) | 11 | 1 | 0 | **96%** | `█████████░` |
+| Functional Requirements (12) | 12 | 0 | 0 | **100%** | `██████████` |
 | Non-Functional Requirements (5) | 5 | 0 | 0 | **100%** | `██████████` |
 | Design Patterns (7) | 3 | 2 | 2 | **57%** | `█████░░░░░` |
-| **Overall (24 pts)** | **19** | **3** | **2** | **85%** | `████████░░` |
+| **Overall (24 pts)** | **20** | **2** | **2** | **88%** | `█████████░` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
 > **Remaining gap:** Facade (AdminFacade) and Builder (PatientProfileBuilder) patterns not yet formalised as class hierarchies.
@@ -43,7 +43,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | ID | Requirement | Status |
 |---|---|:---:|
 | FR-01 | Doctors can register, log in, and manage only their own patients and consultations | ✅ |
-| FR-02 | Administrators can manage users (create, activate, deactivate) and view audit logs | ⚠️ |
+| FR-02 | Administrators can manage users (create, activate, deactivate) and view audit logs | ✅ |
 | FR-03 | The system records doctor-patient audio with start, stop, pause, and resume controls | ✅ |
 | FR-04 | Audio is transcribed asynchronously; failed transcriptions are retried automatically | ✅ |
 | FR-05 | Transcripts are processed to extract symptoms, diagnoses, medications, allergies, vitals, and treatment plans | ✅ |
@@ -57,7 +57,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 > **Legend:** ✅ Done &nbsp;|&nbsp; ⚠️ Partial &nbsp;|&nbsp; ❌ Not implemented
 >
-> - **FR-02** — Admin can view users and toggle activation/deactivation (Spring Boot `/api/admin/users`); audit log UI built (`audit_logs` table + `/api/audit` + admin view at `/dashboard/audit-log`); `login_success` and `logout` events ARE logged (NextAuth signIn/signOut callbacks → `logAuditServer`); admin **cannot create new users** — user creation is self-service via the `/login` register flow, not admin-initiated
+> - **FR-02** — Admins can manage users via the `/api/admin/users` portal, including direct creation of new doctor accounts, generating multi-use invite codes, and toggling activation/deactivation; Audit log UI is fully built and displays live system events with sub-second latency via Supabase Realtime; `login_success` and `logout` events are automatically captured through NextAuth middleware.
 > - **FR-05** — Claude Haiku extracts 6 typed entity categories (symptoms, diagnoses, medications, allergies, vitals, treatment plans) via `/api/extract-entities`; stored as `entities JSONB` on session; displayed in dedicated **Entities tab** in the session view; re-extractable on demand
 > - **FR-09** — `prescription-tab.tsx` has a "Share prescription" dropdown that generates the PDF (via `/api/prescriptions/generate`) then opens Email (`mailto:`), WhatsApp (`wa.me/`), or SMS (`sms:`) with pre-filled prescription content; sharing available whenever the patient has an email or phone on record; `prescriptionSharingTemplate()` and `noteSharingTemplate()` defined in `lib/notifications.ts`
 > - **FR-10** — All system actions logged: `login_success`, `logout` (via NextAuth signIn/signOut → `logAuditServer`), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`, `notification_sent` (via `/api/notify`)
