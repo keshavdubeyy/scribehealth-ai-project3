@@ -5,14 +5,31 @@
 - **Password**: ScribeHealth2026!
 - **Role**: ADMIN
 
-## Clinician Access (Dr. Jonny)
-- **Email**: jonny@scribehealth.ai
-- **Password**: ScribeHealth2026!
+## Clinician Credentials (New Medical Staff)
+
+### 1. Dr. Praneeth
+- **Email**: praneeth@scribehealth.ai
+- **Password**: Praneeth_12345
 - **Role**: DOCTOR
 
-## Clinician Access (Aasritha)
-- **Email**: aasritha@scribehealth.ai
-- **Password**: ScribeHealth2026!
+### 2. Dr. Eshwar
+- **Email**: eshwar@scribehealth.ai
+- **Password**: Eshwar_12345
+- **Role**: DOCTOR
+
+### 3. Dr. Dhawal
+- **Email**: dhawal@scribehealth.ai
+- **Password**: Dhawal_12345
+- **Role**: DOCTOR
+
+### 4. Dr. Devansh
+- **Email**: devansh@scribehealth.ai
+- **Password**: Devansh_12345
+- **Role**: DOCTOR
+
+### 5. Dr. Keshav
+- **Email**: keshav@scribehealth.ai
+- **Password**: Keshav_12345
 - **Role**: DOCTOR
 
 ## Database Access
