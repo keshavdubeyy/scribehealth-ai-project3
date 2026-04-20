@@ -1,102 +1,93 @@
 package com.scribehealth.model;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
+
+import jakarta.persistence.*;
 import java.time.Instant;
-@Document(collection = "users")
+
+@Entity
+@Table(name = "profiles")
 public class User {
 
     @Id
-    private String id;
-
-    private String name;
-
-    @Indexed(unique = true)
+    @Column(name = "email", nullable = false)
     private String email;
 
-    private String passwordHash;
+    @Column(name = "name", nullable = false)
+    private String name;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
     private Role role;
 
+    @Column(name = "organization_id")
+    private String organizationId;
+
+    @Column(name = "specialization")
+    private String specialization;
+
+    @Column(name = "license_number")
+    private String licenseNumber;
+
+    @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
+    @Column(name = "created_at", updatable = false)
     private Instant createdAt;
 
+    @Column(name = "password_hash")
+    private String passwordHash;
+
+    @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
-    private DoctorProfile doctorProfile;
+    @PrePersist
+    void prePersist() {
+        if (createdAt == null) createdAt = Instant.now();
+    }
 
     public User() {}
 
-    public String getId() {
-        return id;
-    }
+    // Convenience: expose email as id so existing controller code compiles unchanged
+    public String getId()             { return email; }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    public String getEmail()          { return email; }
+    public void   setEmail(String v)  { this.email = v; }
 
-    public String getName() {
-        return name;
-    }
+    public String getName()           { return name; }
+    public void   setName(String v)   { this.name = v; }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    public Role   getRole()           { return role; }
+    public void   setRole(Role v)     { this.role = v; }
 
-    public String getEmail() {
-        return email;
-    }
+    public String getOrganizationId()         { return organizationId; }
+    public void   setOrganizationId(String v) { this.organizationId = v; }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public String getSpecialization()          { return specialization; }
+    public void   setSpecialization(String v)  { this.specialization = v; }
 
-    public String getPasswordHash() {
-        return passwordHash;
-    }
+    public String getLicenseNumber()           { return licenseNumber; }
+    public void   setLicenseNumber(String v)   { this.licenseNumber = v; }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
-    }
+    public boolean isActive()          { return isActive; }
+    public void    setActive(boolean v){ this.isActive = v; }
 
-    public Role getRole() {
-        return role;
-    }
+    public Instant getCreatedAt()      { return createdAt; }
+    public void    setCreatedAt(Instant v) { this.createdAt = v; }
 
-    public void setRole(Role role) {
-        this.role = role;
-    }
+    public String getPasswordHash()       { return passwordHash; }
+    public void   setPasswordHash(String v){ this.passwordHash = v; }
 
-    public boolean isActive() {
-        return isActive;
-    }
+    public Instant getLastLoginAt()        { return lastLoginAt; }
+    public void    setLastLoginAt(Instant v){ this.lastLoginAt = v; }
 
-    public void setActive(boolean active) {
-        isActive = active;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public Instant getLastLoginAt() {
-        return lastLoginAt;
-    }
-
-    public void setLastLoginAt(Instant lastLoginAt) {
-        this.lastLoginAt = lastLoginAt;
-    }
-
+    // Backward-compat: controllers still call getDoctorProfile() / setDoctorProfile()
     public DoctorProfile getDoctorProfile() {
-        return doctorProfile;
+        if (specialization == null && licenseNumber == null) return null;
+        return new DoctorProfile(specialization, licenseNumber);
     }
 
-    public void setDoctorProfile(DoctorProfile doctorProfile) {
-        this.doctorProfile = doctorProfile;
+    public void setDoctorProfile(DoctorProfile dp) {
+        if (dp == null) return;
+        this.specialization = dp.getSpecialization();
+        this.licenseNumber  = dp.getLicenseNumber();
     }
 }
