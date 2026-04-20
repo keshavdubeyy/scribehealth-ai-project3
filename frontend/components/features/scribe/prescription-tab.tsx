@@ -188,6 +188,16 @@ export function PrescriptionTab({ session, patient }: PrescriptionTabProps) {
       a.download = `prescription_${patientName.replace(/\s+/g, "_")}.pdf`
       a.click()
       URL.revokeObjectURL(url)
+      
+      // Log audit event
+      await useScribeStore.getState().updateSession(session.id, {
+        prescription: { diagnosis: whatsWrong, medicines, nextSteps: nextSteps.join("\n") }
+      })
+      const { logAudit } = await import("@/lib/audit")
+      await logAudit("prescription_generated", "session", session.id, { 
+        patientName, medicinesCount: medicines.length 
+      })
+
       toast.success("Prescription downloaded")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to generate PDF")
@@ -224,6 +234,16 @@ export function PrescriptionTab({ session, patient }: PrescriptionTabProps) {
           a.download = `prescription_${patientName.replace(/\s+/g, "_")}.pdf`
           a.click()
           URL.revokeObjectURL(url)
+
+          // Log audit event
+          const { logAudit } = await import("@/lib/audit")
+          await logAudit("prescription_shared", "session", session.id, { 
+            channel, patientName, patientContact: channel === "email" ? patient.email : patient.phone 
+          })
+          // Also log as generic generation if it was just downloaded
+          await logAudit("prescription_generated", "session", session.id, { 
+            patientName, source: "share_flow" 
+          })
         }
       } catch {
         // Continue to open the channel even if PDF generation fails

@@ -15,10 +15,12 @@ import {
   FormDescription
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, CheckCircle2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const profileSchema = z.object({
   specialization: z.string().min(2, "Specialization must be at least 2 characters."),
@@ -43,7 +45,7 @@ export function DoctorProfileForm({ profile, token }: { profile: any, token: str
     setError(null)
     setSuccess(null)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080/api"}/doctor/profile`, {
+      const res = await fetch("/api/doctor/profile", {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -59,6 +61,10 @@ export function DoctorProfileForm({ profile, token }: { profile: any, token: str
       setLoading(false)
     }
   }
+
+  const licenseNum = profile.licenseNumber || profile.license_number
+  const spec = profile.specialization
+  const isActive = profile.active ?? profile.is_active
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -139,24 +145,26 @@ export function DoctorProfileForm({ profile, token }: { profile: any, token: str
         </CardHeader>
         <CardContent className="p-8 space-y-6">
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Full Name</label>
-            <div className="text-foreground font-semibold">{profile.name}</div>
+            <Label className="text-xs text-muted-foreground">Full Name</Label>
+            <p className="text-sm font-semibold text-foreground">{profile.name}</p>
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Email Address</label>
-            <div className="text-foreground font-semibold">{profile.email}</div>
+            <Label className="text-xs text-muted-foreground">Email Address</Label>
+            <p className="text-sm font-semibold text-foreground">{profile.email}</p>
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">System Role</label>
-            <Badge variant="secondary" className="font-bold px-2 py-0.5 rounded-md">
-              {profile.role}
+            <Label className="text-xs text-muted-foreground">System Role</Label>
+            <Badge variant="secondary">{profile.role}</Badge>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">License Number</Label>
+            <p className="text-sm font-semibold text-foreground">{licenseNum || "—"}</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Account Status</Label>
+            <Badge variant={isActive ? "default" : "destructive"} className={cn(isActive && "bg-emerald-500 hover:bg-emerald-500")}>
+              {isActive ? "Verified" : "Unverified"}
             </Badge>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Account Status</label>
-            <div className={`text-sm font-bold ${profile.active ? 'text-emerald-500' : 'text-destructive'}`}>
-              {profile.active ? 'VERIFIED' : 'UNVERIFIED'}
-            </div>
           </div>
         </CardContent>
       </Card>
