@@ -34,6 +34,19 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
 > **Remaining gap:** Facade (AdminFacade) and Builder (PatientProfileBuilder) patterns not yet formalised as class hierarchies.
 
+### Subsystem Task Tracker
+
+| Task | Status |
+| :--- | :---: |
+| User Authentication & Role-Based Access | ✅ |
+| Patient & Consultation Management | ✅ |
+| Template-Based Documentation | ✅ |
+| AI Pipeline (Recording, Transcription, NLP) | ✅ |
+| Review, Approval & Note Sharing | ✅ |
+| Audit Logging & Admin Dashboard | ✅ |
+| Consultation Lifecycle & Notification Hub | ✅ |
+| Patient Profile Builder | ❌ |
+
 ---
 
 ## Requirements
