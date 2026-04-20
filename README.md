@@ -28,6 +28,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 |---|:---:|:---:|:---:|:---:|---|
 | Functional Requirements (12) | 12 | 0 | 0 | **100%** | `██████████` |
 | Non-Functional Requirements (5) | 5 | 0 | 0 | **100%** | `██████████` |
+| Subsystems (8) | 7 | 0 | 1 | **88%** | `█████████░` |
 | Design Patterns (7) | 3 | 2 | 2 | **57%** | `█████░░░░░` |
 | **Overall (24 pts)** | **20** | **2** | **2** | **88%** | `█████████░` |
 
