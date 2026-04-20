@@ -1,0 +1,354 @@
+@startuml ScribeHealth_AI_Architecture
+
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontSize 11
+skinparam ArrowColor #555555
+skinparam PackageBorderColor #888888
+skinparam PackageBackgroundColor #F5F5F5
+skinparam ComponentBorderColor #666666
+skinparam ComponentBackgroundColor #FFFFFF
+skinparam ClassBorderColor #666666
+skinparam ClassBackgroundColor #FFFFFF
+skinparam DatabaseBackgroundColor #E8F4FD
+skinparam DatabaseBorderColor #2196F3
+skinparam CloudBackgroundColor #FFF3E0
+skinparam CloudBorderColor #FF9800
+skinparam NoteBackgroundColor #FFFFCC
+skinparam NoteBorderColor #CCAA00
+skinparam InterfaceBackgroundColor #E8F5E9
+skinparam InterfaceBorderColor #4CAF50
+skinparam ActorBorderColor #333333
+skinparam linetype ortho
+
+title ScribeHealth AI -- System Architecture + Design Patterns
+
+' ─────────────────────────────────────────────
+' ACTORS
+' ─────────────────────────────────────────────
+actor "Doctor\n(DOCTOR role)" as Doctor
+actor "Admin\n(ADMIN role)" as Admin
+
+' ─────────────────────────────────────────────
+' PRESENTATION LAYER
+' ─────────────────────────────────────────────
+package "Presentation Layer  [React 19 + Next.js 16, Port 3000]" {
+
+  package "Auth Views" {
+    component [LoginPage / SignupPage] as AuthPages
+  }
+
+  package "Dashboard Views" {
+    component [DashboardPage\nPatientListPage\nPatientDetailPage] as DashboardPages
+    component [AuditLogPage  (Admin only)] as AuditPage
+    component [UsersPage  (Admin only)] as UsersPage
+  }
+
+  package "Scribe Feature Components" {
+    component [RecordingModal\norchestrates AI pipeline] as RecordingModal
+    component [NoteSection\nSOAP editor] as NoteSection
+    component [EntitiesPanel\nTranscriptPanel] as EntitiesPanel
+    component [PrescriptionTab\nEditHistory\nAudioPlayback] as PrescriptionTab
+  }
+
+  package "Global State  [Zustand - Singleton Pattern]" {
+    component [useScribeStore\n-----------------------\npatients, sessions state\naddPatient(), addSession()\ntransitionSession()\nlogAudit()] as ZustandStore
+  }
+
+  note right of ZustandStore
+    <b>Pattern: Singleton (Zustand)</b>
+    Single shared store instance.
+    Encapsulates state transitions
+    and all Supabase DB writes.
+  end note
+}
+
+' ─────────────────────────────────────────────
+' FACTORY METHOD PATTERN
+' ─────────────────────────────────────────────
+package "Transcription Subsystem  [Factory Method Pattern]" {
+  interface ITranscriptionProvider {
+    +name : string
+    +transcribe(audio, mime) : Promise<string>
+  }
+  class SarvamTranscriptionProvider {
+    +name = "sarvam"
+    +transcribe(audio, mime) : string
+    -- calls Sarvam AI saarika:v2.5 --
+  }
+  class TranscriptionServiceFactory {
+    +create() : ITranscriptionProvider
+    -- reads TRANSCRIPTION_PROVIDER env --
+  }
+  ITranscriptionProvider <|.. SarvamTranscriptionProvider : implements
+  TranscriptionServiceFactory ..> ITranscriptionProvider : creates
+
+  note right of TranscriptionServiceFactory
+    <b>Pattern: Factory Method</b>
+    /api/transcribe never knows
+    the concrete provider type.
+    Swap Sarvam to Whisper/Google
+    = 1 new class + 1 switch case.
+  end note
+}
+
+' ─────────────────────────────────────────────
+' TEMPLATE METHOD PATTERN
+' ─────────────────────────────────────────────
+package "SOAP Note Generation  [Template Method Pattern]" {
+  abstract class SoapNoteGenerator {
+    {abstract} +templateName : string
+    {abstract} +fields : string[]
+    +generate(transcript, client) : SOAP
+    #specialtyContext() : string
+  }
+  class GeneralOpdNoteGenerator
+  class CardiologyNoteGenerator
+  class PediatricsNoteGenerator
+  class OrthopedicsNoteGenerator
+  class DermatologyNoteGenerator
+  class NeurologyNoteGenerator
+  class NoteGeneratorFactory {
+    +get(templateName) : SoapNoteGenerator
+    +templateNames() : string[]
+  }
+  SoapNoteGenerator <|-- GeneralOpdNoteGenerator
+  SoapNoteGenerator <|-- CardiologyNoteGenerator
+  SoapNoteGenerator <|-- PediatricsNoteGenerator
+  SoapNoteGenerator <|-- OrthopedicsNoteGenerator
+  SoapNoteGenerator <|-- DermatologyNoteGenerator
+  SoapNoteGenerator <|-- NeurologyNoteGenerator
+  NoteGeneratorFactory ..> SoapNoteGenerator : creates
+
+  note right of SoapNoteGenerator
+    <b>Pattern: Template Method</b>
+    generate() skeleton:
+    1. build prompt
+    2. call Claude Sonnet
+    3. normalise fields
+    Subclasses override templateName,
+    fields, specialtyContext() hook.
+    Add specialty = 1 new subclass.
+  end note
+}
+
+' ─────────────────────────────────────────────
+' STRATEGY PATTERN
+' ─────────────────────────────────────────────
+package "Notification Subsystem  [Strategy Pattern]" {
+  interface INotificationStrategy {
+    +channel : string
+    +fire(payload) : void
+  }
+  class EmailNotificationStrategy {
+    +channel = "email"
+    +fire(payload) : void
+    -- opens mailto: URI --
+  }
+  class WhatsAppNotificationStrategy {
+    +channel = "whatsapp"
+    +fire(payload) : void
+    -- opens wa.me/ URI --
+  }
+  class SmsNotificationStrategy {
+    +channel = "sms"
+    +fire(payload) : void
+    -- opens sms: URI --
+  }
+  class NotificationService {
+    +register(strategy) : this
+    +fire(payload) : void
+    -- fan-out to all channels --
+  }
+  class buildDoctorNotificationService {
+    pre-wires email/whatsapp/sms
+    based on patient contact info
+  }
+  INotificationStrategy <|.. EmailNotificationStrategy
+  INotificationStrategy <|.. WhatsAppNotificationStrategy
+  INotificationStrategy <|.. SmsNotificationStrategy
+  NotificationService o--> INotificationStrategy : delegates
+  buildDoctorNotificationService ..> NotificationService : creates
+
+  note right of NotificationService
+    <b>Pattern: Strategy</b>
+    Context calls fire() on all
+    registered strategies.
+    Add Slack/Push = 1 new class
+    + 1 register() call.
+  end note
+}
+
+' ─────────────────────────────────────────────
+' STATE MACHINE PATTERN
+' ─────────────────────────────────────────────
+package "Session Lifecycle  [State Machine Pattern]" {
+  class SessionStateMachine {
+    SCHEDULED    -> [IN_PROGRESS]
+    IN_PROGRESS  -> [RECORDED]
+    RECORDED     -> [TRANSCRIBED]
+    TRANSCRIBED  -> [UNDER_REVIEW]
+    UNDER_REVIEW -> [APPROVED, REJECTED]
+    APPROVED     -> [] terminal / locked
+    REJECTED     -> [UNDER_REVIEW]
+    ---
+    +canTransition(from, to) : boolean
+    +assertTransition(from, to) : void
+  }
+
+  note right of SessionStateMachine
+    <b>Pattern: State Machine</b>
+    VALID_TRANSITIONS map enforces
+    legal state progressions.
+    assertTransition() throws before
+    any DB write on illegal moves.
+    APPROVED is terminal/immutable.
+    REJECTED allows regeneration.
+  end note
+}
+
+' ─────────────────────────────────────────────
+' NEXT.JS API ROUTE LAYER
+' ─────────────────────────────────────────────
+package "API Route Layer  [Next.js Server Routes]" {
+  component [POST /api/transcribe\nTranscriptionServiceFactory\n+ withRetry(3x, 1s/2s backoff)] as RouteTranscribe
+  component [POST /api/generate-note\nNoteGeneratorFactory\n+ Claude Sonnet 4.6] as RouteGenerateNote
+  component [POST /api/extract-entities\nClaude Haiku 4.5] as RouteExtractEntities
+  component [POST /api/notify\nNotificationService\nfire-and-forget] as RouteNotify
+  component [GET/POST /api/audit\nlogAuditServer()\nappend-only writes] as RouteAudit
+  component [POST /api/prescriptions/generate\npdf-lib PDF builder] as RoutePrescription
+  component [NextAuth /api/auth\nJWT Credentials Strategy] as RouteNextAuth
+}
+
+' ─────────────────────────────────────────────
+' SPRING BOOT BACKEND
+' ─────────────────────────────────────────────
+package "Backend  [Spring Boot 3.2.4, Port 8081]" {
+
+  package "Security Layer" {
+    component [SecurityConfig\nCORS + JWT filter chain] as SecurityConfig
+    component [JwtAuthFilter\nvalidates token per request] as JwtFilter
+  }
+
+  package "Controller Layer" {
+    component [AuthController\nPOST /api/auth/login\nPOST /api/auth/register\nGET  /api/auth/me] as AuthCtrl
+    component [PatientController\nGET|POST|PUT|DELETE /api/patients] as PatientCtrl
+    component [SessionController\nGET|POST|PUT|DELETE /api/sessions] as SessionCtrl
+    component [AdminController\nGET /api/admin/users] as AdminCtrl
+  }
+
+  package "Service Layer  [Service Pattern]" {
+    interface IAuthService {
+      +login()
+      +register()
+      +getCurrentUser()
+    }
+    class AuthServiceImpl {
+      JWT generation (JJWT 0.12.5)
+      BCrypt password hashing
+    }
+    IAuthService <|.. AuthServiceImpl
+
+    note right of IAuthService
+      <b>Pattern: Service Layer</b>
+      Business logic isolated from
+      controllers via interface.
+    end note
+  }
+
+  package "Repository Layer  [Repository Pattern]" {
+    component [UserRepository\nSpring Data MongoDB] as UserRepo
+    component [PatientRepository\nSpring Data MongoDB] as PatientRepo
+    component [SessionRepository\nSpring Data MongoDB] as SessionRepo
+
+    note right of UserRepo
+      <b>Pattern: Repository</b>
+      Data access abstracted
+      behind Spring Data interfaces.
+    end note
+  }
+
+  SecurityConfig --> JwtFilter
+  AuthCtrl --> IAuthService
+  IAuthService --> UserRepo
+  PatientCtrl --> PatientRepo
+  SessionCtrl --> SessionRepo
+}
+
+' ─────────────────────────────────────────────
+' EXTERNAL SERVICES
+' ─────────────────────────────────────────────
+package "External AI Services" {
+  cloud "Sarvam AI  saarika:v2.5\nSpeech-to-Text\nPOST speech-to-text\nInput: audio blob" as SarvamAI
+  cloud "Anthropic Claude\n--------------------------\nHaiku 4.5\nentity extraction +\ntemplate detection\n--------------------------\nSonnet 4.6\nSOAP note generation" as ClaudeAPI
+}
+
+' ─────────────────────────────────────────────
+' DATA LAYER
+' ─────────────────────────────────────────────
+package "Data Layer" {
+  database "Supabase PostgreSQL\n--------------------------\npatients\nsessions (soap JSONB,\n  entities JSONB,\n  edits JSONB[])\naudit_logs (append-only)\nprescription_templates" as SupabaseDB
+  database "Supabase Storage\n--------------------------\naudio recordings (.webm)\nprescription templates" as SupabaseStorage
+}
+
+' ─────────────────────────────────────────────
+' CONNECTIONS
+' ─────────────────────────────────────────────
+
+Doctor --> RecordingModal : records consultation
+Doctor --> NoteSection : reviews and approves
+Doctor --> PrescriptionTab : shares prescription
+Admin --> AuditPage : views audit logs
+Admin --> UsersPage : manages users
+
+RecordingModal --> ZustandStore : addSession()\ntransitionSession()
+RecordingModal --> SessionStateMachine : assertTransition()
+NoteSection --> ZustandStore : updateSoap()\nlogAudit(note_edited)
+ZustandStore --> SupabaseDB : INSERT / UPDATE
+
+RecordingModal --> RouteTranscribe : POST audio blob
+RecordingModal --> RouteGenerateNote : POST transcript
+RecordingModal --> RouteExtractEntities : POST transcript
+PrescriptionTab --> RouteNotify : POST share payload
+
+RouteTranscribe --> TranscriptionServiceFactory : factory.create()
+RouteTranscribe --> SarvamAI : POST speech-to-text
+RouteTranscribe --> SupabaseStorage : upload audio
+
+RouteGenerateNote --> NoteGeneratorFactory : factory.get(template)
+RouteGenerateNote --> ClaudeAPI : Haiku: detect template\nSonnet: generate SOAP
+
+RouteExtractEntities --> ClaudeAPI : Haiku: extract entities
+
+RouteNotify --> NotificationService : fire(payload)
+RouteAudit --> SupabaseDB : INSERT audit_logs
+
+AuthPages --> RouteNextAuth : POST credentials
+RouteNextAuth --> AuthCtrl : POST /api/auth/login
+JwtFilter ..> AuthCtrl : validates JWT
+UserRepo --> SupabaseDB : read / write users
+
+' ─────────────────────────────────────────────
+' LEGEND
+' ─────────────────────────────────────────────
+legend right
+  Design Patterns Used
+  ────────────────────────────────────────
+  Factory Method  -- TranscriptionServiceFactory
+                     NoteGeneratorFactory
+  Template Method -- SoapNoteGenerator (6 subclasses)
+  Strategy        -- NotificationStrategy
+                     (Email, WhatsApp, SMS)
+  State Machine   -- SessionStateMachine (7 states)
+  Singleton       -- Zustand useScribeStore
+  Service Layer   -- AuthService / AuthServiceImpl
+  Repository      -- Spring Data MongoDB repos
+  ────────────────────────────────────────
+  Async AI Pipeline (per consultation)
+    1. POST /api/transcribe  ->  Sarvam AI
+         withRetry(3x, 1s/2s backoff)
+    2. POST /api/generate-note  ->  Claude Sonnet
+    3. POST /api/extract-entities ->  Claude Haiku
+         (steps 2 & 3 run in parallel)
+endlegend
+
+@enduml

@@ -30,12 +30,14 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 
+import { PageHeader } from "@/components/page-header"
+
 export default function PatientDetailPage() {
   const { patientId } = useParams()
   const router = useRouter()
   const { getPatient, getSessions, fetchSessions, deleteSession } = useScribeStore()
 
-  const [mounted,              setMounted]              = React.useState(false)
+  const [mounted,              setMounted]          = React.useState(false)
   const [isRecordingModalOpen, setIsRecordingModalOpen] = React.useState(false)
   const [isDeleting,           setIsDeleting]           = React.useState(false)
   const [searchQuery,          setSearchQuery]          = React.useState("")
@@ -83,7 +85,7 @@ export default function PatientDetailPage() {
   }
 
   return (
-    <div className="flex flex-col gap-10 w-full">
+    <div className="flex flex-col w-full animate-in fade-in duration-500">
       <RecordingModal
         isOpen={isRecordingModalOpen}
         onClose={() => setIsRecordingModalOpen(false)}
@@ -118,38 +120,34 @@ export default function PatientDetailPage() {
       </AlertDialog>
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-        <div className="space-y-3">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+        <div className="space-y-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push("/patients")}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground -ml-2 h-auto px-2 py-1"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground -ml-2 h-auto px-2 py-0"
           >
             <ArrowLeft className="size-3.5" />
-            Back to patients
+            Back to Patients
           </Button>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold text-foreground">{patient.name}</h1>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5"><User className="size-3.5" /> {patient.gender}</span>
-              <span className="size-1 rounded-full bg-border" />
-              <span>{patient.age} years old</span>
-            </div>
-          </div>
+          <PageHeader 
+            title={patient.name} 
+            description={`${patient.gender} · ${patient.age} years old`}
+          />
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <Button
             variant="outline"
+            className="h-10 px-5 text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/5 font-semibold"
             onClick={() => { setConfirmConfig({ type: "patient", id: patientId as string }); setIsConfirmOpen(true) }}
-            className="text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/5 justify-center"
           >
-            Delete patient
+            Delete Patient
           </Button>
-          <Button onClick={() => setIsRecordingModalOpen(true)} className="gap-2 justify-center">
+          <Button onClick={() => setIsRecordingModalOpen(true)} className="h-10 px-5 font-bold shadow-sm shadow-primary/20 gap-2">
             <Plus className="size-4" />
-            New session
+            New Session
           </Button>
         </div>
       </div>

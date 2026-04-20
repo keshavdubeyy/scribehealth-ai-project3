@@ -35,6 +35,8 @@ import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
+import { PageHeader } from "@/components/page-header"
+
 export default function PatientsPage() {
   const router  = useRouter()
   const { patients, fetchPatients, addPatient, deletePatient } = useScribeStore()
@@ -97,16 +99,15 @@ export default function PatientsPage() {
   if (!mounted) return null
 
   return (
-    <div className="flex flex-col gap-8 w-full">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold text-foreground">Patients</h1>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="relative w-full sm:w-64">
+    <div className="flex flex-col w-full animate-in fade-in duration-500">
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader />
+        <div className="flex items-center gap-3">
+          <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               placeholder="Search patients..."
-              className="pl-9"
+              className="pl-9 h-10"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -114,9 +115,9 @@ export default function PatientsPage() {
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2 justify-center">
+              <Button className="h-10 px-5 font-bold shadow-sm shadow-primary/20 gap-2">
                 <Plus className="size-4" />
-                New patient
+                Add Patient
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-sm">

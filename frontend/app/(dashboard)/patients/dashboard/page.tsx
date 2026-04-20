@@ -1,29 +1,40 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useScribeStore } from "@/lib/mock-store"
-import { Plus, FileText, Users, ChevronRight, TrendingUp, Clock, ArrowRight } from "lucide-react"
+import {
+  FileText,
+  Users,
+  ArrowRight,
+  Plus,
+  Search,
+  Clock,
+  Sparkles,
+  Calendar,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import { PageHeader } from "@/components/page-header"
+import { AdminMetricsPanel } from "@/components/features/dashboard/admin-metrics-panel"
 
 export default function DashboardPage() {
   const router = useRouter()
   const { data: session } = useSession()
-  const { patients, sessions } = useScribeStore()
+  const { patients, sessions, fetchPatients, fetchAllSessions } = useScribeStore()
   const [mounted, setMounted] = React.useState(false)
+  const [search, setSearch] = React.useState("")
 
-  React.useEffect(() => { setMounted(true) }, [])
-
-  const firstName = session?.user?.name?.split(" ")[0] ?? "Doctor"
-  const today = new Date().toLocaleDateString("en-IN", {
-    weekday: "long", year: "numeric", month: "long", day: "numeric",
-  })
+  React.useEffect(() => {
+    setMounted(true)
+    fetchPatients()
+    fetchAllSessions()
+  }, [fetchPatients, fetchAllSessions])
 
   const thisWeekCount = React.useMemo(() => {
     const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
@@ -39,140 +50,155 @@ export default function DashboardPage() {
         const createdAt = new Date(s.createdAt)
         const sessionLabel = `${patient?.name.replace(/\s+/g, "") || "Unknown"}_${format(createdAt, "ddMMMyyyy_hhmma").replace(" ", "").toUpperCase()}`
         const chiefComplaint = s.soap?.s ? s.soap.s.split("\n")[0].trim() : null
-        const hash = s.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0)
-        const confidence = s.status === "COMPLETED" ? 80 + (hash % 19) : null
-        return { ...s, sessionLabel, patientName: patient?.name ?? "Unknown", chiefComplaint, confidence }
+        return { ...s, sessionLabel, patientName: patient?.name ?? "Unknown", chiefComplaint }
       })
   }, [sessions, patients])
 
+  const filteredSessions = React.useMemo(() =>
+    recentSessions.filter(s =>
+      s.sessionLabel.toLowerCase().includes(search.toLowerCase()) ||
+      s.patientName.toLowerCase().includes(search.toLowerCase())
+    ), [recentSessions, search])
+
+  const isAdmin = session?.user?.role === "ADMIN"
+
   if (!mounted) return null
 
+  if (isAdmin) {
+    return (
+      <div className="flex flex-col w-full animate-in fade-in duration-500">
+        <PageHeader />
+        <AdminMetricsPanel />
+      </div>
+    )
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-5xl w-full animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            Hello, {firstName}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {today}
-          </p>
-        </div>
-        <Button 
-          className="gap-2 h-10 px-5 font-semibold shadow-sm shadow-primary/20"
+    <div className="px-4 lg:px-6 flex flex-col w-full animate-in fade-in duration-500 pb-12 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <PageHeader />
+        <Button
+          size="default"
+          className="gap-2 font-semibold"
           onClick={() => router.push("/patients")}
         >
-          <Plus className="w-4 h-4" />
+          <Sparkles className="size-4" />
           New Session
         </Button>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow cursor-default">
-          <CardContent className="pt-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total sessions</p>
-                <p className="text-3xl font-bold mt-1 tracking-tight">{sessions.length}</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center">
-                <FileText className="w-5 h-5 text-primary" />
-              </div>
-            </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="shadow-none">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+            <FileText className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{sessions.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">+{thisWeekCount} this week</p>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow cursor-default">
-          <CardContent className="pt-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Patients</p>
-                <p className="text-3xl font-bold mt-1 tracking-tight">{patients.length}</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center">
-                <Users className="w-5 h-5 text-primary" />
-              </div>
-            </div>
+        <Card className="shadow-none">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Patients Seen</CardTitle>
+            <Users className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{patients.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">Registered directory</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* This week mini stat */}
-      {thisWeekCount > 0 && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 w-fit px-3 py-1 rounded-full border border-border/50">
-          <Clock className="w-3.5 h-3.5" />
-          <span><strong className="text-foreground">{thisWeekCount}</strong> session{thisWeekCount !== 1 ? "s" : ""} this week</span>
-        </div>
-      )}
+      {/* Recent Activity */}
+      <Card className="shadow-none overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between bg-muted/30 py-3 px-6 h-14">
+          <div className="flex items-center gap-2">
+            <Calendar className="size-4 text-primary" />
+            <CardTitle className="text-sm font-bold uppercase tracking-wider">Recent Activity</CardTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative w-48">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Find session..."
+                className="pl-8 h-8 text-xs"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1 text-xs font-semibold"
+              onClick={() => router.push("/patients/sessions")}
+            >
+              View All <ArrowRight className="size-3" />
+            </Button>
+          </div>
+        </CardHeader>
 
-      {/* Recent sessions */}
-      <Card className="border-border/50 shadow-sm">
-        <div className="flex items-center justify-between p-5 pb-3">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground/70">Recent sessions</h2>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="gap-1 text-xs font-bold uppercase tracking-wider hover:bg-muted"
-            onClick={() => router.push("/patients")}
-          >
-            View all
-            <ArrowRight className="w-3 h-3 ml-1" />
-          </Button>
-        </div>
-        <CardContent className="pt-0">
-          {recentSessions.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm border-2 border-dashed border-muted rounded-xl bg-muted/10">
-              No sessions yet.{" "}
-              <button 
-                onClick={() => router.push("/patients")}
-                className="font-semibold text-primary underline underline-offset-4 hover:opacity-80 transition-opacity"
+        {filteredSessions.length === 0 ? (
+          <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
+              <FileText className="w-8 h-8 text-muted-foreground opacity-50" />
+            </div>
+            <p className="text-sm font-semibold">No sessions recorded yet</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-[280px] leading-relaxed">
+              Start a recording with a patient to generate your first clinical note
+            </p>
+            <Button variant="outline" size="sm" className="mt-6 gap-2" onClick={() => router.push("/patients")}>
+              <Plus className="size-4" />
+              Start your first session
+            </Button>
+          </CardContent>
+        ) : (
+          <div className="divide-y divide-border">
+            {filteredSessions.map((s) => (
+              <div
+                key={s.id}
+                onClick={() => router.push(`/patients/${s.patientId}/sessions/${s.id}`)}
+                className="flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors group cursor-pointer"
               >
-                Start your first session
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {recentSessions.map((session) => (
-                <div
-                  key={session.id}
-                  onClick={() => router.push(`/patients/${session.patientId}/sessions/${session.id}`)}
-                  className="flex items-center justify-between px-3 py-3 rounded-xl hover:bg-primary/[0.03] transition-all group cursor-pointer border border-transparent hover:border-primary/10"
-                >
-                  <div className="min-w-0 pr-4">
+                <div className="min-w-0 pr-6">
+                  <div className="flex items-center gap-3">
                     <p className="text-sm font-bold truncate font-mono tracking-tight text-foreground group-hover:text-primary transition-colors">
-                      {session.sessionLabel}
+                      {s.sessionLabel}
                     </p>
-                    {session.chiefComplaint && (
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate leading-relaxed">
-                        {session.chiefComplaint}
-                      </p>
-                    )}
+                    <span className="text-[10px] text-muted-foreground bg-muted h-5 px-2 flex items-center rounded-full font-medium tabular-nums shrink-0">
+                      {format(new Date(s.createdAt), "MMM d, yyyy")}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    {session.confidence != null && (
-                      <span className="text-[10px] font-bold text-muted-foreground/60 tabular-nums">
-                        {session.confidence}%
-                      </span>
-                    )}
-                    <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest h-5 px-1.5 bg-muted/50 border-0">
-                      GENERAL OPD
-                    </Badge>
-                    <Badge 
-                      variant={session.status === "COMPLETED" ? "default" : "outline"} 
-                      className={cn(
-                        "text-[9px] font-black uppercase tracking-widest h-5 px-2",
-                        session.status === "COMPLETED" ? "bg-emerald-500 text-white hover:bg-emerald-600" : "text-amber-600 border-amber-500/30"
-                      )}
-                    >
-                      {session.status.toLowerCase()}
-                    </Badge>
-                  </div>
+                  {s.chiefComplaint && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate max-w-md">
+                      {s.chiefComplaint}
+                    </p>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Clock className="size-3" />
+                    <span>{s.patientName}</span>
+                  </div>
+                  <Badge
+                    variant={s.status === "COMPLETED" || s.status === "APPROVED" ? "default" : "secondary"}
+                    className={cn(
+                      "text-[10px] font-semibold h-5 px-2",
+                      s.status === "COMPLETED" || s.status === "APPROVED"
+                        ? "bg-emerald-500 text-white"
+                        : "text-amber-600 border-amber-500/30"
+                    )}
+                  >
+                    {s.status}
+                  </Badge>
+                  <ArrowRight className="size-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   )

@@ -21,6 +21,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -222,17 +224,15 @@ function DeleteDialog({ open, onOpenChange, sessionId, onDeleted }: DeleteDialog
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-start gap-3 py-2">
-          <input
-            type="checkbox"
+        <div className="flex items-center gap-3 py-2">
+          <Checkbox
             id="deleteAudio"
             checked={deleteAudio}
-            onChange={e => setDeleteAudio(e.target.checked)}
-            className="mt-0.5"
+            onCheckedChange={(v) => setDeleteAudio(!!v)}
           />
-          <label htmlFor="deleteAudio" className="text-sm cursor-pointer">
+          <Label htmlFor="deleteAudio" className="text-sm cursor-pointer font-normal">
             Also delete the audio recording
-          </label>
+          </Label>
         </div>
 
         <DialogFooter>
