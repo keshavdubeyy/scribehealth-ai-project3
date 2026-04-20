@@ -34,18 +34,6 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
 > **Remaining gap:** Facade (AdminFacade) and Builder (PatientProfileBuilder) patterns not yet formalised as class hierarchies.
 
-### Subsystem Task Tracker
-
-| Task | Status |
-| :--- | :---: |
-| User Authentication & Role-Based Access | ✅ |
-| Patient & Consultation Management | ✅ |
-| Template-Based Documentation | ✅ |
-| AI Pipeline (Recording, Transcription, NLP) | ✅ |
-| Review, Approval & Note Sharing | ✅ |
-| Audit Logging & Admin Dashboard | ✅ |
-| Consultation Lifecycle & Notification Hub | ✅ |
-| Patient Profile Builder | ❌ |
 
 ---
 
@@ -91,6 +79,19 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 > - **NFR-03** — Fully extensible on both axes: (1) sharing channels via Strategy pattern (`NotificationStrategy` interface + 3 concrete classes — add Slack with one new class); (2) transcription providers via `TranscriptionServiceFactory` (`TranscriptionProvider` interface + `SarvamTranscriptionProvider` — swap to Whisper/Google STT with one new class + one env var change); (3) SOAP note templates via `SoapNoteGenerator` Template Method (new specialty = new subclass only)
 > - **NFR-04** — Global append-only `audit_logs` table; all key actions logged with actor + timestamp + entity; admin view built
 > - **NFR-05** — `withRetry()` wrapper retries transcription up to 3 times (1s → 2s backoff); transcript saved even if note generation fails
+
+### Subsystem Implementation
+
+| ID | Subsystem | Status |
+| :--- | :--- | :---: |
+| SS-01 | **Auth & Access** (JWT, Roles, Org Scoping) | ✅ |
+| SS-02 | **Patient & Session** (CRUD, Clinical Records) | ✅ |
+| SS-03 | **AI Pipeline** (Recording, Sarvam AI, Claude 3) | ✅ |
+| SS-04 | **Review & Sharing** (Approval, Email/WA/SMS) | ✅ |
+| SS-05 | **Audit & Admin** (Real-time Hub, Logs) | ✅ |
+| SS-06 | **Lifecycle & Notifications** (State Machine) | ✅ |
+| SS-07 | **Prescription Generator** (AI Auto-fill, PDF) | ✅ |
+| SS-08 | **Patient Profile Builder** (Complex Profiles) | ❌ |
 
 ---
 
