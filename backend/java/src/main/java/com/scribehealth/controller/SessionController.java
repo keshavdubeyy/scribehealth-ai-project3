@@ -2,7 +2,7 @@ package com.scribehealth.controller;
 
 import com.scribehealth.model.ClinicalSession;
 import com.scribehealth.repository.SessionRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -11,22 +11,35 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class SessionController {
 
-    @Autowired
-    private SessionRepository sessionRepository;
+    private final SessionRepository sessionRepository;
+
+    public SessionController(SessionRepository sessionRepository) {
+        this.sessionRepository = sessionRepository;
+    }
 
     @GetMapping("/patient/{patientId}")
-    public List<ClinicalSession> getSessionsByPatientId(@PathVariable String patientId) {
+    public List<ClinicalSession> getSessionsByPatient(@PathVariable String patientId) {
         return sessionRepository.findByPatientId(patientId);
     }
 
+    @GetMapping
+    public List<ClinicalSession> getMySessions(@AuthenticationPrincipal String email) {
+        return sessionRepository.findByDoctorEmail(email);
+    }
+
     @PostMapping
-    public ClinicalSession createSession(@RequestBody ClinicalSession session) {
+    public ClinicalSession createSession(@AuthenticationPrincipal String email,
+                                         @RequestBody ClinicalSession session) {
+        session.setDoctorEmail(email);
         return sessionRepository.save(session);
     }
 
     @PutMapping("/{id}")
-    public ClinicalSession updateSession(@PathVariable String id, @RequestBody ClinicalSession session) {
+    public ClinicalSession updateSession(@AuthenticationPrincipal String email,
+                                          @PathVariable String id,
+                                          @RequestBody ClinicalSession session) {
         session.setId(id);
+        session.setDoctorEmail(email);
         return sessionRepository.save(session);
     }
 
