@@ -4,6 +4,7 @@ import { create } from "zustand"
 import { createClient } from "@/utils/supabase/client"
 import { logAudit } from "@/lib/audit"
 import { assertTransition } from "@/lib/session-state-machine"
+import { PatientProfileBuilder } from "@/lib/patient-profile-builder"
 
 export interface ChronicCondition {
   name: string
@@ -170,18 +171,22 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     const supabase = createClient()
     const { data, error } = await supabase
       .from("patients")
-      .select("id, name, age, gender, email, phone")
+      .select("id, name, age, gender, email, phone, chronic_conditions, allergies, emergency_contact, insurance_details")
       .eq("doctor_email", email)
       .order("created_at", { ascending: false })
     if (error) throw new Error(error.message)
     set({
       patients: (data ?? []).map(row => ({
-        id:     row.id,
-        name:   row.name,
-        age:    row.age,
-        gender: row.gender,
-        email:  (row.email as string) ?? undefined,
-        phone:  (row.phone as string) ?? undefined,
+        id:                row.id,
+        name:              row.name,
+        age:               row.age,
+        gender:            row.gender,
+        email:             (row.email as string)             ?? undefined,
+        phone:             (row.phone as string)             ?? undefined,
+        chronicConditions: (row.chronic_conditions as ChronicCondition[]) ?? undefined,
+        allergies:         (row.allergies as Allergy[])                   ?? undefined,
+        emergencyContact:  (row.emergency_contact as EmergencyContact)    ?? undefined,
+        insuranceDetails:  (row.insurance_details as InsuranceDetails)    ?? undefined,
       })),
     })
   },
