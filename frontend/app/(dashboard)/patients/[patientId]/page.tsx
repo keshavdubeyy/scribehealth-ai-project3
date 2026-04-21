@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, Plus, ChevronRight, User, Trash2, Loader2, Search } from "lucide-react"
 import { format } from "date-fns"
 import { RecordingModal } from "@/components/features/scribe/recording-modal"
+import { PatientProfileCard } from "@/components/features/patients/patient-profile-card"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -151,6 +152,13 @@ export default function PatientDetailPage() {
           </Button>
         </div>
       </div>
+
+      <PatientProfileCard
+        chronicConditions={patient.chronicConditions}
+        allergies={patient.allergies}
+        emergencyContact={patient.emergencyContact}
+        insuranceDetails={patient.insuranceDetails}
+      />
 
       {/* Sessions */}
       <div className="flex flex-col gap-4">
