@@ -78,19 +78,30 @@ shape of each nested object before persisting.
 
 | File | Layer | What it does |
 |---|---|---|
-| `frontend/supabase/schema.sql` | DB | Adds 4 new nullable JSONB columns + migration helpers |
-| `frontend/lib/types/index.ts` | Types | `ChronicCondition`, `Allergy`, `EmergencyContact`, `InsuranceDetails`, updated `Patient` |
-| `frontend/lib/patient-profile-builder.ts` | Builder | `PatientProfileBuilder` class — fluent API + `build()` |
-| `frontend/lib/mock-store.ts` | State | `Patient` interface extended; `fetchPatients`, `addPatient`, `updatePatient` updated |
-| `frontend/app/api/patients/route.ts` | API | POST accepts all new fields and uses the builder |
-| `frontend/app/api/patients/[id]/route.ts` | API | PATCH for editing profile after creation |
+| `frontend/supabase/schema.sql` | DB | Adds 4 new nullable JSONB columns + live migration helpers |
+| `frontend/lib/types/index.ts` | Types | `ChronicCondition`, `Allergy`, `EmergencyContact`, `InsuranceDetails` interfaces |
+| `frontend/lib/mock-store.ts` | State | `Patient` interface extended; `fetchPatients` selects new columns; `updatePatientProfile` action added |
+| `frontend/app/api/patients/route.ts` | API | POST accepts and persists all 4 profile fields |
+| `frontend/app/api/patients/[id]/route.ts` | API | PATCH for updating profile fields after creation |
 | `frontend/components/features/patients/add-patient-dialog.tsx` | UI | Multi-step dialog: Basic → Medical History → Emergency & Insurance |
-| `frontend/components/features/patients/patient-profile-card.tsx` | UI | Read-only profile card shown on the patient detail page |
-| `frontend/app/(dashboard)/patients/page.tsx` | UI | Swaps inline form for the new `AddPatientDialog` component |
-| `frontend/app/(dashboard)/patients/[patientId]/page.tsx` | UI | Adds `PatientProfileCard` below patient header |
-| `backend/java/.../model/Patient.java` | Java | Four new `@Column` fields mapped to the new DB columns |
-| `backend/java/.../builder/PatientProfileBuilder.java` | Java | Java Builder implementation — same guarantees as the TS one |
-| `backend/java/.../controller/PatientController.java` | Java | Uses `PatientProfileBuilder` in the create endpoint |
+| `frontend/components/features/patients/edit-profile-dialog.tsx` | UI | Edit dialog for updating profile on existing patients |
+| `frontend/components/features/patients/patient-profile-card.tsx` | UI | Read-only profile card on the patient detail page |
+| `frontend/app/(dashboard)/patients/page.tsx` | UI | Uses `AddPatientDialog` instead of the old inline form |
+| `frontend/app/(dashboard)/patients/[patientId]/page.tsx` | UI | Shows `PatientProfileCard` + `EditProfileDialog` + Edit Profile button |
+| `backend/java/.../model/ChronicCondition.java` | Java | Value object for a chronic condition entry |
+| `backend/java/.../model/PatientAllergy.java` | Java | Value object for an allergy entry (includes `Severity` enum) |
+| `backend/java/.../model/EmergencyContact.java` | Java | Value object for emergency contact |
+| `backend/java/.../model/InsuranceDetails.java` | Java | Value object for insurance details |
+| `backend/java/.../model/Patient.java` | Java | Extended with 4 JSONB-mapped fields for the profile data |
+| `backend/java/.../builder/PatientProfileValidationException.java` | Java | Typed runtime exception thrown by `build()` |
+| `backend/java/.../builder/PatientProfileBuilder.java` | Java | Fluent Builder with `build()` running all validations before returning `Patient` entity |
+| `backend/java/.../dto/CreatePatientRequest.java` | Java | Request DTO carrying all fields from the creation payload |
+| `backend/java/.../dto/UpdatePatientRequest.java` | Java | Request DTO for the PATCH endpoint |
+| `backend/java/.../service/PatientService.java` | Java | Service interface — keeps controller clean |
+| `backend/java/.../service/PatientServiceImpl.java` | Java | Service impl — calls builder, delegates to repository |
+| `backend/java/.../controller/PatientController.java` | Java | Thin controller — delegates entirely to `PatientService` |
+| `backend/java/.../repository/PatientRepository.java` | Java | Added `findByIdAndDoctorEmail` for ownership-scoped lookup |
+| `backend/java/.../config/GlobalExceptionHandler.java` | Java | Catches `PatientProfileValidationException` globally → 422 |
 
 ---
 
