@@ -10,6 +10,8 @@ public interface PatientService {
 
     List<Patient> getPatientsForDoctor(String doctorEmail);
 
+    Patient getPatientForDoctor(String doctorEmail, String patientId);
+
     Patient createPatient(String doctorEmail, CreatePatientRequest request);
 
     Patient updatePatient(String doctorEmail, String patientId, UpdatePatientRequest request);

@@ -26,6 +26,12 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
+    public Patient getPatientForDoctor(String doctorEmail, String patientId) {
+        return patientRepository.findByIdAndDoctorEmail(patientId, doctorEmail)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+
+    @Override
     public Patient createPatient(String doctorEmail, CreatePatientRequest req) {
         PatientProfileBuilder builder = new PatientProfileBuilder(req.getName(), req.getAge(), req.getGender())
             .withDoctorEmail(doctorEmail);
