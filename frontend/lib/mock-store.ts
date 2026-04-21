@@ -93,6 +93,7 @@ interface ScribeStore {
   fetchPatients: () => Promise<void>
   addPatient: (patient: Omit<Patient, "id">) => Promise<string>
   deletePatient: (id: string) => Promise<void>
+  fetchAllSessions: () => Promise<void>
   fetchSessions: (patientId: string) => Promise<void>
   addSession: (patientId: string) => Promise<string>
   updateSession: (id: string, data: Partial<Session>) => Promise<void>
@@ -127,6 +128,8 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
 
   setUserEmail: (email: string) => {
     set({ userEmail: email })
+    get().fetchPatients()
+    get().fetchAllSessions()
     get().fetchPrescriptionTemplate()
   },
 
@@ -156,34 +159,55 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
   },
 
   addPatient: async (data) => {
-    const email = get().userEmail
-    if (!email) throw new Error("Not authenticated")
-    const supabase = createClient()
-    const id = Math.random().toString(36).substring(7)
-    const { error } = await supabase.from("patients").insert({
-      id,
-      doctor_email: email,
-      name:         data.name,
-      age:          data.age,
-      gender:       data.gender,
-      email:        data.email ?? null,
-      phone:        data.phone ?? null,
+    const res = await fetch("/api/patients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name:          data.name,
+        age:           data.age,
+        gender:        data.gender,
+        patientEmail:  data.email ?? null,
+        phone:         data.phone ?? null,
+      }),
     })
-    if (error) throw new Error(error.message)
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error((body as { error?: string }).error ?? "Failed to add patient")
+    }
+    const { id } = await res.json() as { id: string }
     set(state => ({ patients: [{ id, ...data }, ...state.patients] }))
     await logAudit("patient_created", "patient", id, { name: data.name })
     return id
   },
 
   deletePatient: async (id) => {
-    const supabase = createClient()
-    const { error } = await supabase.from("patients").delete().eq("id", id)
-    if (error) throw new Error(error.message)
+    const res = await fetch("/api/patients", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error((body as { error?: string }).error ?? "Failed to delete patient")
+    }
     set(state => ({
       patients: state.patients.filter(p => p.id !== id),
       sessions: state.sessions.filter(s => s.patientId !== id),
     }))
     await logAudit("patient_deleted", "patient", id)
+  },
+
+  fetchAllSessions: async () => {
+    const email = get().userEmail
+    if (!email) return
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from("sessions")
+      .select()
+      .eq("doctor_email", email)
+      .order("created_at", { ascending: false })
+    if (error) throw new Error(error.message)
+    set({ sessions: (data ?? []).map(row => rowToSession(row as Record<string, unknown>)) })
   },
 
   fetchSessions: async (patientId) => {
@@ -207,26 +231,17 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
   },
 
   addSession: async (patientId) => {
-    const email = get().userEmail
-    if (!email) throw new Error("Not authenticated")
-    const supabase = createClient()
-    const id = Math.random().toString(36).substring(7)
-    const createdAt = new Date().toISOString()
-    const { error } = await supabase.from("sessions").insert({
-      id,
-      patient_id:   patientId,
-      doctor_email: email,
-      created_at: createdAt,
-      status:     "SCHEDULED",
-      edits:      [],
+    const res = await fetch("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patientId }),
     })
-    if (error) throw new Error(error.message)
-    const newSession: Session = {
-      id,
-      patientId,
-      createdAt,
-      status: "SCHEDULED",
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error((body as { error?: string }).error ?? "Failed to create session")
     }
+    const { id, createdAt } = await res.json() as { id: string; createdAt: string }
+    const newSession: Session = { id, patientId, createdAt, status: "SCHEDULED" }
     set(state => ({ sessions: [newSession, ...state.sessions] }))
     return id
   },

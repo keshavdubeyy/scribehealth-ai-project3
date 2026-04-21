@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useScribeStore, SafeZone } from "@/lib/mock-store"
+import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -230,13 +231,11 @@ export default function PrescriptionTemplatePage() {
   if (!mounted) return null
 
   return (
-    <div className="flex flex-col gap-10 w-full animate-in fade-in duration-500 max-w-4xl">
-      <div className="space-y-1">
-        <h1 className="text-xl font-bold text-foreground">Prescription template</h1>
-        <p className="text-[13px] text-muted-foreground leading-relaxed max-w-2xl">
-          Upload your clinic letterhead and draw the area where prescription text should be printed. Used for all prescriptions you generate.
-        </p>
-      </div>
+    <div className="flex flex-col w-full animate-in fade-in duration-500 max-w-4xl">
+      <PageHeader
+        title="Prescription template"
+        description="Upload your clinic letterhead and draw the area where prescription text should be printed."
+      />
 
       <div className="grid gap-10">
         {/* Upload */}
@@ -328,7 +327,7 @@ export default function PrescriptionTemplatePage() {
             <div className="flex items-center gap-6 pt-2">
               <Button
                 onClick={handleSave}
-                className="h-9 px-6 text-xs font-semibold bg-[#205060] hover:bg-[#1a4452] text-white rounded-md shadow-sm"
+                className="h-9 px-6 text-xs font-semibold"
                 disabled={isSaving || isDeleting}
               >
                 {isSaving ? <Loader2 className="size-3 animate-spin mr-2" /> : null}

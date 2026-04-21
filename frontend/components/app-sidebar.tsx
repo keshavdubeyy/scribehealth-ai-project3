@@ -4,42 +4,43 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
-import { LayoutDashboard, Users, ClipboardList, Settings, LogOut, FileText } from "lucide-react"
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
+  LayoutDashboard, Users, ClipboardList, LogOut, FileText,
+  Stethoscope, ShieldCheck, ScrollText,
+} from "lucide-react"
+import {
+  Sidebar, SidebarContent, SidebarFooter, SidebarHeader,
+  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
-const navItems = [
-  { title: "Dashboard",  href: "/patients/dashboard", icon: LayoutDashboard },
-  { title: "Patients",   href: "/patients",           icon: Users            },
-  { title: "Sessions",   href: "/patients/sessions",  icon: FileText         },
-  { title: "Templates",  href: "/patients/dashboard/prescription-template", icon: ClipboardList },
+const doctorNav = [
+  { title: "Dashboard", href: "/patients/dashboard",                       icon: LayoutDashboard },
+  { title: "Patients",  href: "/patients",                                 icon: Users           },
+  { title: "Sessions",  href: "/patients/sessions",                        icon: FileText        },
+  { title: "Templates", href: "/patients/dashboard/prescription-template", icon: ClipboardList   },
+]
+
+const adminNav = [
+  { title: "Overview",  href: "/patients/dashboard",          icon: LayoutDashboard },
+  { title: "Doctors",   href: "/patients/dashboard/doctors",  icon: Stethoscope     },
+  { title: "Users",     href: "/patients/dashboard/users",    icon: ShieldCheck     },
+  { title: "Audit Log", href: "/patients/dashboard/audit-log",icon: ScrollText      },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const pathname = usePathname()
-  const { data: session } = useSession()
+  const pathname                = usePathname()
+  const { data: session }       = useSession()
+  const isAdmin                 = session?.user?.role === "ADMIN"
+  const navItems                = isAdmin ? adminNav : doctorNav
 
-  const userName = session?.user?.name ?? "Doctor"
-  const initials = userName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
+  const userName = session?.user?.name ?? (isAdmin ? "Admin" : "Doctor")
+  const initials = userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
 
   function isActive(href: string) {
     if (href === "/patients/dashboard") return pathname === "/patients/dashboard"
-    if (href === "/patients/sessions") return pathname === "/patients/sessions"
+    if (href === "/patients/sessions")  return pathname === "/patients/sessions"
     if (href === "/patients") return (
       pathname === "/patients" ||
       (pathname.startsWith("/patients/") &&
@@ -71,8 +72,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
 
+      {/* ── Role badge ── */}
+      <div className="px-4 pt-3 pb-1 group-data-[collapsible=icon]:hidden">
+        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${
+          isAdmin
+            ? "text-violet-300 bg-violet-500/20"
+            : "text-emerald-300 bg-emerald-500/20"
+        }`}>
+          {isAdmin ? "Admin Portal" : "Clinician"}
+        </span>
+      </div>
+
       {/* ── Main nav ── */}
-      <SidebarContent className="py-3">
+      <SidebarContent className="py-2">
         <SidebarMenu className="gap-0.5 px-2">
           {navItems.map((item) => (
             <SidebarMenuItem key={item.href}>
@@ -95,18 +107,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {/* ── Footer ── */}
       <SidebarFooter className="border-t border-sidebar-border pb-3 pt-2 px-2">
         <SidebarMenu className="gap-0.5">
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              tooltip="Settings"
-              asChild
-              className="h-9 text-white/60 hover:text-white hover:bg-white/10 rounded-md transition-colors"
-            >
-              <Link href="/patients/dashboard" className="flex items-center gap-3">
-                <Settings className="size-[15px] shrink-0" />
-                <span className="text-[13px] font-medium">Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Sign out"
@@ -135,7 +135,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </Avatar>
               <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
                 <span className="text-[12px] font-medium text-white truncate leading-tight">{userName}</span>
-                <span className="text-[10px] text-white/50 truncate leading-tight">Clinician</span>
+                <span className={`text-[10px] truncate leading-tight font-semibold ${isAdmin ? "text-violet-300" : "text-white/50"}`}>
+                  {isAdmin ? "Administrator" : "Clinician"}
+                </span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

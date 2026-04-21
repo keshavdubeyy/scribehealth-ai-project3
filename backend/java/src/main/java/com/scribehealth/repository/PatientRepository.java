@@ -1,9 +1,9 @@
 package com.scribehealth.repository;
 
 import com.scribehealth.model.Patient;
-import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
-public interface PatientRepository extends MongoRepository<Patient, String> {
-    List<com.scribehealth.model.Patient> findByDoctorId(String doctorId);
+public interface PatientRepository extends JpaRepository<Patient, String> {
+    List<Patient> findByDoctorEmail(String doctorEmail);
 }

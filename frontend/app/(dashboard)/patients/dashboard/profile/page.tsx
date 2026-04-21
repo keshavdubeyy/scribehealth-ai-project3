@@ -1,14 +1,22 @@
 import { auth } from "@/lib/auth"
 import { DoctorProfileForm } from "@/components/features/dashboard/doctor-profile-form"
 import { redirect } from "next/navigation"
+import { PageHeader } from "@/components/page-header"
 
-async function getDoctorProfile(token: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080/api"}/doctor/profile`, {
-    headers: { Authorization: `Bearer ${token}` },
-    next: { revalidate: 30 }
-  })
-  if (!res.ok) return null
-  return res.json()
+import { createServiceClient } from "@/utils/supabase/service"
+
+async function getDoctorProfile(email: string) {
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("email", email)
+    .maybeSingle()
+  
+  if (error) {
+    console.error("Profile fetch error:", error.message)
+  }
+  return data
 }
 
 export default async function DoctorProfilePage() {
@@ -17,20 +25,19 @@ export default async function DoctorProfilePage() {
   const role = session?.user?.role
 
   if (role !== "DOCTOR" || !token) {
-    redirect("/dashboard")
+    redirect("/patients")
   }
 
-  const profile = await getDoctorProfile(token)
+  const profile = await getDoctorProfile(session?.user?.email || "")
 
   if (!profile) return <div>Failed to load profile.</div>
 
   return (
-    <div className="space-y-8 max-w-[1280px]">
-      <div>
-        <h2 className="text-3xl font-bold text-foreground tracking-tight">Clinical Profile</h2>
-        <p className="text-muted-foreground">View and update your medical credentials and system information.</p>
-      </div>
-      
+    <div className="space-y-6">
+      <PageHeader
+        title="Clinical Profile"
+        description="View and update your medical credentials and system information."
+      />
       <DoctorProfileForm profile={profile} token={token} />
     </div>
   )
