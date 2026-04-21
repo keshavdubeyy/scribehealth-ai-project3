@@ -1,242 +1,623 @@
-@startuml
-title AI Medical Scribe - Pipeline Architecture (With Error Handling)
+@startuml ScribeHealth_Class_Diagram
 
-' ========================
-' ENUMS
-' ========================
-enum Role {
-  DOCTOR
-  ADMIN
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontSize 11
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #555555
+skinparam ClassHeaderBackgroundColor #E3F2FD
+skinparam InterfaceBackgroundColor #E8F5E9
+skinparam InterfaceBorderColor #388E3C
+skinparam AbstractClassBackgroundColor #FFF8E1
+skinparam AbstractClassBorderColor #F57C00
+skinparam EnumBackgroundColor #F3E5F5
+skinparam EnumBorderColor #7B1FA2
+skinparam PackageBackgroundColor #FAFAFA
+skinparam PackageBorderColor #90A4AE
+skinparam NoteBackgroundColor #FFFFCC
+skinparam NoteBorderColor #CCAA00
+skinparam ArrowColor #444444
+skinparam linetype ortho
+
+title ScribeHealth AI -- Class Diagram with Design Patterns
+
+' =================================================================
+' FACTORY METHOD PATTERN  (Transcription)
+' =================================================================
+package "Transcription Subsystem  <<Factory Method>>" #EBF5FB {
+
+  interface TranscriptionProvider {
+    + {abstract} name : string
+    + {abstract} transcribe(audioBuffer: Buffer, mimeType?: string) : Promise<string>
+  }
+
+  class SarvamTranscriptionProvider {
+    - apiKey : string
+    + name : string = "sarvam"
+    + transcribe(audioBuffer: Buffer, mimeType: string) : Promise<string>
+  }
+
+  class TranscriptionServiceFactory {
+    + {static} create(provider?: string) : TranscriptionProvider
+    .. reads TRANSCRIPTION_PROVIDER env ..
+  }
+
+  TranscriptionProvider  <|..  SarvamTranscriptionProvider : implements
+  TranscriptionServiceFactory  ..>  TranscriptionProvider  : <<creates>>
+
+  note bottom of TranscriptionServiceFactory
+    <b>Factory Method Pattern</b>
+    Callers never reference concrete type.
+    Swap Sarvam -> Whisper/Google =
+    1 new class + 1 switch case.
+  end note
 }
 
-enum NoteStatus {
-  DRAFT
-  REVIEWED
-  APPROVED
+' =================================================================
+' TEMPLATE METHOD PATTERN  (SOAP Note Generation)
+' =================================================================
+package "SOAP Note Generation  <<Template Method>>" #FFF8E1 {
+
+  abstract class SoapNoteGenerator {
+    + {abstract} templateName : string
+    + {abstract} fields : readonly string[]
+    + generate(transcript: string, client: Anthropic) : Promise<Record<string, string>>
+    # specialtyContext() : string
+    - callModel(transcript: string, client: Anthropic) : Promise<Record<string, string>>
+    - normaliseFields(raw: Record<string, string>) : Record<string, string>
+  }
+
+  class GeneralOpdNoteGenerator {
+    + templateName = "general_opd"
+    + fields = ["subjective", "objective", "assessment",\n  "diagnosis", "prescription", "advice", "follow_up"]
+  }
+
+  class MentalHealthNoteGenerator {
+    + templateName = "mental_health_soap"
+    + fields = ["subjective", "objective", "assessment",\n  "plan", "safety_assessment"]
+    # specialtyContext() : string
+  }
+
+  class PhysiotherapyNoteGenerator {
+    + templateName = "physiotherapy"
+    + fields = ["subjective", "objective", "assessment",\n  "treatment", "home_exercise_program", "plan"]
+    # specialtyContext() : string
+  }
+
+  class PediatricNoteGenerator {
+    + templateName = "pediatric"
+    + fields = ["subjective", "objective", "assessment",\n  "plan", "parent_instructions", "follow_up"]
+    # specialtyContext() : string
+  }
+
+  class CardiologyNoteGenerator {
+    + templateName = "cardiology"
+    + fields = ["subjective", "objective", "assessment",\n  "plan", "medications", "follow_up"]
+    # specialtyContext() : string
+  }
+
+  class SurgicalFollowupNoteGenerator {
+    + templateName = "surgical_followup"
+    + fields = ["wound_assessment", "subjective", "objective",\n  "assessment", "plan", "next_review"]
+    # specialtyContext() : string
+  }
+
+  class NoteGeneratorFactory {
+    + {static} get(templateName: string) : SoapNoteGenerator
+    + {static} templateNames() : string[]
+  }
+
+  SoapNoteGenerator  <|--  GeneralOpdNoteGenerator
+  SoapNoteGenerator  <|--  MentalHealthNoteGenerator
+  SoapNoteGenerator  <|--  PhysiotherapyNoteGenerator
+  SoapNoteGenerator  <|--  PediatricNoteGenerator
+  SoapNoteGenerator  <|--  CardiologyNoteGenerator
+  SoapNoteGenerator  <|--  SurgicalFollowupNoteGenerator
+  NoteGeneratorFactory  ..>  SoapNoteGenerator  : <<creates>>
+
+  note right of SoapNoteGenerator
+    <b>Template Method Pattern</b>
+    generate() defines the skeleton:
+      1. specialtyContext()  [hook - overridable]
+      2. callModel()         [calls Claude Sonnet]
+      3. normaliseFields()   [invariant step]
+    Subclasses only override templateName,
+    fields, and specialtyContext() hook.
+    Adding a specialty = 1 new subclass.
+  end note
 }
 
-enum ErrorType {
-  TRANSCRIPTION_ERROR
-  NLP_ERROR
-  GENERATION_ERROR
-  NOTIFICATION_ERROR
+' =================================================================
+' STRATEGY PATTERN  (Notifications)
+' =================================================================
+package "Notification Subsystem  <<Strategy>>" #F1F8E9 {
+
+  class NotificationPayload {
+    + to : string
+    + subject : string
+    + body : string
+  }
+
+  interface NotificationStrategy {
+    + {abstract} channel : string
+    + {abstract} fire(payload: NotificationPayload) : void
+  }
+
+  class EmailNotificationStrategy {
+    + channel = "email"
+    + fire(payload: NotificationPayload) : void
+    .. opens mailto: URI ..
+  }
+
+  class WhatsAppNotificationStrategy {
+    - phone : string
+    + channel = "whatsapp"
+    + fire(payload: NotificationPayload) : void
+    .. opens wa.me/ URI ..
+  }
+
+  class SmsNotificationStrategy {
+    - phone : string
+    + channel = "sms"
+    + fire(payload: NotificationPayload) : void
+    .. opens sms: URI ..
+  }
+
+  class NotificationService {
+    - strategies : NotificationStrategy[]
+    + register(strategy: NotificationStrategy) : this
+    + fire(payload: NotificationPayload) : void
+    + channelCount : number
+  }
+
+  NotificationStrategy  <|..  EmailNotificationStrategy
+  NotificationStrategy  <|..  WhatsAppNotificationStrategy
+  NotificationStrategy  <|..  SmsNotificationStrategy
+  NotificationService  "1" o-->  "0..*" NotificationStrategy  : delegates to
+  NotificationStrategy  ..>  NotificationPayload  : uses
+
+  note right of NotificationService
+    <b>Strategy Pattern</b>
+    fire() fans out to all registered
+    channel strategies.
+    Add Slack/Push = 1 new class
+    + register(). Context never changes.
+  end note
 }
 
-' ========================
-' CORE DOMAIN ENTITIES
-' ========================
-class User {
-  +userId: String
-  +name: String
-  +email: String
-  +role: Role
+' =================================================================
+' STATE MACHINE PATTERN  (Session Lifecycle)
+' =================================================================
+package "Session Lifecycle  <<State Machine>>" #FCE4EC {
+
+  enum SessionStatus {
+    SCHEDULED
+    IN_PROGRESS
+    RECORDED
+    TRANSCRIBED
+    UNDER_REVIEW
+    APPROVED
+    REJECTED
+    IDLE
+    PROCESSING
+    COMPLETED
+  }
+
+  class SessionStateMachine {
+    + {static} VALID_TRANSITIONS : Record<SessionStatus, SessionStatus[]>
+    ---
+    SCHEDULED    -> [IN_PROGRESS]
+    IN_PROGRESS  -> [RECORDED]
+    RECORDED     -> [TRANSCRIBED]
+    TRANSCRIBED  -> [UNDER_REVIEW]
+    UNDER_REVIEW -> [APPROVED, REJECTED]
+    APPROVED     -> []  terminal
+    REJECTED     -> [UNDER_REVIEW]
+    ---
+    + {static} canTransition(from: SessionStatus, to: SessionStatus) : boolean
+    + {static} assertTransition(from: SessionStatus, to: SessionStatus) : void
+  }
+
+  SessionStateMachine  -->  SessionStatus  : guards transitions
+
+  note right of SessionStateMachine
+    <b>State Machine Pattern</b>
+    VALID_TRANSITIONS is the single source
+    of truth for legal state progressions.
+    assertTransition() throws before any DB
+    write on an illegal move.
+    APPROVED = terminal / immutable.
+    REJECTED -> UNDER_REVIEW enables
+    AI note regeneration loop.
+  end note
 }
 
-class Doctor {
-  +doctorId: String
-  +specialization: String
+' =================================================================
+' DOMAIN MODELS  (TypeScript / Supabase)
+' =================================================================
+package "Domain Models  [TypeScript]" #F3E5F5 {
+
+  class Patient {
+    + id : string
+    + name : string
+    + age : number
+    + gender : string
+    + email? : string
+    + phone? : string
+  }
+
+  class Session {
+    + id : string
+    + patientId : string
+    + createdAt : string
+    + status : SessionStatus
+    + soap? : Record<string, string>
+    + transcription? : string
+    + audioUrl? : string
+    + entities? : MedicalEntities
+    + edits? : SessionEdit[]
+    + prescription? : Prescription
+  }
+
+  class MedicalEntities {
+    + symptoms : string[]
+    + diagnoses : string[]
+    + medications : Medication[]
+    + allergies : Allergy[]
+    + vitals : Vital[]
+    + treatmentPlans : string[]
+  }
+
+  class Medication {
+    + name : string
+    + dosage : string
+    + frequency : string
+  }
+
+  class Allergy {
+    + substance : string
+    + severity : string
+  }
+
+  class Vital {
+    + metric : string
+    + value : string
+    + unit : string
+  }
+
+  class SessionEdit {
+    + field : string
+    + oldValue : string
+    + newValue : string
+    + timestamp : string
+  }
+
+  class Prescription {
+    + diagnosis : string
+    + medicines : Medicine[]
+    + nextSteps : string
+  }
+
+  class Medicine {
+    + id : string
+    + name : string
+    + dose : string
+    + frequency : string
+    + duration : string
+    + timing : string
+  }
+
+  class PrescriptionTemplate {
+    + id : string
+    + imagePath : string
+    + imageUrl : string
+    + imageWidth : number
+    + imageHeight : number
+    + safeZone : SafeZone
+  }
+
+  class SafeZone {
+    + xPct : number
+    + yPct : number
+    + widthPct : number
+    + heightPct : number
+    + fontSizePt : number
+    + lineHeightPt : number
+  }
+
+  Patient              "1"  *--  "0..*"  Session         : owns
+  Session              "1"  *--  "0..1"  MedicalEntities : contains
+  Session              "1"  *--  "0..*"  SessionEdit     : tracks edits
+  Session              "1"  *--  "0..1"  Prescription    : has
+  Session                   -->          SessionStatus   : has status
+  MedicalEntities      "1"  *--  "0..*"  Medication      : lists
+  MedicalEntities      "1"  *--  "0..*"  Allergy         : lists
+  MedicalEntities      "1"  *--  "0..*"  Vital           : lists
+  Prescription         "1"  *--  "0..*"  Medicine        : prescribes
+  PrescriptionTemplate "1"  *--  "1"     SafeZone        : defines layout
 }
 
-class Patient {
-  +patientId: String
-  +name: String
-  +age: int
-  +medicalHistory: String
+' =================================================================
+' SINGLETON PATTERN  (Zustand Global Store)
+' =================================================================
+package "Global State Store  <<Singleton - Zustand>>" #EDE7F6 {
+
+  interface ScribeStore {
+    + userEmail : string | null
+    + patients : Patient[]
+    + sessions : Session[]
+    + prescriptionTemplate : PrescriptionTemplate | null
+    ---
+    + setUserEmail(email: string) : void
+    + fetchPatients() : Promise<void>
+    + addPatient(patient: Omit<Patient, "id">) : Promise<string>
+    + deletePatient(id: string) : Promise<void>
+    + fetchSessions(patientId: string) : Promise<void>
+    + addSession(patientId: string) : Promise<string>
+    + updateSession(id: string, data: Partial<Session>) : Promise<void>
+    + transitionSession(id: string, status: SessionStatus, extra?: Partial<Session>) : Promise<void>
+    + deleteSession(id: string) : Promise<void>
+    + getPatient(id: string) : Patient | undefined
+    + getSessions(patientId: string) : Session[]
+    + fetchPrescriptionTemplate() : Promise<void>
+    + setPrescriptionTemplate(t: PrescriptionTemplate | null) : void
+  }
+
+  class useScribeStore {
+    <<Zustand singleton>>
+    Single instance shared across
+    all React components.
+    Calls assertTransition() before
+    any status update DB write.
+  }
+
+  ScribeStore  <|..  useScribeStore  : implements
+
+  useScribeStore  -->  SessionStateMachine   : calls assertTransition()
+  useScribeStore  -->  Patient               : manages []
+  useScribeStore  -->  Session               : manages []
+  useScribeStore  -->  PrescriptionTemplate  : manages
+
+  note right of useScribeStore
+    <b>Singleton Pattern (Zustand)</b>
+    create() returns one shared instance
+    for the entire React component tree.
+    All state mutations and Supabase writes
+    flow through a single store, ensuring
+    consistent audit log entries.
+  end note
 }
 
-class Consultation {
-  +consultationId: String
-  +dateTime: Date
-  +status: String
+' =================================================================
+' BACKEND DOMAIN MODELS  (Java / Spring Boot)
+' =================================================================
+package "Backend Domain  [Java / Spring Boot 3.2.4]" #E8EAF6 {
+
+  enum Role {
+    DOCTOR
+    ADMIN
+  }
+
+  class DoctorProfile {
+    + specialization : String
+    + licenseNumber : String
+  }
+
+  class User {
+    - id : String
+    - name : String
+    - email : String
+    - passwordHash : String
+    - role : Role
+    - isActive : boolean
+    - createdAt : Instant
+    - lastLoginAt : Instant
+    - doctorProfile : DoctorProfile
+    ---
+    + getId() : String
+    + getEmail() : String
+    + getRole() : Role
+    + isActive() : boolean
+    + getDoctorProfile() : DoctorProfile
+  }
+
+  class PatientEntity {
+    <<@Document("patients")>>
+    - id : String
+    - name : String
+    - age : Integer
+    - gender : String
+    - doctorId : String
+    ---
+    + getId() : String
+    + getName() : String
+    + getAge() : Integer
+    + getDoctorId() : String
+  }
+
+  class ClinicalSession {
+    <<@Document("sessions")>>
+    - id : String
+    - patientId : String
+    - status : String
+    - createdAt : LocalDateTime
+    - soap : SoapNote
+    - transcription : String
+    ---
+    + getId() : String
+    + getStatus() : String
+    + getSoap() : SoapNote
+    + getTranscription() : String
+  }
+
+  class SoapNote {
+    - s : String
+    - o : String
+    - a : String
+    - p : String
+    ---
+    + SoapNote()
+    + SoapNote(s, o, a, p)
+    + getS() : String
+    + getO() : String
+    + getA() : String
+    + getP() : String
+  }
+
+  User            "1"  *--  "1"    Role          : has
+  User            "1"  *--  "0..1" DoctorProfile : has
+  ClinicalSession "1"  *--  "1"    SoapNote      : embeds
+  PatientEntity   "1"  *--  "0..*" ClinicalSession : owns
 }
 
-class ClinicalNote {
-  +noteId: String
-  +content: String
-  +status: NoteStatus
+' =================================================================
+' SERVICE LAYER PATTERN  (Spring Boot)
+' =================================================================
+package "Service Layer  <<Service Pattern>>" #E0F7FA {
+
+  class LoginRequest {
+    + email : String
+    + password : String
+  }
+
+  class RegisterRequest {
+    + name : String
+    + email : String
+    + password : String
+    + role : String
+  }
+
+  class AuthResponse {
+    + token : String
+    + userId : String
+    + email : String
+    + role : String
+    + name : String
+  }
+
+  interface AuthService {
+    + {abstract} login(request: LoginRequest) : AuthResponse
+    + {abstract} register(request: RegisterRequest) : AuthResponse
+    + {abstract} getCurrentUser(email: String) : User
+  }
+
+  class AuthServiceImpl {
+    - userRepository : UserRepository
+    - passwordEncoder : PasswordEncoder
+    - jwtUtil : JwtUtil
+    ---
+    + AuthServiceImpl(UserRepository, PasswordEncoder, JwtUtil)
+    + login(request: LoginRequest) : AuthResponse
+    + register(request: RegisterRequest) : AuthResponse
+    + getCurrentUser(email: String) : User
+  }
+
+  AuthService     <|..  AuthServiceImpl
+  AuthServiceImpl  -->  LoginRequest    : accepts
+  AuthServiceImpl  -->  RegisterRequest : accepts
+  AuthServiceImpl  -->  AuthResponse    : returns
+
+  note right of AuthService
+    <b>Service Layer Pattern</b>
+    Business logic isolated behind interface.
+    Controllers depend on AuthService only,
+    never on AuthServiceImpl directly.
+    Enables independent unit testing.
+  end note
 }
 
-class Template {
-  +templateId: String
-  +name: String
-  +format: String
+' =================================================================
+' REPOSITORY PATTERN  (Spring Data MongoDB)
+' =================================================================
+package "Repository Layer  <<Repository Pattern>>" #F9FBE7 {
+
+  interface UserRepository {
+    <<MongoRepository<User, String>>>
+    + findByEmail(email: String) : Optional<User>
+    + existsByEmail(email: String) : boolean
+  }
+
+  interface PatientRepository {
+    <<MongoRepository<Patient, String>>>
+    + findByDoctorId(doctorId: String) : List<PatientEntity>
+  }
+
+  interface SessionRepository {
+    <<MongoRepository<ClinicalSession, String>>>
+    + findByPatientId(patientId: String) : List<ClinicalSession>
+  }
+
+  UserRepository     ..>  User            : persists
+  PatientRepository  ..>  PatientEntity   : persists
+  SessionRepository  ..>  ClinicalSession : persists
+
+  note right of UserRepository
+    <b>Repository Pattern</b>
+    Spring Data generates query
+    implementations at runtime.
+    Controllers never touch DB directly.
+  end note
 }
 
-' ========================
-' PROCESSING ARTIFACTS
-' ========================
-class AudioRecording {
-  +filePath: String
-  +duration: int
+' =================================================================
+' SECURITY LAYER  (Spring Security + JJWT)
+' =================================================================
+package "Security Layer  [Spring Security + JJWT 0.12.5]" #FFF3E0 {
+
+  class JwtUtil {
+    - signingKey : SecretKey
+    - expiryMillis : long
+    ---
+    + JwtUtil(secret: String, expiryHours: int)
+    + generateToken(email: String, role: String, userId: String) : String
+    + validateToken(token: String) : boolean
+    + extractEmail(token: String) : String
+    + extractRole(token: String) : String
+    + extractUserId(token: String) : String
+    - parseClaims(token: String) : Claims
+  }
+
+  class JwtAuthFilter {
+    <<OncePerRequestFilter>>
+    - jwtUtil : JwtUtil
+    ---
+    + JwtAuthFilter(jwtUtil: JwtUtil)
+    + doFilterInternal(request, response, filterChain) : void
+  }
+
+  class AuthController {
+    <<@RestController  /api/auth>>
+    - authService : AuthService
+    ---
+    + AuthController(authService: AuthService)
+    + login(request: LoginRequest) : ResponseEntity<AuthResponse>
+    + register(request: RegisterRequest) : ResponseEntity<AuthResponse>
+    + getCurrentUser(email: String) : ResponseEntity<UserProfileResponse>
+  }
+
+  class UserProfileResponse {
+    - id : String
+    - name : String
+    - email : String
+    - role : String
+    - isActive : boolean
+    - createdAt : String
+    - lastLoginAt : String
+    ---
+    + UserProfileResponse(user: User)
+  }
+
+  JwtAuthFilter    -->  JwtUtil             : validates tokens
+  AuthController   -->  AuthService         : delegates
+  AuthController   -->  UserProfileResponse : returns
+  AuthServiceImpl  -->  JwtUtil             : generateToken()
+  AuthServiceImpl  -->  UserRepository      : findByEmail()
 }
 
-class Transcript {
-  +text: String
-  +confidenceScore: float
-}
-
-class MedicalEntity {
-  +type: String
-  +value: String
-}
-
-' ========================
-' ERROR HANDLING CORE (🔥 NEW)
-' ========================
-class PipelineError {
-  +type: ErrorType
-  +message: String
-  +timestamp: Date
-}
-
-class Result<T> {
-  +success: boolean
-  +data: T
-  +error: PipelineError
-}
-
-' ========================
-' PIPELINE CONTEXT (🔥 EXTENDED)
-' ========================
-class ConsultationContext {
-  audio: AudioRecording
-  transcript: Transcript
-  entities: List<MedicalEntity>
-  note: ClinicalNote
-  template: Template
-  errors: List<PipelineError>   ' 🔥 Collect all errors
-}
-
-' ========================
-' PIPELINE STAGE INTERFACE
-' ========================
-interface PipelineStage {
-  +process(context: ConsultationContext): Result<ConsultationContext>
-}
-
-' ========================
-' PIPELINE STAGES
-' ========================
-class TranscriptionStage
-class NLPStage
-class NoteGenerationStage
-class NotificationStage
-
-PipelineStage <|.. TranscriptionStage
-PipelineStage <|.. NLPStage
-PipelineStage <|.. NoteGenerationStage
-PipelineStage <|.. NotificationStage
-
-' ========================
-' SERVICE INTERFACES
-' ========================
-interface ITranscriptionService {
-  +transcribe(audio: AudioRecording): Transcript
-}
-
-interface INLPService {
-  +extractEntities(text: String): List<MedicalEntity>
-}
-
-interface INoteGenerationService {
-  +generateNote(transcript: Transcript, entities: List<MedicalEntity>, template: Template): ClinicalNote
-}
-
-interface INotificationChannel {
-  +send(note: ClinicalNote, recipient: String)
-}
-
-' ========================
-' IMPLEMENTATIONS
-' ========================
-class GoogleTranscriptionService
-class WhisperTranscriptionService
-
-class BasicNLPService
-class LLMNLPService
-
-class SOAPNoteGenerator
-class CustomTemplateGenerator
-
-class EmailNotification
-class SMSNotification
-class WhatsAppNotification
-
-ITranscriptionService <|.. GoogleTranscriptionService
-ITranscriptionService <|.. WhisperTranscriptionService
-
-INLPService <|.. BasicNLPService
-INLPService <|.. LLMNLPService
-
-INoteGenerationService <|.. SOAPNoteGenerator
-INoteGenerationService <|.. CustomTemplateGenerator
-
-INotificationChannel <|.. EmailNotification
-INotificationChannel <|.. SMSNotification
-INotificationChannel <|.. WhatsAppNotification
-
-' ========================
-' STAGE DEPENDENCIES
-' ========================
-TranscriptionStage --> ITranscriptionService
-NLPStage --> INLPService
-NoteGenerationStage --> INoteGenerationService
-NotificationStage --> INotificationChannel
-
-' ========================
-' PIPELINE EXECUTOR (🔥 ERROR CONTROL)
-' ========================
-class ConsultationPipeline {
-  -stages: List<PipelineStage>
-  +execute(context: ConsultationContext): Result<ConsultationContext>
-  +handleError(error: PipelineError)
-}
-
-ConsultationPipeline --> PipelineStage
-ConsultationPipeline --> Result
-ConsultationPipeline --> PipelineError
-
-' ========================
-' SUPPORTING SERVICES
-' ========================
-class ReviewService {
-  +editNote(note: ClinicalNote)
-  +approveNote(note: ClinicalNote)
-}
-
-class AuthService {
-  +login(email, password)
-}
-
-class AuditService {
-  +logAction(user: User, action: String)
-  +logError(error: PipelineError)   ' 🔥 Error traceability
-}
-
-ReviewService --> ClinicalNote
-AuditService --> User
-AuditService --> PipelineError
-AuthService --> User
-
-' ========================
-' RELATIONSHIPS
-' ========================
-User <|-- Doctor
-
-Doctor "1" -- "many" Consultation
-Patient "1" -- "many" Consultation
-
-Consultation --> ClinicalNote
-
-' ========================
-' PIPELINE FLOW
-' ========================
-ConsultationPipeline --> ConsultationContext
-ConsultationContext --> AudioRecording
-ConsultationContext --> Transcript
-ConsultationContext --> MedicalEntity
-ConsultationContext --> ClinicalNote
-ConsultationContext --> Template
-ConsultationContext --> PipelineError
+' =================================================================
+' CROSS-PACKAGE RELATIONSHIPS
+' =================================================================
+AuthServiceImpl  -->  UserRepository
+useScribeStore   ..>  TranscriptionServiceFactory : triggers via /api/transcribe
+useScribeStore   ..>  NoteGeneratorFactory        : triggers via /api/generate-note
 
 @enduml

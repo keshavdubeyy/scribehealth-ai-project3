@@ -14,10 +14,10 @@ import { Loader2 } from "lucide-react"
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
   const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]   = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: { preventDefault(): void; currentTarget: HTMLFormElement }) {
     e.preventDefault()
     setLoading(true)
     setError(null)
@@ -29,7 +29,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
     try {
       const result = await signIn("credentials", { email, password, redirect: false })
       if (result?.error) {
-        setError("Invalid email or password.")
+        setError("Invalid email or password, or account is not yet active.")
       } else {
         router.push("/patients/dashboard")
         router.refresh()
@@ -60,25 +60,14 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                required
-                disabled={loading}
-              />
+              <Input id="email" name="email" type="email"
+                placeholder="you@example.com" required disabled={loading} />
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                required
-                disabled={loading}
-              />
+              <Input id="password" name="password" type="password"
+                required disabled={loading} />
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
@@ -87,7 +76,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
             </Button>
 
             <p className="text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link href="/signup" className="font-medium text-primary hover:underline">
                 Sign up
               </Link>

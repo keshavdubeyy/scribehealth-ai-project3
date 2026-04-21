@@ -1,15 +1,28 @@
 -- Run this in your Supabase project: Dashboard → SQL Editor → New query
 
+-- ─────────────────────────────────────────────────────────────────
+-- organizations: top-level tenant boundary (clinic / hospital)
+-- ─────────────────────────────────────────────────────────────────
+create table if not exists organizations (
+  id           text        primary key default gen_random_uuid()::text,
+  name         text        not null unique,
+  type         text        not null default 'clinic',  -- clinic | hospital | solo_practice
+  is_active    boolean     not null default true,
+  created_at   timestamptz not null default now()
+);
+
+-- ─────────────────────────────────────────────────────────────────
 -- patients
 create table if not exists patients (
-  id            text        primary key,
-  doctor_email  text        not null,         -- the doctor who owns this patient record
-  name          text        not null,
-  age           integer     not null,
-  gender        text        not null,
-  email         text,                         -- optional: patient email for FR-09 note sharing
-  phone         text,                         -- optional: patient phone for FR-09 WhatsApp/SMS
-  created_at    timestamptz not null default now()
+  id               text        primary key,
+  doctor_email     text        not null,
+  organization_id  text        references organizations(id) on delete set null,
+  name             text        not null,
+  age              integer     not null,
+  gender           text        not null,
+  email            text,
+  phone            text,
+  created_at       timestamptz not null default now()
 );
 
 -- Migration for existing deployments:
@@ -19,17 +32,18 @@ create table if not exists patients (
 
 -- sessions (patient_id nullable to allow unlinking)
 create table if not exists sessions (
-  id             text        primary key,
-  patient_id     text        references patients(id) on delete cascade,
-  doctor_email   text        not null,        -- the doctor who owns this session
-  created_at     timestamptz not null default now(),
-  status         text        not null default 'SCHEDULED',
-  soap           jsonb,
-  transcription  text,
-  audio_url      text,
-  edits          jsonb       not null default '[]'::jsonb,
-  prescription   jsonb,
-  entities       jsonb
+  id               text        primary key,
+  patient_id       text        references patients(id) on delete cascade,
+  doctor_email     text        not null,
+  organization_id  text        references organizations(id) on delete set null,
+  created_at       timestamptz not null default now(),
+  status           text        not null default 'SCHEDULED',
+  soap             jsonb,
+  transcription    text,
+  audio_url        text,
+  edits            jsonb       not null default '[]'::jsonb,
+  prescription     jsonb,
+  entities         jsonb
 );
 
 -- Migration for existing deployments:
@@ -63,27 +77,122 @@ create table if not exists audit_logs (
   created_at   timestamptz not null default now()
 );
 
+-- ─────────────────────────────────────────────────────────────────
+-- profiles: manages doctor and admin identities
+-- ─────────────────────────────────────────────────────────────────
+create table if not exists profiles (
+  email            text        primary key,
+  name             text        not null,
+  role             text        not null default 'DOCTOR', -- DOCTOR | ADMIN
+  organization_id  text        references organizations(id) on delete set null,
+  specialization   text,
+  license_number   text,
+  is_active        boolean     not null default true,
+  created_at       timestamptz not null default now(),
+  -- used by the Java/Spring backend for its own BCrypt auth (nullable — Supabase Auth users leave this null)
+  password_hash    text,
+  last_login_at    timestamptz
+);
+
+-- ─────────────────────────────────────────────────────────────────
+-- invites: manages registration tokens for new staff
+-- ─────────────────────────────────────────────────────────────────
+create table if not exists invites (
+  email            text        primary key,
+  organization_id  text        references organizations(id) on delete cascade,
+  role             text        not null default 'DOCTOR',
+  status           text        not null default 'PENDING', -- PENDING | USED | EXPIRED
+  created_at       timestamptz not null default now()
+);
+
+-- Migration helpers for existing deployments (must run before indexes below):
+alter table patients add column if not exists organization_id text references organizations(id) on delete set null;
+alter table sessions add column if not exists organization_id text references organizations(id) on delete set null;
+
 -- Indexes
+create index if not exists idx_organizations_is_active             on organizations(is_active);
 create index if not exists idx_patients_doctor_email               on patients(doctor_email);
+create index if not exists idx_patients_organization_id            on patients(organization_id);
 create index if not exists idx_sessions_patient_id                 on sessions(patient_id);
 create index if not exists idx_sessions_doctor_email               on sessions(doctor_email);
+create index if not exists idx_sessions_organization_id            on sessions(organization_id);
 create index if not exists idx_prescription_templates_doctor_email on prescription_templates(doctor_email);
 create index if not exists idx_audit_logs_user_email               on audit_logs(user_email);
 create index if not exists idx_audit_logs_created_at               on audit_logs(created_at desc);
 
--- RLS: enabled with permissive anon policies.
--- Access is scoped by doctor_email in application queries.
+-- ─────────────────────────────────────────────────────────────────
+-- Row Level Security
+-- The service-role key (used in server-side API routes) bypasses
+-- RLS entirely. The anon key (used in client components) is
+-- restricted to the policies below.
+-- ─────────────────────────────────────────────────────────────────
+alter table organizations          enable row level security;
 alter table patients               enable row level security;
 alter table sessions               enable row level security;
 alter table prescription_templates enable row level security;
 alter table audit_logs             enable row level security;
 
+-- Drop old policies to ensure idempotency
+drop policy if exists "allow_all" on organizations;
 drop policy if exists "allow_all" on patients;
 drop policy if exists "allow_all" on sessions;
 drop policy if exists "allow_all" on prescription_templates;
 drop policy if exists "allow_all" on audit_logs;
 
-create policy "allow_all" on patients               for all to anon using (true) with check (true);
-create policy "allow_all" on sessions               for all to anon using (true) with check (true);
-create policy "allow_all" on prescription_templates for all to anon using (true) with check (true);
-create policy "allow_all" on audit_logs             for all to anon using (true) with check (true);
+drop policy if exists "orgs_read" on organizations;
+drop policy if exists "profiles_read_own" on profiles;
+drop policy if exists "invites_read_org" on invites;
+drop policy if exists "invites_insert_anon" on invites;
+drop policy if exists "invites_update_anon" on invites;
+drop policy if exists "patients_doctor_owns" on patients;
+drop policy if exists "sessions_doctor_owns" on sessions;
+drop policy if exists "templates_doctor_owns" on prescription_templates;
+drop policy if exists "audit_insert" on audit_logs;
+drop policy if exists "audit_read_own" on audit_logs;
+
+-- Row Level Security
+alter table organizations          enable row level security;
+alter table profiles               enable row level security;
+alter table invites                enable row level security;
+alter table patients               enable row level security;
+alter table sessions               enable row level security;
+alter table prescription_templates enable row level security;
+alter table audit_logs             enable row level security;
+
+-- Policies
+create policy "orgs_read" on organizations for select to anon using (is_active = true);
+
+create policy "profiles_read_own" on profiles
+  for select to anon
+  using (email = current_setting('app.current_user_email', true) or organization_id = current_setting('app.current_org_id', true));
+
+create policy "invites_read_org" on invites
+  for select to anon
+  using (organization_id = current_setting('app.current_org_id', true));
+
+create policy "invites_insert_anon" on invites for insert to anon with check (true);
+create policy "invites_update_anon" on invites for update to anon using (true) with check (true);
+
+create policy "patients_doctor_owns" on patients
+  for all to anon
+  using (doctor_email = current_setting('app.current_user_email', true) or organization_id = current_setting('app.current_org_id', true))
+  with check (doctor_email = current_setting('app.current_user_email', true));
+
+create policy "sessions_doctor_owns" on sessions
+  for all to anon
+  using (doctor_email = current_setting('app.current_user_email', true) or organization_id = current_setting('app.current_org_id', true))
+  with check (doctor_email = current_setting('app.current_user_email', true));
+
+create policy "templates_doctor_owns" on prescription_templates
+  for all to anon
+  using (doctor_email = current_setting('app.current_user_email', true))
+  with check (doctor_email = current_setting('app.current_user_email', true));
+
+create policy "audit_insert" on audit_logs for insert to anon with check (true);
+create policy "audit_read_own" on audit_logs
+  for select to anon
+
+-- Enable Realtime
+alter publication supabase_realtime add table audit_logs;
+alter publication supabase_realtime add table profiles;
+alter publication supabase_realtime add table sessions;

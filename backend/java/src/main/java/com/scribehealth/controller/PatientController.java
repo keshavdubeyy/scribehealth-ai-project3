@@ -2,7 +2,7 @@ package com.scribehealth.controller;
 
 import com.scribehealth.model.Patient;
 import com.scribehealth.repository.PatientRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -11,16 +11,21 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class PatientController {
 
-    @Autowired
-    private PatientRepository patientRepository;
+    private final PatientRepository patientRepository;
+
+    public PatientController(PatientRepository patientRepository) {
+        this.patientRepository = patientRepository;
+    }
 
     @GetMapping
-    public List<Patient> getAllPatients() {
-        return patientRepository.findAll();
+    public List<Patient> getMyPatients(@AuthenticationPrincipal String email) {
+        return patientRepository.findByDoctorEmail(email);
     }
 
     @PostMapping
-    public Patient createPatient(@RequestBody Patient patient) {
+    public Patient createPatient(@AuthenticationPrincipal String email,
+                                 @RequestBody Patient patient) {
+        patient.setDoctorEmail(email);
         return patientRepository.save(patient);
     }
 

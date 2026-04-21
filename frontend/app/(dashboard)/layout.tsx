@@ -34,7 +34,7 @@ export default async function DashboardLayout({
             <SiteHeader />
             <main className="flex flex-1 flex-col overflow-hidden">
               <div className="flex flex-1 flex-col overflow-y-auto">
-                <div className="flex flex-col gap-6 py-8 px-6 sm:px-10 lg:px-12 w-full animate-in fade-in duration-300">
+                <div className="flex flex-col py-8 px-6 sm:px-10 lg:px-12 w-full animate-in fade-in duration-300">
                   {children}
                 </div>
               </div>

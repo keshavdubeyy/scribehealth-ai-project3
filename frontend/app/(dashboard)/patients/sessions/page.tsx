@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 
+import { PageHeader } from "@/components/page-header"
+
 export default function SessionsPage() {
   const router = useRouter()
   const { sessions, patients } = useScribeStore()
@@ -25,15 +27,13 @@ export default function SessionsPage() {
   if (!mounted) return null
 
   return (
-    <div className="p-6 max-w-5xl space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Sessions</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {sessions.length} session{sessions.length !== 1 ? "s" : ""} total
-          </p>
-        </div>
-        <Button className="gap-2" onClick={() => router.push("/patients")}>
+    <div className="w-full space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader 
+          title="Sessions" 
+          description={`${sessions.length} session${sessions.length !== 1 ? "s" : ""} total`}
+        />
+        <Button className="gap-2 h-10 px-5 font-bold shadow-sm shadow-primary/20" onClick={() => router.push("/patients")}>
           <Plus className="w-4 h-4" />
           New session
         </Button>

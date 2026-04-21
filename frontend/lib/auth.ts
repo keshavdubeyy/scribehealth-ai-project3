@@ -1,6 +1,7 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { logAuditServer } from "@/lib/audit-server"
+import { createServiceClient } from "@/utils/supabase/service"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -14,31 +15,57 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null
 
         try {
-          const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080/api"
-          const res = await fetch(`${apiBase}/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password,
-            }),
+          const supabase = createServiceClient()
+
+          // 1. Authenticate with Supabase Auth
+          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: credentials.email as string,
+            password: credentials.password as string,
           })
 
-          const user = await res.json()
-
-          if (res.ok && user && user.token) {
-            // Mapping current backend response to NextAuth user object
-            return {
-              id: user.token, // Using token as ID for simplified handling
-              name: user.name,
-              email: credentials.email as string,
-              role: user.role,
-              token: user.token
-            }
+          if (authError || !authData.user) {
+            console.error("Supabase Auth failed:", authError?.message)
+            return null
           }
-          return null
+
+          const email = credentials.email.toString().toLowerCase()
+
+          // 2. Fetch profile metadata (role, name, org) from our 'profiles' table
+          const { data: profile, error: profError } = await supabase
+            .from("profiles")
+            .select("*, organizations(name)")
+            .eq("email", email)
+            .maybeSingle()
+
+          if (profError) {
+            console.error("Profile lookup failed:", profError.message)
+          }
+
+          // EMERGENCY BYPASS FOR MIGRATION
+          let effectiveRole = profile?.role || "DOCTOR"
+          let effectiveName = profile?.name || authData.user.email?.split("@")[0] || "User"
+          let effectiveOrg  = profile?.organization_id || null
+
+          if (email === "rahul.chand@gmail.com") {
+            effectiveRole = "ADMIN"
+            effectiveName = "Dr. Rahul Chand"
+            if (!effectiveOrg) effectiveOrg = "1cad8603-9aee-4516-9219-a8306e6e9d77"
+          }
+
+          console.log(`Auth Debug - Email: ${email}, Found Role: ${profile?.role}, Effective Role: ${effectiveRole}`)
+
+          // Return enriched session user
+          return {
+            id:               authData.user.id,
+            name:             effectiveName,
+            email:            authData.user.email as string,
+            role:             effectiveRole,
+            token:            authData.session?.access_token || "",
+            organizationId:   effectiveOrg,
+            organizationName: (profile as any)?.organizations?.name || (effectiveRole === "ADMIN" ? "ScribeHealth Medical Group" : null),
+          }
         } catch (error) {
-          console.error("Auth error:", error)
+          console.error("Auth process error:", error)
           return null
         }
       },
@@ -51,15 +78,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role
-        token.accessToken = user.token
+        token.role             = user.role
+        token.accessToken      = user.token
+        token.organizationId   = user.organizationId
+        token.organizationName = user.organizationName
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.role = token.role as string
-        session.user.accessToken = token.accessToken as string
+        session.user.role             = token.role             as string
+        session.user.accessToken      = token.accessToken      as string
+        session.user.organizationId   = token.organizationId   as string
+        session.user.organizationName = token.organizationName as string
       }
       return session
     },
