@@ -1,5 +1,6 @@
 package com.scribehealth.service;
 
+import com.scribehealth.dto.RegisterRequest;
 import com.scribehealth.model.User;
 
 import java.util.List;
@@ -10,6 +11,8 @@ public interface UserService {
     List<User> getAllUsers();
 
     User getUser(String id);
+
+    User createUser(RegisterRequest request);
 
     User activateUser(String id);
 
