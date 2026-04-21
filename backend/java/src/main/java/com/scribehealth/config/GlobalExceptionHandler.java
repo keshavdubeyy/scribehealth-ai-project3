@@ -1,5 +1,6 @@
 package com.scribehealth.config;
 
+import com.scribehealth.builder.PatientProfileValidationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -34,6 +35,12 @@ public class GlobalExceptionHandler {
             BadCredentialsException ex) {
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(PatientProfileValidationException.class)
+    public ResponseEntity<Map<String, String>> handleProfileValidation(PatientProfileValidationException ex) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .body(Map.of("error", ex.getMessage()));
     }
 
