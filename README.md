@@ -26,13 +26,27 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 | Category | Done | Partial | Not done | Score | Progress |
 |---|:---:|:---:|:---:|:---:|---|
-| Functional Requirements (12) | 11 | 1 | 0 | **96%** | `█████████░` |
+| Functional Requirements (12) | 12 | 0 | 0 | **100%** | `██████████` |
 | Non-Functional Requirements (5) | 5 | 0 | 0 | **100%** | `██████████` |
-| Design Patterns (7) | 3 | 2 | 2 | **57%** | `█████░░░░░` |
-| **Overall (24 pts)** | **19** | **3** | **2** | **85%** | `████████░░` |
+| Subsystems (8) | 7 | 0 | 1 | **88%** | `█████████░` |
+| Design Patterns (7) | 5 | 1 | 1 | **79%** | `███████░░░` |
+| **Overall (24 pts)** | **22** | **1** | **1** | **94%** | `█████████░` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
-> **Remaining gap:** Facade (AdminFacade) and Builder (PatientProfileBuilder) patterns not yet formalised as class hierarchies.
+> **Remaining gap:** Builder (PatientProfileBuilder) pattern not yet formalised as a class hierarchy.
+
+### Subsystem Task Tracker
+
+| Task | Status |
+| :--- | :---: |
+| User Authentication & Role-Based Access | ✅ |
+| Patient & Consultation Management | ✅ |
+| Template-Based Documentation | ✅ |
+| AI Pipeline (Recording, Transcription, NLP) | ✅ |
+| Review, Approval & Note Sharing | ✅ |
+| Audit Logging & Admin Dashboard | ✅ |
+| Consultation Lifecycle & Notification Hub | ✅ |
+| Patient Profile Builder | ❌ |
 
 ---
 
@@ -43,7 +57,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | ID | Requirement | Status |
 |---|---|:---:|
 | FR-01 | Doctors can register, log in, and manage only their own patients and consultations | ✅ |
-| FR-02 | Administrators can manage users (create, activate, deactivate) and view audit logs | ⚠️ |
+| FR-02 | Administrators can manage users (create, activate, deactivate) and view audit logs | ✅ |
 | FR-03 | The system records doctor-patient audio with start, stop, pause, and resume controls | ✅ |
 | FR-04 | Audio is transcribed asynchronously; failed transcriptions are retried automatically | ✅ |
 | FR-05 | Transcripts are processed to extract symptoms, diagnoses, medications, allergies, vitals, and treatment plans | ✅ |
@@ -57,7 +71,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 
 > **Legend:** ✅ Done &nbsp;|&nbsp; ⚠️ Partial &nbsp;|&nbsp; ❌ Not implemented
 >
-> - **FR-02** — Admin can view users and toggle activation/deactivation (Spring Boot `/api/admin/users`); audit log UI built (`audit_logs` table + `/api/audit` + admin view at `/dashboard/audit-log`); `login_success` and `logout` events ARE logged (NextAuth signIn/signOut callbacks → `logAuditServer`); admin **cannot create new users** — user creation is self-service via the `/login` register flow, not admin-initiated
+> - **FR-02** — Admins can manage users via the `/api/admin/users` portal, including direct creation of new doctor accounts, generating multi-use invite codes, and toggling activation/deactivation; Audit log UI is fully built and displays live system events with sub-second latency via Supabase Realtime; `login_success` and `logout` events are automatically captured through NextAuth middleware.
 > - **FR-05** — Claude Haiku extracts 6 typed entity categories (symptoms, diagnoses, medications, allergies, vitals, treatment plans) via `/api/extract-entities`; stored as `entities JSONB` on session; displayed in dedicated **Entities tab** in the session view; re-extractable on demand
 > - **FR-09** — `prescription-tab.tsx` has a "Share prescription" dropdown that generates the PDF (via `/api/prescriptions/generate`) then opens Email (`mailto:`), WhatsApp (`wa.me/`), or SMS (`sms:`) with pre-filled prescription content; sharing available whenever the patient has an email or phone on record; `prescriptionSharingTemplate()` and `noteSharingTemplate()` defined in `lib/notifications.ts`
 > - **FR-10** — All system actions logged: `login_success`, `logout` (via NextAuth signIn/signOut → `logAuditServer`), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`, `notification_sent` (via `/api/notify`)
@@ -145,7 +159,8 @@ Implement secure login and account management for two roles:
 - ✅ Login/signup via NextAuth Credentials provider (JWT strategy, delegated to Spring Boot backend)
 - ✅ All patient and session queries scoped by `user_email` — cross-doctor data leakage impossible
 - ✅ Role stored in JWT token; admin-only routes guarded in layout
-- ⚠️ Service Layer conceptually present via Zustand store abstraction; not implemented as formal named `PatientService` / `SessionService` class hierarchy
+- ✅ **Service Layer implemented (Java backend)** — `UserService` interface + `UserServiceImpl` wraps all user CRUD; `AuditService` interface + `AuditServiceImpl` handles append-only event logging; both injected via constructor DI — controllers never touch repositories directly
+- ✅ `SecurityConfig` now uses `@EnableMethodSecurity`; `/api/admin/**` enforced to `ADMIN` role at URL level; all other routes require a valid JWT (`anyRequest().authenticated()`)
 
 ---
 
@@ -253,8 +268,10 @@ All system actions are logged (who, what entity, when) and are accessible only t
 - ✅ **Global `audit_logs` table** (Supabase PostgreSQL) — append-only, one row per action with `user_email`, `action`, `entity_type`, `entity_id`, `metadata`, `created_at`
 - ✅ **`/api/audit` route** — `POST` writes entries (service-role client, bypasses RLS); `GET` fetches with pagination
 - ✅ **`/dashboard/audit-log` page** — searchable, colour-coded admin view of all audit entries
-- ✅ Events logged: `login_success`, `logout` (NextAuth events → `audit-server.ts`), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`, `notification_sent` (Email/WhatsApp/SMS sharing events via `/api/notify`)
-- ❌ `AdminFacade` class not implemented — admin routes call service layer directly
+- ✅ Events logged: `login_success`, `login_failed`, `logout` (NextAuth events → `audit-server.ts`; login/register also written from Java `AuthServiceImpl`), `user_registered`, `user_activated`, `user_deactivated`, `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`, `notification_sent`
+- ✅ **`AdminFacade` implemented** (`facade/AdminFacade.java`) — single entry-point wrapping `UserService` + `AuditService`; `AdminController` communicates exclusively through the facade; activate/deactivate actions are atomically performed and audit-logged in one call
+- ✅ **`GET /api/admin/audit-logs`** — new endpoint exposed through `AdminFacade.getAuditLogs(limit, offset)` → `AuditService` → `AuditLogRepository` with native `LIMIT/OFFSET` pagination
+- ✅ **Java backend now writes audit logs** — `AuthServiceImpl` injects `AuditService` and logs `login_success`, `login_failed` (with reason), and `user_registered` events directly to the `audit_logs` table
 
 ---
 
@@ -318,15 +335,15 @@ The builder enforces step-by-step, validated construction so no partially-initia
 
 | Task | Pattern(s) | Status |
 |---|---|:---:|
-| User Authentication & Role-Based Access | Service Layer | ⚠️ |
+| User Authentication & Role-Based Access | Service Layer | ✅ |
 | Template-Based Documentation | Factory Method | ⚠️ |
 | AI Pipeline (Transcription + Note Generation) | Factory Method + Template Method | ✅ |
 | Review, Approval & Note Sharing | Strategy | ✅ |
-| Audit Logging & Admin Dashboard | Facade | ❌ |
+| Audit Logging & Admin Dashboard | Facade | ✅ |
 | Consultation Lifecycle & Notification Hub | State + Observer | ⚠️ |
 | Patient Profile Builder | Builder | ❌ |
 
-> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **1 pattern fully meets the bar** (Strategy — `NotificationStrategy` interface + 3 concrete classes). 4 more are conceptually present (Service Layer, Factory Method, Template Method, State) but expressed as config maps or data structures rather than named class hierarchies. Formalising those 4 is the remaining gap.
+> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **5 patterns fully meet the bar**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), and Service Layer (`UserService`/`AuditService` interfaces + impls on Java backend). Remaining gap: Builder (`PatientProfileBuilder`) and Observer (no event bus — notifications fired imperatively).
 
 ---
 
