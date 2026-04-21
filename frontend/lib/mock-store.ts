@@ -5,13 +5,41 @@ import { createClient } from "@/utils/supabase/client"
 import { logAudit } from "@/lib/audit"
 import { assertTransition } from "@/lib/session-state-machine"
 
+export interface ChronicCondition {
+  name: string
+  icdCode?: string
+  diagnosedYear?: number
+}
+
+export interface Allergy {
+  substance: string
+  severity: "mild" | "moderate" | "severe"
+  reaction?: string
+}
+
+export interface EmergencyContact {
+  name: string
+  relationship?: string
+  phone: string
+}
+
+export interface InsuranceDetails {
+  provider: string
+  policyNumber: string
+  validUntil?: string
+}
+
 export interface Patient {
   id: string
   name: string
   age: number
   gender: string
-  email?: string   // for FR-09: sharing approved notes with patient
-  phone?: string   // for FR-09: WhatsApp / SMS sharing
+  email?: string
+  phone?: string
+  chronicConditions?: ChronicCondition[]
+  allergies?: Allergy[]
+  emergencyContact?: EmergencyContact
+  insuranceDetails?: InsuranceDetails
 }
 
 // Full 7-stage lifecycle (FR-11). Old values kept for backward compat with existing DB rows.
