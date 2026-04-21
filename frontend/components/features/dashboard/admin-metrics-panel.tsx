@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -82,6 +82,7 @@ export function AdminMetricsPanel() {
   const [timeRange,  setTimeRange]  = useState<'7d' | '30d'>('7d')
   const [rawLogs,    setRawLogs]    = useState<AuditEntry[]>([])
   const [rawDoctors, setRawDoctors] = useState<any[]>([])
+  const rawDoctorsRef = useRef<any[]>([])
   const [activityDay, setActivityDay] = useState<Date | null>(null)
 
   useEffect(() => {
@@ -148,11 +149,14 @@ export function AdminMetricsPanel() {
 
       const activity = buildActivity(doctors, logs, 0, now)
 
+      const knownEmails = new Set(doctors.map((d: any) => d.email.toLowerCase()))
+
       setRawLogs(logs)
+      rawDoctorsRef.current = doctors
       setRawDoctors(doctors)
       setStats(s)
       setMetrics({
-        totalPrescriptions: logs.filter(l => l.action === "prescription_generated").length,
+        totalPrescriptions: logs.filter(l => l.action === "prescription_generated" && knownEmails.has(l.user_email.toLowerCase())).length,
         active7d: activity.filter((a: any) => a.lastActiveTs > day7).length,
         inactiveDocs: activity.filter((a: any) => a.status === 'Inactive').length,
         trendData7d: getTrend(7),
@@ -172,21 +176,19 @@ export function AdminMetricsPanel() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, (payload: any) => {
         const newLog = payload.new as AuditEntry
         if (newLog.action === "prescription_generated") {
-          // Update local state immediately for real-time feel
+          const isKnown = rawDoctorsRef.current.some(
+            d => d.email.toLowerCase() === newLog.user_email.toLowerCase()
+          )
           setMetrics(prev => {
             if (!prev) return prev
-            const day7 = Date.now() - 7 * 24 * 60 * 60 * 1000
-            const is7d  = new Date(newLog.created_at).getTime() > day7
-            
             return {
               ...prev,
-              totalPrescriptions: prev.totalPrescriptions + 1,
-              active7d: is7d ? prev.active7d : prev.active7d, // approx
-              doctorActivity: prev.doctorActivity.map(d => 
-                d.email === newLog.user_email 
-                  ? { ...d, prescriptions: d.prescriptions + 1, lastActive: 'Just now', status: 'Active' } 
+              totalPrescriptions: isKnown ? prev.totalPrescriptions + 1 : prev.totalPrescriptions,
+              doctorActivity: prev.doctorActivity.map(d =>
+                d.email.toLowerCase() === newLog.user_email.toLowerCase()
+                  ? { ...d, prescriptions: d.prescriptions + 1, lastActive: 'Just now', status: 'Active' as const }
                   : d
-              )
+              ),
             }
           })
         }
