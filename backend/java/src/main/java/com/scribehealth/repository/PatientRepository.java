@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface PatientRepository extends JpaRepository<Patient, String> {
     List<Patient> findByDoctorEmail(String doctorEmail);
+    java.util.Optional<Patient> findByIdAndDoctorEmail(String id, String doctorEmail);
 }
