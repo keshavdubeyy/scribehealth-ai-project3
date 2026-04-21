@@ -43,12 +43,8 @@ public class PatientServiceImpl implements PatientService {
 
     @Override
     public Patient updatePatient(String doctorEmail, String patientId, UpdatePatientRequest req) {
-        Patient patient = patientRepository.findById(patientId)
+        Patient patient = patientRepository.findByIdAndDoctorEmail(patientId, doctorEmail)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-
-        if (!patient.getDoctorEmail().equals(doctorEmail)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
 
         if (req.getEmail()             != null) patient.setEmail(req.getEmail());
         if (req.getPhone()             != null) patient.setPhone(req.getPhone());
@@ -62,13 +58,8 @@ public class PatientServiceImpl implements PatientService {
 
     @Override
     public void deletePatient(String doctorEmail, String patientId) {
-        Patient patient = patientRepository.findById(patientId)
+        patientRepository.findByIdAndDoctorEmail(patientId, doctorEmail)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-
-        if (!patient.getDoctorEmail().equals(doctorEmail)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
-
         patientRepository.deleteById(patientId);
     }
 }
