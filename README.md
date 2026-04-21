@@ -28,12 +28,12 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 |---|:---:|:---:|:---:|:---:|---|
 | Functional Requirements (12) | 12 | 0 | 0 | **100%** | `██████████` |
 | Non-Functional Requirements (5) | 5 | 0 | 0 | **100%** | `██████████` |
-| Subsystems (8) | 7 | 0 | 1 | **88%** | `█████████░` |
-| Design Patterns (7) | 5 | 1 | 1 | **79%** | `███████░░░` |
-| **Overall (24 pts)** | **22** | **1** | **1** | **94%** | `█████████░` |
+| Subsystems (8) | 8 | 0 | 0 | **100%** | `██████████` |
+| Design Patterns (7) | 6 | 1 | 0 | **93%** | `█████████░` |
+| **Overall (24 pts)** | **24** | **1** | **0** | **97%** | `█████████░` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
-> **Remaining gap:** Builder (PatientProfileBuilder) pattern not yet formalised as a class hierarchy.
+> **Remaining gap:** Observer (no event bus — notifications fired imperatively at call sites).
 
 ### Subsystem Task Tracker
 
@@ -46,7 +46,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | Review, Approval & Note Sharing | ✅ |
 | Audit Logging & Admin Dashboard | ✅ |
 | Consultation Lifecycle & Notification Hub | ✅ |
-| Patient Profile Builder | ❌ |
+| Patient Profile Builder | ✅ |
 
 ---
 
@@ -116,7 +116,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | **Review & Sharing** | Doctor approval workflow; multi-channel note distribution | ✅ |
 | **Audit & Admin** | Immutable action logging; admin dashboard with audit log view | ✅ |
 | **Lifecycle & Notifications** | State machine for consultation stages; Strategy-driven multi-channel stakeholder alerts | ✅ |
-| **Profile Builder** | Validated construction of complex patient profiles | ⚠️ |
+| **Profile Builder** | Validated construction of complex patient profiles | ✅ |
 | **Prescription Generator** | AI auto-fill prescription, canvas template setup, PDF generation | ✅ |
 
 ### Architectural Tactics
@@ -322,12 +322,14 @@ The builder enforces step-by-step, validated construction so no partially-initia
 **Design Pattern:** Builder Pattern - `PatientProfileBuilder` with fluent API and a terminal `build()` that runs all validations before persisting.
 
 **Implementation status:**
-- ✅ Patient creation form captures: name, age, gender, **email** (for note/prescription sharing), **phone** (for WhatsApp/SMS) — all persisted to Supabase
-- ❌ **Chronic conditions** field not implemented
-- ❌ **Allergies** with severity metadata not implemented (per-session entity extraction exists, but not stored on patient profile)
-- ❌ **Emergency contact** not implemented
-- ❌ **Insurance details** not implemented
-- ❌ `PatientProfileBuilder` with fluent API and `build()` validation not implemented — patient created with a direct `insert()` call
+- ✅ Patient creation form captures: name, age, gender, **email**, **phone** — all persisted to Supabase
+- ✅ **Chronic conditions** — multi-entry with optional ICD code and diagnosed year
+- ✅ **Allergies** with severity (mild / moderate / severe) and optional reaction description
+- ✅ **Emergency contact** — name, relationship, phone; validated at build time
+- ✅ **Insurance details** — provider, policy number, optional valid-until date
+- ✅ **`PatientProfileBuilder`** (`builder/PatientProfileBuilder.java`) — fluent API with `withChronicConditions()`, `withAllergies()`, `withEmergencyContact()`, `withInsuranceDetails()`, and terminal `build()` that runs all validations before the entity reaches the repository
+- ✅ **Multi-step Add Patient dialog** (3 steps: Basic Info → Medical History → Emergency & Insurance) — step 1 required, steps 2–3 optional
+- ✅ **`PatientProfileCard`** — read-only card on patient detail page displaying conditions, allergies with severity colours, emergency contact, and insurance block
 
 ---
 
@@ -341,7 +343,7 @@ The builder enforces step-by-step, validated construction so no partially-initia
 | Review, Approval & Note Sharing | Strategy | ✅ |
 | Audit Logging & Admin Dashboard | Facade | ✅ |
 | Consultation Lifecycle & Notification Hub | State + Observer | ⚠️ |
-| Patient Profile Builder | Builder | ❌ |
+| Patient Profile Builder | Builder | ✅ |
 
 > **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **5 patterns fully meet the bar**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), and Service Layer (`UserService`/`AuditService` interfaces + impls on Java backend). Remaining gap: Builder (`PatientProfileBuilder`) and Observer (no event bus — notifications fired imperatively).
 
