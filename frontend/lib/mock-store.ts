@@ -121,6 +121,7 @@ interface ScribeStore {
 
   fetchPatients: () => Promise<void>
   addPatient: (patient: Omit<Patient, "id">) => Promise<string>
+  updatePatientProfile: (id: string, data: Omit<Patient, "id" | "name" | "age" | "gender">) => Promise<void>
   deletePatient: (id: string) => Promise<void>
   fetchAllSessions: () => Promise<void>
   fetchSessions: (patientId: string) => Promise<void>
@@ -192,25 +193,45 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
   },
 
   addPatient: async (data) => {
+    const builder = new PatientProfileBuilder(data.name, data.age, data.gender)
+    if (data.email)             builder.withEmail(data.email)
+    if (data.phone)             builder.withPhone(data.phone)
+    if (data.chronicConditions) builder.withChronicConditions(data.chronicConditions)
+    if (data.allergies)         builder.withAllergies(data.allergies)
+    if (data.emergencyContact)  builder.withEmergencyContact(data.emergencyContact)
+    if (data.insuranceDetails)  builder.withInsurance(data.insuranceDetails)
+
+    const profile = builder.build()
+
     const res = await fetch("/api/patients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name:          data.name,
-        age:           data.age,
-        gender:        data.gender,
-        patientEmail:  data.email ?? null,
-        phone:         data.phone ?? null,
-      }),
+      body: JSON.stringify(profile),
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error((body as { error?: string }).error ?? "Failed to add patient")
     }
     const { id } = await res.json() as { id: string }
-    set(state => ({ patients: [{ id, ...data }, ...state.patients] }))
-    await logAudit("patient_created", "patient", id, { name: data.name })
+    set(state => ({ patients: [{ id, ...profile }, ...state.patients] }))
+    await logAudit("patient_created", "patient", id, { name: profile.name })
     return id
+  },
+
+  updatePatientProfile: async (id, data) => {
+    const res = await fetch(`/api/patients/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error((body as { error?: string }).error ?? "Failed to update patient")
+    }
+    set(state => ({
+      patients: state.patients.map(p => p.id === id ? { ...p, ...data } : p),
+    }))
+    await logAudit("patient_updated", "patient", id)
   },
 
   deletePatient: async (id) => {
