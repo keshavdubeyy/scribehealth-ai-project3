@@ -14,15 +14,20 @@ create table if not exists organizations (
 -- ─────────────────────────────────────────────────────────────────
 -- patients
 create table if not exists patients (
-  id               text        primary key,
-  doctor_email     text        not null,
-  organization_id  text        references organizations(id) on delete set null,
-  name             text        not null,
-  age              integer     not null,
-  gender           text        not null,
-  email            text,
-  phone            text,
-  created_at       timestamptz not null default now()
+  id                  text        primary key,
+  doctor_email        text        not null,
+  organization_id     text        references organizations(id) on delete set null,
+  name                text        not null,
+  age                 integer     not null,
+  gender              text        not null,
+  email               text,
+  phone               text,
+  -- Patient Profile Builder fields (Task 8)
+  chronic_conditions  jsonb,      -- [{ name, icd_code?, diagnosed_year? }]
+  allergies           jsonb,      -- [{ substance, severity, reaction? }]
+  emergency_contact   jsonb,      -- { name, relationship?, phone }
+  insurance_details   jsonb,      -- { provider, policy_number, valid_until? }
+  created_at          timestamptz not null default now()
 );
 
 -- Migration for existing deployments:
@@ -106,8 +111,13 @@ create table if not exists invites (
 );
 
 -- Migration helpers for existing deployments (must run before indexes below):
-alter table patients add column if not exists organization_id text references organizations(id) on delete set null;
-alter table sessions add column if not exists organization_id text references organizations(id) on delete set null;
+alter table patients add column if not exists organization_id    text references organizations(id) on delete set null;
+alter table sessions add column if not exists organization_id    text references organizations(id) on delete set null;
+-- Patient Profile Builder columns (Task 8 — safe to run on live data, all nullable):
+alter table patients add column if not exists chronic_conditions jsonb;
+alter table patients add column if not exists allergies          jsonb;
+alter table patients add column if not exists emergency_contact  jsonb;
+alter table patients add column if not exists insurance_details  jsonb;
 
 -- Indexes
 create index if not exists idx_organizations_is_active             on organizations(is_active);
