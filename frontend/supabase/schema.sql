@@ -123,6 +123,8 @@ alter table patients add column if not exists insurance_details  jsonb;
 create index if not exists idx_organizations_is_active             on organizations(is_active);
 create index if not exists idx_patients_doctor_email               on patients(doctor_email);
 create index if not exists idx_patients_organization_id            on patients(organization_id);
+create index if not exists idx_patients_allergies                  on patients using gin(allergies);
+create index if not exists idx_patients_chronic_conditions         on patients using gin(chronic_conditions);
 create index if not exists idx_sessions_patient_id                 on sessions(patient_id);
 create index if not exists idx_sessions_doctor_email               on sessions(doctor_email);
 create index if not exists idx_sessions_organization_id            on sessions(organization_id);
