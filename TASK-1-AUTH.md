@@ -32,10 +32,21 @@ The **Service Layer** pattern separates business logic from the presentation lay
 │                                                         │
 │   «interface»          «implementation»                 │
 │   AuthService    ───►  AuthServiceImpl                  │
+│   PatientService ───►  PatientServiceImpl               │
+│   SessionService ───►  SessionServiceImpl               │
+│   AuditService   ───►  AuditServiceImpl                 │
 │                                                         │
-│   - login()            - validates credentials          │
-│   - register()         - encodes passwords (BCrypt)     │
-│   - getCurrentUser()   - generates JWT token            │
+│   PatientServiceImpl:                                   │
+│   - getPatientsByDoctor()  - scoped by doctorId         │
+│   - getPatient()           - ownership check + 403      │
+│   - createPatient()        - sets doctorId, audit log   │
+│   - deletePatient()        - ownership check, audit log │
+│                                                         │
+│   SessionServiceImpl:                                   │
+│   - getSessionsByPatient() - scoped by patientId+doctor │
+│   - createSession()        - sets doctorId, audit log   │
+│   - updateSession()        - ownership check            │
+│   - deleteSession()        - ownership check, audit log │
 └────────────────────────┬────────────────────────────────┘
                          │ reads/writes
 ┌────────────────────────▼────────────────────────────────┐
@@ -45,9 +56,10 @@ The **Service Layer** pattern separates business logic from the presentation lay
 ```
 
 **Why Service Layer here?**
-- `AuthService` is an interface — the controller never depends on the concrete `AuthServiceImpl`
-- Business rules (account-disabled check, duplicate email check, token generation) live in the service, not the controller
+- Every interface (AuthService, PatientService, SessionService, AuditService) means controllers never depend on concrete implementations
+- Business rules (ownership checks, audit logging, doctorId assignment) live in the service — controllers stay thin
 - The service can be swapped, mocked in tests, or extended without touching controllers
+- Delete operations now log to AuditService before returning — previously they silently dropped records with no trail
 
 ---
 
@@ -113,8 +125,14 @@ Controller reads SecurityContextHolder
 | `backend/.../model/ClinicalSession.java` | Added `doctorId` field with getter/setter |
 | `backend/.../repository/SessionRepository.java` | Added `findByPatientIdAndDoctorId()` query method |
 | `backend/.../config/SecurityConfig.java` | Enforced authentication on all routes; added ADMIN/DOCTOR role rules; removed unsafe CORS origin |
-| `backend/.../controller/PatientController.java` | Scoped all operations to the authenticated doctor; added `GET /{id}` with ownership check; removed `@CrossOrigin` |
-| `backend/.../controller/SessionController.java` | Auto-sets `doctorId` on create; ownership checks on update and delete; scoped GET to doctor |
+| `backend/.../service/PatientService.java` | New interface — contract for all patient business operations |
+| `backend/.../service/PatientServiceImpl.java` | Ownership enforcement, doctorId scoping, audit logging for create and delete |
+| `backend/.../service/SessionService.java` | New interface — contract for all session business operations |
+| `backend/.../service/SessionServiceImpl.java` | Ownership enforcement, doctorId auto-assign, audit logging for create and delete |
+| `backend/.../service/AuditService.java` | New interface — contract for audit event logging |
+| `backend/.../service/AuditServiceImpl.java` | Logs audit events via SLF4J (extensible to DB persistence) |
+| `backend/.../controller/PatientController.java` | Refactored to delegate entirely to PatientService — no direct repository access |
+| `backend/.../controller/SessionController.java` | Refactored to delegate entirely to SessionService — no direct repository access |
 | `frontend/lib/mock-store.ts` | Replaced all local no-op operations with real authenticated API calls using JWT from NextAuth session |
 
 ---
