@@ -31,10 +31,11 @@ The **Service Layer** pattern separates business logic from the presentation lay
 │               Service Layer  ◄── Design Pattern         │
 │                                                         │
 │   «interface»          «implementation»                 │
-│   AuthService    ───►  AuthServiceImpl                  │
-│   PatientService ───►  PatientServiceImpl               │
-│   SessionService ───►  SessionServiceImpl               │
-│   AuditService   ───►  AuditServiceImpl                 │
+│   AuthService          ───►  AuthServiceImpl             │
+│   PatientService       ───►  PatientServiceImpl          │
+│   SessionService       ───►  SessionServiceImpl          │
+│   AuditService         ───►  AuditServiceImpl            │
+│   DoctorProfileService ───►  DoctorProfileServiceImpl    │
 │                                                         │
 │   PatientServiceImpl:                                   │
 │   - getPatientsByDoctor()  - scoped by doctorId         │
@@ -47,6 +48,11 @@ The **Service Layer** pattern separates business logic from the presentation lay
 │   - createSession()        - sets doctorId, audit log   │
 │   - updateSession()        - ownership check            │
 │   - deleteSession()        - ownership check, audit log │
+│                                                         │
+│   DoctorProfileServiceImpl:                             │
+│   - getProfile()           - fetch doctor's own profile │
+│   - updateProfile()        - update specialization /    │
+│                              licenseNumber              │
 └────────────────────────┬────────────────────────────────┘
                          │ reads/writes
 ┌────────────────────────▼────────────────────────────────┐
@@ -133,6 +139,9 @@ Controller reads SecurityContextHolder
 | `backend/.../service/AuditServiceImpl.java` | Logs audit events via SLF4J (extensible to DB persistence) |
 | `backend/.../controller/PatientController.java` | Refactored to delegate entirely to PatientService — no direct repository access |
 | `backend/.../controller/SessionController.java` | Refactored to delegate entirely to SessionService — no direct repository access |
+| `backend/.../service/DoctorProfileService.java` | New interface — contract for doctor profile read and update operations |
+| `backend/.../service/DoctorProfileServiceImpl.java` | Implements getProfile and updateProfile; only class that touches UserRepository for doctor profile ops |
+| `backend/.../controller/DoctorController.java` | Refactored to inject DoctorProfileService instead of UserRepository directly; added @PreAuthorize("hasRole('DOCTOR')") |
 | `frontend/lib/mock-store.ts` | Replaced all local no-op operations with real authenticated API calls using JWT from NextAuth session |
 
 ---
