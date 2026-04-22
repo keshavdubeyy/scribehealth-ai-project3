@@ -418,7 +418,7 @@ npm run dev
 ```
 
 - **Web Interface:** [http://localhost:3000](http://localhost:3000)
-- **Required `.env.local` keys:** `NEXT_PUBLIC_API_BASE`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SARVAM_API_KEY`, `ANTHROPIC_API_KEY`, `AUTH_SECRET`.
+- **Environment Setup:** Configure required keys in `frontend/.env.local` (refer to `frontend/.env.local.example` for the full list of required AI and database credentials).
 
 ### 4. Default Credentials (Dev Mode)
 
