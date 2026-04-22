@@ -420,11 +420,4 @@ npm run dev
 - **Web Interface:** [http://localhost:3000](http://localhost:3000)
 - **Environment Setup:** Configure required keys in `frontend/.env.local` (refer to `frontend/.env.local.example` for the full list of required AI and database credentials).
 
-### 4. Default Credentials (Dev Mode)
 
-If running with the `-Dspring-boot.run.profiles=dev` profile, a default administrator account is automatically seeded:
-
-- **Email:** `admin@scribehealth.com`
-- **Password:** `Admin@12345`
-
-For production mode, use the **Register** flow on the login page to create your first account.
