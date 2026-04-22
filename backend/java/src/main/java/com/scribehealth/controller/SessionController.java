@@ -2,6 +2,7 @@ package com.scribehealth.controller;
 
 import com.scribehealth.model.ClinicalSession;
 import com.scribehealth.service.SessionService;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -29,6 +30,7 @@ public class SessionController {
         return sessionService.getSessionsByDoctor(email);
     }
 
+    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping
     public ClinicalSession createSession(@AuthenticationPrincipal String email,
                                          @RequestBody ClinicalSession session) {
@@ -42,8 +44,10 @@ public class SessionController {
         return sessionService.updateSession(email, id, session);
     }
 
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{id}")
-    public void deleteSession(@PathVariable String id) {
-        sessionService.deleteSession(id);
+    public void deleteSession(@AuthenticationPrincipal String email,
+                              @PathVariable String id) {
+        sessionService.deleteSession(id, email);
     }
 }

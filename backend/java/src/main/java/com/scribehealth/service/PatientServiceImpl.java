@@ -2,7 +2,9 @@ package com.scribehealth.service;
 
 import com.scribehealth.model.Patient;
 import com.scribehealth.repository.PatientRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.util.List;
 
@@ -23,6 +25,16 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
+    public Patient getPatient(String patientId, String doctorEmail) {
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (!patient.getDoctorEmail().equals(doctorEmail)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
+        return patient;
+    }
+
+    @Override
     public Patient createPatient(String email, Patient patient) {
         patient.setDoctorEmail(email);
         patient.setCreatedAt(Instant.now());
@@ -32,7 +44,13 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
-    public void deletePatient(String id) {
-        patientRepository.deleteById(id);
+    public void deletePatient(String patientId, String doctorEmail) {
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (!patient.getDoctorEmail().equals(doctorEmail)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
+        patientRepository.deleteById(patientId);
+        auditService.log(doctorEmail, "patient_deleted", "patient", patientId);
     }
 }

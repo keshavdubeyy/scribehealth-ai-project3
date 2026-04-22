@@ -5,6 +5,7 @@ import java.util.List;
 
 public interface PatientService {
     List<Patient> getPatientsByDoctor(String email);
+    Patient getPatient(String patientId, String doctorEmail);
     Patient createPatient(String email, Patient patient);
-    void deletePatient(String id);
+    void deletePatient(String patientId, String doctorEmail);
 }
