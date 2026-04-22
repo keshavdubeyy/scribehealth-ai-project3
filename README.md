@@ -384,28 +384,32 @@ To get the ScribeHealth AI system running locally, follow these steps:
 
 ### 1. Database Setup (Supabase)
 
-The system uses **Supabase** (PostgreSQL + Storage) instead of MongoDB.
+The system uses **Supabase** (PostgreSQL + Storage).
 
-- Run `frontend/supabase/schema.sql` in your Supabase project's SQL Editor
-- Create a **public** Storage bucket named `sessions`
-- Create a **public** Storage bucket named `prescription-templates`
-- Copy your Supabase URL and keys into `frontend/.env.local`
+- Run `frontend/supabase/schema.sql` in your Supabase project's SQL Editor.
+- Create a **public** Storage bucket named `sessions`.
+- Create a **public** Storage bucket named `prescription-templates`.
+- Copy your Supabase URL and keys into `frontend/.env.local`.
 
 ### 2. Backend Execution (Spring Boot)
 
-The backend handles authentication and is configured to run on **Port 8081**.
+The backend handles authentication, patient records, and session data. It runs on **Port 8081**.
 
 ```bash
 cd backend/java
+# Option A: Run with Supabase (Production)
 ./mvnw spring-boot:run
+
+# Option B: Run with H2 Fallback (Local Dev if Supabase port 5432 is blocked)
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 - **API Base:** `http://localhost:8081/api`
-- **Auth Endpoints:** `/api/auth/login`, `/api/auth/register`
+- **Auth Endpoints:** `/api/auth/login`, `/api/auth/register`, `/api/auth/logout`.
 
 ### 3. Frontend Execution (Next.js)
 
-The frontend uses Turbopack for high-speed development.
+The frontend uses Next.js with Turbopack for high-speed development.
 
 ```bash
 cd frontend
@@ -414,8 +418,13 @@ npm run dev
 ```
 
 - **Web Interface:** [http://localhost:3000](http://localhost:3000)
-- **Required `.env.local` keys:** `NEXT_PUBLIC_API_BASE`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SARVAM_API_KEY`, `ANTHROPIC_API_KEY`, `AUTH_SECRET`
+- **Required `.env.local` keys:** `NEXT_PUBLIC_API_BASE`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SARVAM_API_KEY`, `ANTHROPIC_API_KEY`, `AUTH_SECRET`.
 
-### 4. Admin Credentials
+### 4. Default Credentials (Dev Mode)
 
-Once the server is running, use the **Enroll Session** flow to create a Doctor or Admin account and access the dashboard.
+If running with the `-Dspring-boot.run.profiles=dev` profile, a default administrator account is automatically seeded:
+
+- **Email:** `admin@scribehealth.com`
+- **Password:** `Admin@12345`
+
+For production mode, use the **Register** flow on the login page to create your first account.
