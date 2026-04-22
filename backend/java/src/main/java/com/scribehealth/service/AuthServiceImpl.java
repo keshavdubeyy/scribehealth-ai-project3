@@ -98,6 +98,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public void logout(String email) {
+        auditService.log(email, "logout", "user", email);
+    }
+
+    @Override
     public User getCurrentUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + email));

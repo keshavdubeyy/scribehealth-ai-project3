@@ -73,11 +73,34 @@ function requireAuth(allowedRoles) {
   const role  = localStorage.getItem(ROLE_KEY);
 
   if (!isTokenValid(token) || !allowedRoles.includes(role)) {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(ROLE_KEY);
-    localStorage.removeItem(NAME_KEY);
-    window.location.href = '/login.html';
+    logout();
   }
+}
+
+/**
+ * Log out the user:
+ * 1. Notify the backend (sessions/audit)
+ * 2. Clear local storage
+ * 3. Redirect to login
+ */
+async function logout() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  
+  if (token) {
+    try {
+      await fetch(`${API_BASE}/logout`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (e) {
+      console.warn('Backend logout failed:', e);
+    }
+  }
+
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(ROLE_KEY);
+  localStorage.removeItem(NAME_KEY);
+  window.location.href = '/login.html';
 }
 
 
@@ -343,3 +366,4 @@ document.addEventListener('DOMContentLoaded', () => {
 // Usage: <script src="auth.js"></script>
 // Then call: requireAuth(['DOCTOR']) or requireAuth(['ADMIN'])
 window.requireAuth = requireAuth;
+window.logout      = logout;

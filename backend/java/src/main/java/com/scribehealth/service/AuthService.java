@@ -9,5 +9,7 @@ public interface AuthService {
 
     AuthResponse register(RegisterRequest request);
 
+    void logout(String email);
+
     User getCurrentUser(String email);
 }

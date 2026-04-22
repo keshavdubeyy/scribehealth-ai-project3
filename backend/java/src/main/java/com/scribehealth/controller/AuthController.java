@@ -30,6 +30,12 @@ public class AuthController {
         return ResponseEntity.status(201).body(response);
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal String email) {
+        authService.logout(email);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> getCurrentUser(
             @AuthenticationPrincipal String email) {

@@ -1,7 +1,7 @@
 package com.scribehealth.controller;
 
 import com.scribehealth.model.Patient;
-import com.scribehealth.repository.PatientRepository;
+import com.scribehealth.service.PatientService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -11,26 +11,25 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class PatientController {
 
-    private final PatientRepository patientRepository;
+    private final PatientService patientService;
 
-    public PatientController(PatientRepository patientRepository) {
-        this.patientRepository = patientRepository;
+    public PatientController(PatientService patientService) {
+        this.patientService = patientService;
     }
 
     @GetMapping
     public List<Patient> getMyPatients(@AuthenticationPrincipal String email) {
-        return patientRepository.findByDoctorEmail(email);
+        return patientService.getPatientsByDoctor(email);
     }
 
     @PostMapping
     public Patient createPatient(@AuthenticationPrincipal String email,
                                  @RequestBody Patient patient) {
-        patient.setDoctorEmail(email);
-        return patientRepository.save(patient);
+        return patientService.createPatient(email, patient);
     }
 
     @DeleteMapping("/{id}")
     public void deletePatient(@PathVariable String id) {
-        patientRepository.deleteById(id);
+        patientService.deletePatient(id);
     }
 }
