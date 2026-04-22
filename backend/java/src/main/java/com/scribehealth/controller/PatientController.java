@@ -2,24 +2,23 @@ package com.scribehealth.controller;
 
 import com.scribehealth.model.Patient;
 import com.scribehealth.model.User;
-import com.scribehealth.repository.PatientRepository;
 import com.scribehealth.repository.UserRepository;
+import com.scribehealth.service.PatientService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
-
 @RestController
 @RequestMapping("/api/patients")
 public class PatientController {
 
-    private final PatientRepository patientRepository;
+    private final PatientService patientService;
     private final UserRepository userRepository;
 
-    public PatientController(PatientRepository patientRepository, UserRepository userRepository) {
-        this.patientRepository = patientRepository;
+    public PatientController(PatientService patientService, UserRepository userRepository) {
+        this.patientService = patientService;
         this.userRepository = userRepository;
     }
 
@@ -31,34 +30,23 @@ public class PatientController {
 
     @GetMapping
     public List<Patient> getAllPatients() {
-        return patientRepository.findByDoctorId(currentUser().getId());
+        return patientService.getPatientsByDoctor(currentUser().getId());
     }
 
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping
     public Patient createPatient(@RequestBody Patient patient) {
-        patient.setDoctorId(currentUser().getId());
-        return patientRepository.save(patient);
+        return patientService.createPatient(patient, currentUser().getId());
     }
 
     @GetMapping("/{id}")
     public Patient getPatient(@PathVariable String id) {
-        Patient patient = patientRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!patient.getDoctorId().equals(currentUser().getId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
-        return patient;
+        return patientService.getPatient(id, currentUser().getId());
     }
 
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{id}")
     public void deletePatient(@PathVariable String id) {
-        Patient patient = patientRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!patient.getDoctorId().equals(currentUser().getId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
-        patientRepository.deleteById(id);
+        patientService.deletePatient(id, currentUser().getId());
     }
 }
