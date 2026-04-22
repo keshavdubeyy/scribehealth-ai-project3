@@ -1,57 +1,38 @@
 package com.scribehealth.controller;
 
 import com.scribehealth.model.User;
-import com.scribehealth.repository.UserRepository;
+import com.scribehealth.service.DoctorProfileService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/doctor")
+@PreAuthorize("hasRole('DOCTOR')")
 public class DoctorController {
 
-    private final UserRepository userRepository;
+    private final DoctorProfileService doctorProfileService;
 
-    public DoctorController(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public DoctorController(DoctorProfileService doctorProfileService) {
+        this.doctorProfileService = doctorProfileService;
     }
 
-    // GET /api/doctor/profile — get own profile
     @GetMapping("/profile")
     public ResponseEntity<ProfileResponse> getProfile(@AuthenticationPrincipal String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-        return ResponseEntity.ok(new ProfileResponse(user));
+        return ResponseEntity.ok(new ProfileResponse(doctorProfileService.getProfile(email)));
     }
 
-    // PATCH /api/doctor/profile — update specialization & license
     @PatchMapping("/profile")
     public ResponseEntity<Map<String, String>> updateProfile(
             @AuthenticationPrincipal String email,
             @RequestBody UpdateProfileRequest body) {
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-
-        if (user.getDoctorProfile() == null) {
-            user.setDoctorProfile(new com.scribehealth.model.DoctorProfile());
-        }
-
-        if (body.getSpecialization() != null) {
-            user.getDoctorProfile().setSpecialization(body.getSpecialization());
-        }
-        if (body.getLicenseNumber() != null) {
-            user.getDoctorProfile().setLicenseNumber(body.getLicenseNumber());
-        }
-
-        userRepository.save(user);
+        doctorProfileService.updateProfile(email, body.getSpecialization(), body.getLicenseNumber());
         return ResponseEntity.ok(Map.of("message", "Profile updated successfully"));
     }
 
-    // DTO — full profile response
     public static class ProfileResponse {
         private final String id;
         private final String name;
@@ -86,7 +67,6 @@ public class DoctorController {
         public String getLicenseNumber()  { return licenseNumber; }
     }
 
-    // DTO — update request body
     public static class UpdateProfileRequest {
         private String specialization;
         private String licenseNumber;
