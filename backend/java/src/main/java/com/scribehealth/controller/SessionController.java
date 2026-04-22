@@ -2,8 +2,8 @@ package com.scribehealth.controller;
 
 import com.scribehealth.model.ClinicalSession;
 import com.scribehealth.model.User;
-import com.scribehealth.repository.SessionRepository;
 import com.scribehealth.repository.UserRepository;
+import com.scribehealth.service.SessionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -14,11 +14,11 @@ import java.util.List;
 @RequestMapping("/api/sessions")
 public class SessionController {
 
-    private final SessionRepository sessionRepository;
+    private final SessionService sessionService;
     private final UserRepository userRepository;
 
-    public SessionController(SessionRepository sessionRepository, UserRepository userRepository) {
-        this.sessionRepository = sessionRepository;
+    public SessionController(SessionService sessionService, UserRepository userRepository) {
+        this.sessionService = sessionService;
         this.userRepository = userRepository;
     }
 
@@ -30,36 +30,23 @@ public class SessionController {
 
     @GetMapping("/patient/{patientId}")
     public List<ClinicalSession> getSessionsByPatientId(@PathVariable String patientId) {
-        return sessionRepository.findByPatientIdAndDoctorId(patientId, currentUser().getId());
+        return sessionService.getSessionsByPatient(patientId, currentUser().getId());
     }
 
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping
     public ClinicalSession createSession(@RequestBody ClinicalSession session) {
-        session.setDoctorId(currentUser().getId());
-        return sessionRepository.save(session);
+        return sessionService.createSession(session, currentUser().getId());
     }
 
     @PutMapping("/{id}")
     public ClinicalSession updateSession(@PathVariable String id, @RequestBody ClinicalSession session) {
-        ClinicalSession existing = sessionRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!existing.getDoctorId().equals(currentUser().getId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
-        session.setId(id);
-        session.setDoctorId(existing.getDoctorId());
-        return sessionRepository.save(session);
+        return sessionService.updateSession(id, session, currentUser().getId());
     }
 
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{id}")
     public void deleteSession(@PathVariable String id) {
-        ClinicalSession existing = sessionRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!existing.getDoctorId().equals(currentUser().getId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
-        sessionRepository.deleteById(id);
+        sessionService.deleteSession(id, currentUser().getId());
     }
 }
