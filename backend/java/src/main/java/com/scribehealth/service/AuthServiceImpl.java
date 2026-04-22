@@ -73,7 +73,14 @@ public class AuthServiceImpl implements AuthService {
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setRole(request.getRole());
+        
+        // Logical role assignment: Organization creators are ADMINs
+        if ("create_org".equals(request.getMode())) {
+            user.setRole(com.scribehealth.model.Role.ADMIN);
+        } else {
+            user.setRole(request.getRole() != null ? request.getRole() : com.scribehealth.model.Role.DOCTOR);
+        }
+        
         user.setActive(true);
         user.setCreatedAt(Instant.now());
 

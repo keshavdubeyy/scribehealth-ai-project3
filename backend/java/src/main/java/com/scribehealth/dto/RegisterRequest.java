@@ -15,9 +15,10 @@ public class RegisterRequest {
     @NotBlank(message = "Password is required")
     private String password;
 
-    @NotNull(message = "Role is required")
+    private String mode;
+    private String organizationName;
+    private String organizationType;
     private Role role;
-
     private DoctorProfileDto doctorProfile;
 
     public RegisterRequest() {}
@@ -44,6 +45,30 @@ public class RegisterRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getMode() {
+        return mode;
+    }
+
+    public void setMode(String mode) {
+        this.mode = mode;
+    }
+
+    public String getOrganizationName() {
+        return organizationName;
+    }
+
+    public void setOrganizationName(String organizationName) {
+        this.organizationName = organizationName;
+    }
+
+    public String getOrganizationType() {
+        return organizationType;
+    }
+
+    public void setOrganizationType(String organizationType) {
+        this.organizationType = organizationType;
     }
 
     public Role getRole() {

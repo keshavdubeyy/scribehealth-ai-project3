@@ -41,16 +41,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             console.error("Profile lookup failed:", profError.message)
           }
 
-          // EMERGENCY BYPASS FOR MIGRATION
-          let effectiveRole = profile?.role || "DOCTOR"
-          let effectiveName = profile?.name || authData.user.email?.split("@")[0] || "User"
-          let effectiveOrg  = profile?.organization_id || null
-
-          if (email === "rahul.chand@gmail.com") {
-            effectiveRole = "ADMIN"
-            effectiveName = "Dr. Rahul Chand"
-            if (!effectiveOrg) effectiveOrg = "1cad8603-9aee-4516-9219-a8306e6e9d77"
-          }
+          // Enforce role from database profile
+          const effectiveRole = profile?.role || "DOCTOR"
+          const effectiveName = profile?.name || authData.user.email?.split("@")[0] || "User"
+          const effectiveOrg  = profile?.organization_id || null
 
           console.log(`Auth Debug - Email: ${email}, Found Role: ${profile?.role}, Effective Role: ${effectiveRole}`)
 
@@ -62,7 +56,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role:             effectiveRole,
             token:            authData.session?.access_token || "",
             organizationId:   effectiveOrg,
-            organizationName: (profile as any)?.organizations?.name || (effectiveRole === "ADMIN" ? "ScribeHealth Medical Group" : null),
+            organizationName: (profile as any)?.organizations?.name || null,
           }
         } catch (error) {
           console.error("Auth process error:", error)
