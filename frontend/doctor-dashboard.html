@@ -25,6 +25,10 @@
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
         Overview
       </a>
+      <a href="#" class="nav-item" data-section="patients">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M7 18a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z" stroke="currentColor" stroke-width="1.5"/><path d="M17 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z" stroke="currentColor" stroke-width="1.5"/><path d="M2 22a5 5 0 0 1 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M13 22a4 4 0 0 1 8 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Patients
+      </a>
       <a href="#" class="nav-item" data-section="profile">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         My Profile
@@ -97,6 +101,109 @@
       </div>
     </section>
 
+    <section id="section-patients" class="section" style="display:none;">
+      <div class="card-panel">
+        <h2 class="panel-title">Create Patient Record</h2>
+        <div id="patient-error" class="form-msg form-msg--error" style="display:none;"></div>
+        <div id="patient-success" class="form-msg form-msg--success" style="display:none;"></div>
+
+        <form id="patient-form">
+          <div class="field-group">
+            <label class="field-label" for="patient-name">Name</label>
+            <input class="field-input" id="patient-name" type="text" required />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="patient-age">Age</label>
+            <input class="field-input" id="patient-age" type="number" min="1" required />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="patient-gender">Gender</label>
+            <select class="field-input" id="patient-gender" required>
+              <option value="">Select</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="patient-email">Email</label>
+            <input class="field-input" id="patient-email" type="email" required />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="patient-phone">Phone</label>
+            <input class="field-input" id="patient-phone" type="text" required />
+          </div>
+
+          <hr class="divider" />
+          <h3 class="sub-title">Chronic Conditions (Optional)</h3>
+          <div class="field-group">
+            <label class="field-label" for="condition-icd">ICD Code</label>
+            <input class="field-input" id="condition-icd" type="text" placeholder="I10" />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="condition-description">Description</label>
+            <input class="field-input" id="condition-description" type="text" placeholder="Hypertension" />
+          </div>
+          <button class="btn-primary" type="button" id="add-condition-btn">Add Condition</button>
+          <ul id="conditions-list"></ul>
+
+          <hr class="divider" />
+          <h3 class="sub-title">Allergies (Optional)</h3>
+          <div class="field-group">
+            <label class="field-label" for="allergy-substance">Substance</label>
+            <input class="field-input" id="allergy-substance" type="text" placeholder="Peanuts" />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="allergy-severity">Severity</label>
+            <select class="field-input" id="allergy-severity">
+              <option value="mild">mild</option>
+              <option value="moderate">moderate</option>
+              <option value="severe">severe</option>
+            </select>
+          </div>
+          <button class="btn-primary" type="button" id="add-allergy-btn">Add Allergy</button>
+          <ul id="allergies-list"></ul>
+
+          <hr class="divider" />
+          <h3 class="sub-title">Emergency Contact (Optional)</h3>
+          <div class="field-group">
+            <label class="field-label" for="emergency-name">Contact Name</label>
+            <input class="field-input" id="emergency-name" type="text" />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="emergency-phone">Contact Phone</label>
+            <input class="field-input" id="emergency-phone" type="text" />
+          </div>
+
+          <hr class="divider" />
+          <h3 class="sub-title">Insurance Details (Optional)</h3>
+          <div class="field-group">
+            <label class="field-label" for="insurance-provider">Provider</label>
+            <input class="field-input" id="insurance-provider" type="text" />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="insurance-policy">Policy Number</label>
+            <input class="field-input" id="insurance-policy" type="text" />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="insurance-expiry">Expiry</label>
+            <input class="field-input" id="insurance-expiry" type="date" />
+          </div>
+
+          <button type="submit" class="btn-primary">Create Patient</button>
+        </form>
+
+        <hr class="divider" />
+        <h3 class="sub-title">My Patients</h3>
+        <div id="patients-empty">No patient records created yet.</div>
+        <ul id="patients-list"></ul>
+      </div>
+    </section>
+
   </main>
 
   <script>
@@ -104,6 +211,8 @@
     const token = localStorage.getItem('scribeToken');
     const name  = localStorage.getItem('scribeName');
     const role  = localStorage.getItem('scribeRole');
+    const chronicConditions = [];
+    const allergies = [];
 
     // Guard 
     requireAuth(['DOCTOR', 'ADMIN']);
@@ -118,9 +227,13 @@
         document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
         document.getElementById(`section-${target}`).style.display = 'block';
         document.getElementById('page-title').textContent =
-          target === 'overview' ? 'Overview' : 'My Profile';
+          target === 'overview' ? 'Overview' : target === 'patients' ? 'Patients' : 'My Profile';
         document.getElementById('page-subtitle').textContent =
-          target === 'overview' ? `Welcome back, ${name}` : 'View and update your information';
+          target === 'overview'
+            ? `Welcome back, ${name}`
+            : target === 'patients'
+              ? 'Create and manage patient profiles'
+              : 'View and update your information';
       });
     });
     document.getElementById('logout-btn').addEventListener('click', () => {
@@ -177,7 +290,153 @@
       }
     });
 
+    function renderConditions() {
+      const list = document.getElementById('conditions-list');
+      list.innerHTML = '';
+      chronicConditions.forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = `${item.icdCode} - ${item.description}`;
+        list.appendChild(li);
+      });
+    }
+
+    function renderAllergies() {
+      const list = document.getElementById('allergies-list');
+      list.innerHTML = '';
+      allergies.forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = `${item.substance} (${item.severity})`;
+        list.appendChild(li);
+      });
+    }
+
+    document.getElementById('add-condition-btn').addEventListener('click', () => {
+      const icdCode = document.getElementById('condition-icd').value.trim();
+      const description = document.getElementById('condition-description').value.trim();
+      if (!icdCode || !description) return;
+
+      chronicConditions.push({ icdCode, description });
+      renderConditions();
+      document.getElementById('condition-icd').value = '';
+      document.getElementById('condition-description').value = '';
+    });
+
+    document.getElementById('add-allergy-btn').addEventListener('click', () => {
+      const substance = document.getElementById('allergy-substance').value.trim();
+      const severity = document.getElementById('allergy-severity').value;
+      if (!substance) return;
+
+      allergies.push({ substance, severity });
+      renderAllergies();
+      document.getElementById('allergy-substance').value = '';
+      document.getElementById('allergy-severity').value = 'mild';
+    });
+
+    async function loadPatients() {
+      try {
+        const res = await fetch(`${API}/doctor/patients`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const list = document.getElementById('patients-list');
+        const empty = document.getElementById('patients-empty');
+        list.innerHTML = '';
+
+        if (!Array.isArray(data) || data.length === 0) {
+          empty.style.display = 'block';
+          return;
+        }
+
+        empty.style.display = 'none';
+        data.forEach((patient) => {
+          const li = document.createElement('li');
+          li.textContent = `${patient.name} (${patient.gender}, ${patient.age})`;
+          list.appendChild(li);
+        });
+      } catch (err) {
+        console.error('Failed to load patients', err);
+      }
+    }
+
+    document.getElementById('patient-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById('patient-error');
+      const successEl = document.getElementById('patient-success');
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      const emergencyName = document.getElementById('emergency-name').value.trim();
+      const emergencyPhone = document.getElementById('emergency-phone').value.trim();
+      if ((emergencyName && !emergencyPhone) || (!emergencyName && emergencyPhone)) {
+        errorEl.textContent = 'Emergency contact requires both name and phone.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const insuranceProvider = document.getElementById('insurance-provider').value.trim();
+      const insurancePolicy = document.getElementById('insurance-policy').value.trim();
+      const insuranceExpiry = document.getElementById('insurance-expiry').value.trim();
+      const hasInsurance = insuranceProvider || insurancePolicy || insuranceExpiry;
+      if (hasInsurance && !(insuranceProvider && insurancePolicy && insuranceExpiry)) {
+        errorEl.textContent = 'Insurance details require provider, policy number, and expiry.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const payload = {
+        name: document.getElementById('patient-name').value.trim(),
+        age: Number(document.getElementById('patient-age').value),
+        gender: document.getElementById('patient-gender').value,
+        email: document.getElementById('patient-email').value.trim(),
+        phone: document.getElementById('patient-phone').value.trim(),
+        chronicConditions,
+        allergies
+      };
+
+      if (emergencyName && emergencyPhone) {
+        payload.emergencyContact = { name: emergencyName, phone: emergencyPhone };
+      }
+      if (insuranceProvider && insurancePolicy && insuranceExpiry) {
+        payload.insuranceDetails = {
+          provider: insuranceProvider,
+          policyNumber: insurancePolicy,
+          expiry: insuranceExpiry
+        };
+      }
+
+      try {
+        const res = await fetch(`${API}/doctor/patients`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to create patient record');
+        }
+
+        successEl.textContent = 'Patient record created successfully.';
+        successEl.style.display = 'block';
+        document.getElementById('patient-form').reset();
+        chronicConditions.length = 0;
+        allergies.length = 0;
+        renderConditions();
+        renderAllergies();
+        loadPatients();
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+      }
+    });
+
     loadProfile();
+    loadPatients();
   </script>
 
 </body>
