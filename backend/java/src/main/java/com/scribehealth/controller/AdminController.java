@@ -1,8 +1,10 @@
 package com.scribehealth.controller;
 
+import com.scribehealth.model.AuditLog;
 import com.scribehealth.model.Role;
 import com.scribehealth.model.User;
 import com.scribehealth.repository.UserRepository;
+import com.scribehealth.service.AuditService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,9 +17,11 @@ import java.util.NoSuchElementException;
 public class AdminController {
 
     private final UserRepository userRepository;
+    private final AuditService auditService;
 
-    public AdminController(UserRepository userRepository) {
+    public AdminController(UserRepository userRepository, AuditService auditService) {
         this.userRepository = userRepository;
+        this.auditService = auditService;
     }
 
     // GET /api/admin/users — list all users
@@ -56,6 +60,12 @@ public class AdminController {
         user.setActive(true);
         userRepository.save(user);
         return ResponseEntity.ok(Map.of("message", "User activated", "userId", id));
+    }
+
+    @GetMapping("/audit")
+    public ResponseEntity<List<AuditLog>> getAuditLogs(
+            @RequestParam(defaultValue = "50") int limit) {
+        return ResponseEntity.ok(auditService.getRecentLogs(limit));
     }
 
     // GET /api/admin/stats — summary counts
