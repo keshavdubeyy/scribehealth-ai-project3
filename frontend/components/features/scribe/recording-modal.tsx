@@ -71,7 +71,18 @@ export function RecordingModal({
   const timerRef         = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const sessionIdRef     = React.useRef<string | null>(null)
 
-  // Reset when modal opens
+  React.useEffect(() => {
+    if (!userEmail) return
+    const doctorNotifier = new DoctorNotifierObserver(userEmail)
+    const auditLogger    = new AuditLoggerObserver()
+    consultationSubject.subscribe(doctorNotifier)
+    consultationSubject.subscribe(auditLogger)
+    return () => {
+      consultationSubject.unsubscribe(doctorNotifier)
+      consultationSubject.unsubscribe(auditLogger)
+    }
+  }, [userEmail])
+
   React.useEffect(() => {
     if (isOpen) {
       setStep("consent")
