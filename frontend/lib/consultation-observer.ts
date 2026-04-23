@@ -1,6 +1,7 @@
 import { logAudit } from "@/lib/audit"
 import {
   sendSystemNotification,
+  noteReadyTemplate,
   noteApprovedTemplate,
   noteRejectedTemplate,
   transcriptionFailedTemplate,
@@ -50,6 +51,11 @@ export class DoctorNotifierObserver implements ConsultationObserver {
 
   onEvent(event: ConsultationEvent, payload: ConsultationEventPayload): void {
     const { sessionId, patientName = "Unknown" } = payload
+
+    if (event === "note_ready") {
+      const { subject, body } = noteReadyTemplate(patientName, sessionId)
+      void sendSystemNotification(this.userEmail, subject, body, `note_ready:${sessionId}`)
+    }
 
     if (event === "note_approved") {
       const { subject, body } = noteApprovedTemplate(patientName, sessionId)
