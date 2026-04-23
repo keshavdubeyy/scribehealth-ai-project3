@@ -201,10 +201,9 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
   const handleReject = async () => {
     setIsRejecting(true)
     try {
-      await transitionSession(session.id, "REJECTED")    // UNDER_REVIEW → REJECTED
-      await logAudit("note_rejected", "session", session.id)
+      await transitionSession(session.id, "REJECTED")
+      consultationSubject.notify("note_rejected", { sessionId: session.id, userEmail: userEmail ?? undefined, patientName })
       toast.info("Note rejected — use 'Regenerate' to create a new one")
-      router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to reject note")
     } finally {
