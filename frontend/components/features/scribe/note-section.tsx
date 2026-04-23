@@ -15,11 +15,12 @@ import {
 } from "@/components/ui/select"
 import { Loader2, Sparkles, Check, CheckCircle2, XCircle, Lock } from "lucide-react"
 import { Session, useScribeStore } from "@/lib/mock-store"
-import { logAudit } from "@/lib/audit"
 import {
-  sendSystemNotification,
-  noteApprovedTemplate,
-} from "@/lib/notifications"
+  consultationSubject,
+  DoctorNotifierObserver,
+  AuditLoggerObserver,
+  DashboardRefresherObserver,
+} from "@/lib/consultation-observer"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
