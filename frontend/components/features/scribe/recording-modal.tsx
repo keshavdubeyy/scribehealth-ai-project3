@@ -14,11 +14,11 @@ import { Label } from "@/components/ui/label"
 import { Mic, Square, Pause, Play, Loader2, ShieldCheck, Info } from "lucide-react"
 import { toast } from "sonner"
 import { useScribeStore } from "@/lib/mock-store"
-import { logAudit } from "@/lib/audit"
 import {
-  sendSystemNotification,
-  transcriptionFailedTemplate,
-} from "@/lib/notifications"
+  consultationSubject,
+  DoctorNotifierObserver,
+  AuditLoggerObserver,
+} from "@/lib/consultation-observer"
 
 type Step = "consent" | "recording" | "processing"
 
