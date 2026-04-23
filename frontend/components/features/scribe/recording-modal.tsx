@@ -14,11 +14,11 @@ import { Label } from "@/components/ui/label"
 import { Mic, Square, Pause, Play, Loader2, ShieldCheck, Info } from "lucide-react"
 import { toast } from "sonner"
 import { useScribeStore } from "@/lib/mock-store"
+import { logAudit } from "@/lib/audit"
 import {
-  consultationSubject,
-  DoctorNotifierObserver,
-  AuditLoggerObserver,
-} from "@/lib/consultation-observer"
+  sendSystemNotification,
+  transcriptionFailedTemplate,
+} from "@/lib/notifications"
 
 type Step = "consent" | "recording" | "processing"
 
@@ -72,18 +72,6 @@ export function RecordingModal({
   const sessionIdRef     = React.useRef<string | null>(null)
 
   React.useEffect(() => {
-    if (!userEmail) return
-    const doctorNotifier = new DoctorNotifierObserver(userEmail)
-    const auditLogger    = new AuditLoggerObserver()
-    consultationSubject.subscribe(doctorNotifier)
-    consultationSubject.subscribe(auditLogger)
-    return () => {
-      consultationSubject.unsubscribe(doctorNotifier)
-      consultationSubject.unsubscribe(auditLogger)
-    }
-  }, [userEmail])
-
-  React.useEffect(() => {
     if (isOpen) {
       setStep("consent")
       setConsented(false)
@@ -125,7 +113,7 @@ export function RecordingModal({
       const id = await addSession(patientId)           // SCHEDULED
       await transitionSession(id, "IN_PROGRESS")       // SCHEDULED → IN_PROGRESS
       sessionIdRef.current = id
-      consultationSubject.notify("session_created", { sessionId: id, userEmail: userEmail ?? undefined, patientId })
+      await logAudit("session_created", "session", id, { patientId })
     } catch (err) {
       stream.getTracks().forEach(t => t.stop())
       toast.error(err instanceof Error ? err.message : "Failed to create session")
@@ -209,7 +197,10 @@ export function RecordingModal({
       })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Transcription failed after 3 attempts")
-      consultationSubject.notify("transcription_failed", { sessionId, userEmail: userEmail ?? undefined, patientName })
+      if (userEmail) {
+        const { subject, body } = transcriptionFailedTemplate(patientName, sessionId)
+        void sendSystemNotification(userEmail, subject, body, `transcription_failed:${sessionId}`)
+      }
       onSessionReady(sessionId)
       return
     }
