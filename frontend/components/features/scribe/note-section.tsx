@@ -387,7 +387,8 @@ interface NoteSectionProps {
 
 export function NoteSection({ session }: NoteSectionProps) {
   const router = useRouter()
-  const { updateSession, transitionSession } = useScribeStore()
+  const { updateSession, transitionSession, userEmail, getPatient } = useScribeStore()
+  const patientName = getPatient(session.patientId)?.name ?? "Patient"
   const [isGenerating, setIsGenerating] = React.useState(false)
 
   const initialNote: Record<string, string> = session.soap
@@ -427,8 +428,9 @@ export function NoteSection({ session }: NoteSectionProps) {
         if (!res.ok) throw new Error("Generation failed")
         const { note } = await res.json() as { note: Record<string, string> }
         await updateSession(session.id, { soap: note })
-        await transitionSession(session.id, "UNDER_REVIEW")   // TRANSCRIBED → UNDER_REVIEW
+        await transitionSession(session.id, "UNDER_REVIEW")
         await logAudit("note_generated", "session", session.id)
+        consultationSubject.notify("note_ready", { sessionId: session.id, userEmail: userEmail ?? undefined, patientName })
         toast.success("Clinical note generated")
         router.refresh()
       } catch {
