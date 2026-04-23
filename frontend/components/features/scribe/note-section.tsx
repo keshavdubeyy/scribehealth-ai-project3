@@ -110,6 +110,21 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
   const saveTimer   = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedTimer  = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  React.useEffect(() => {
+    if (!userEmail) return
+    const doctorNotifier      = new DoctorNotifierObserver(userEmail)
+    const auditLogger         = new AuditLoggerObserver()
+    const dashboardRefresher  = new DashboardRefresherObserver(() => router.refresh())
+    consultationSubject.subscribe(doctorNotifier)
+    consultationSubject.subscribe(auditLogger)
+    consultationSubject.subscribe(dashboardRefresher)
+    return () => {
+      consultationSubject.unsubscribe(doctorNotifier)
+      consultationSubject.unsubscribe(auditLogger)
+      consultationSubject.unsubscribe(dashboardRefresher)
+    }
+  }, [userEmail, router])
+
   const fields   = TEMPLATE_FIELDS[template] ?? TEMPLATE_FIELDS["general_opd"]
   const isLocked = session.status === "APPROVED"
   const isUnderReview = session.status === "UNDER_REVIEW" || session.status === "COMPLETED"
