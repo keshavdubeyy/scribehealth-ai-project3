@@ -327,7 +327,7 @@ The builder enforces step-by-step, validated construction so no partially-initia
 - ❌ **Allergies** with severity metadata not implemented (per-session entity extraction exists, but not stored on patient profile)
 - ❌ **Emergency contact** not implemented
 - ❌ **Insurance details** not implemented
-- ❌ `PatientProfileBuilder` with fluent API and `build()` validation not implemented — patient created with a direct `insert()` call
+- ✅ `PatientProfileBuilder` with fluent API and `build()` validation implemented in Java backend with full domain validation including ICD-10 code validation, phone number validation, and required field checks
 
 ---
 
@@ -341,9 +341,9 @@ The builder enforces step-by-step, validated construction so no partially-initia
 | Review, Approval & Note Sharing | Strategy | ✅ |
 | Audit Logging & Admin Dashboard | Facade | ✅ |
 | Consultation Lifecycle & Notification Hub | State + Observer | ✅ |
-| Patient Profile Builder | Builder | ❌ |
+| Patient Profile Builder | Builder | ✅ |
 
-> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **6 patterns fully meet the bar**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), Service Layer (`UserService`/`AuditService` interfaces + implementations on Java backend), and Observer (`ConsultationSubject` + 3 concrete observer classes). Remaining gap: Builder (`PatientProfileBuilder`).
+> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **7 patterns fully implemented**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), Service Layer (`UserService`/`AuditService` interfaces + implementations on Java backend), Observer (`ConsultationSubject` + 3 concrete observer classes), and Builder (`PatientProfileBuilder` with value objects for ChronicCondition, Allergy, EmergencyContact, InsuranceDetails).
 
 ---
 
