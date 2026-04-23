@@ -28,9 +28,9 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 |---|:---:|:---:|:---:|:---:|---|
 | Functional Requirements (12) | 12 | 0 | 0 | **100%** | `██████████` |
 | Non-Functional Requirements (5) | 5 | 0 | 0 | **100%** | `██████████` |
-| Subsystems (8) | 7 | 0 | 1 | **88%** | `█████████░` |
-| Design Patterns (7) | 5 | 1 | 1 | **79%** | `███████░░░` |
-| **Overall (24 pts)** | **22** | **1** | **1** | **94%** | `█████████░` |
+| Subsystems (8) | 8 | 0 | 0 | **100%** | `██████████` |
+| Design Patterns (7) | 6 | 0 | 1 | **86%** | `████████░░` |
+| **Overall (24 pts)** | **23** | **0** | **1** | **96%** | `█████████░` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
 > **Remaining gap:** Builder (PatientProfileBuilder) pattern not yet formalised as a class hierarchy.
@@ -275,7 +275,7 @@ All system actions are logged (who, what entity, when) and are accessible only t
 
 ---
 
-### 7. Consultation Lifecycle & Notification Hub ⚠️
+### 7. Consultation Lifecycle & Notification Hub ✅
 
 A consultation moves through well-defined stages. The system enforces legal transitions and automatically notifies stakeholders at each milestone — no manual polling required.
 
@@ -302,8 +302,8 @@ Each state class implements a `ConsultationState` interface and explicitly block
 - ✅ Status badges colour-coded across session list and session detail views for all 7 states
 - ✅ `APPROVED` state locks the note; `REJECTED` enables regeneration
 - ✅ **State machine enforced** — `lib/session-state-machine.ts` declares `VALID_TRANSITIONS` for all 9 statuses; `assertTransition(from, to)` throws on illegal jumps; `transitionSession()` in the store validates every status change before it hits the DB; `APPROVED` is terminal — no further transitions possible
-- ❌ No `ConsultationSubject` / Observer pattern — no event bus; components read Zustand store directly; notifications are fired imperatively at call sites rather than via subscribed observers
-- ✅ **Automatic notifications** fire on key lifecycle events: `note_approved` (doctor notified, audit logged) and `transcription_failed` (doctor notified after 3 retries); patient prescription sharing triggered on-demand from the prescription tab
+- ✅ **Observer Pattern** — `ConsultationSubject` (`lib/consultation-observer.ts`) maintains a subscriber list; `DoctorNotifierObserver` fires system notifications, `AuditLoggerObserver` writes to audit log, `DashboardRefresherObserver` triggers UI refresh — all registered on component mount and cleaned up on unmount
+- ✅ **Automatic notifications** fire on key lifecycle events: `note_approved`, `note_rejected` (doctor notified, audit logged), `transcription_failed` (doctor notified after 3 retries), `note_ready` (fired on manual note generation); all dispatched through `consultationSubject.notify()` rather than imperative call sites
 
 ---
 
@@ -340,10 +340,10 @@ The builder enforces step-by-step, validated construction so no partially-initia
 | AI Pipeline (Transcription + Note Generation) | Factory Method + Template Method | ✅ |
 | Review, Approval & Note Sharing | Strategy | ✅ |
 | Audit Logging & Admin Dashboard | Facade | ✅ |
-| Consultation Lifecycle & Notification Hub | State + Observer | ⚠️ |
+| Consultation Lifecycle & Notification Hub | State + Observer | ✅ |
 | Patient Profile Builder | Builder | ❌ |
 
-> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **5 patterns fully meet the bar**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), and Service Layer (`UserService`/`AuditService` interfaces + impls on Java backend). Remaining gap: Builder (`PatientProfileBuilder`) and Observer (no event bus — notifications fired imperatively).
+> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **6 patterns fully meet the bar**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), Service Layer (`UserService`/`AuditService` interfaces + implementations on Java backend), and Observer (`ConsultationSubject` + 3 concrete observer classes). Remaining gap: Builder (`PatientProfileBuilder`).
 
 ---
 
