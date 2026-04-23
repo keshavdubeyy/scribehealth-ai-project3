@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import { Loader2, Sparkles, Check, CheckCircle2, XCircle, Lock } from "lucide-react"
 import { Session, useScribeStore } from "@/lib/mock-store"
+import { logAudit } from "@/lib/audit"
 import {
   consultationSubject,
   DoctorNotifierObserver,
@@ -186,14 +187,9 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
     setIsApproving(true)
     try {
       await updateSession(session.id, { soap: note })
-      await transitionSession(session.id, "APPROVED")    // UNDER_REVIEW → APPROVED
-      await logAudit("note_approved", "session", session.id)
-      if (userEmail) {
-        const { subject, body } = noteApprovedTemplate(patientName, session.id)
-        void sendSystemNotification(userEmail, subject, body, `note_approved:${session.id}`)
-      }
+      await transitionSession(session.id, "APPROVED")
+      consultationSubject.notify("note_approved", { sessionId: session.id, userEmail: userEmail ?? undefined, patientName })
       toast.success("Note approved and locked")
-      router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to approve note")
     } finally {
