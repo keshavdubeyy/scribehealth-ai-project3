@@ -125,7 +125,7 @@ export function RecordingModal({
       const id = await addSession(patientId)           // SCHEDULED
       await transitionSession(id, "IN_PROGRESS")       // SCHEDULED → IN_PROGRESS
       sessionIdRef.current = id
-      await logAudit("session_created", "session", id, { patientId })
+      consultationSubject.notify("session_created", { sessionId: id, userEmail: userEmail ?? undefined, patientId })
     } catch (err) {
       stream.getTracks().forEach(t => t.stop())
       toast.error(err instanceof Error ? err.message : "Failed to create session")
@@ -209,11 +209,7 @@ export function RecordingModal({
       })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Transcription failed after 3 attempts")
-      if (userEmail) {
-        const { subject, body } = transcriptionFailedTemplate(patientName, sessionId)
-        void sendSystemNotification(userEmail, subject, body, `transcription_failed:${sessionId}`)
-      }
-      // Session stays RECORDED — doctor can retry from the session page
+      consultationSubject.notify("transcription_failed", { sessionId, userEmail: userEmail ?? undefined, patientName })
       onSessionReady(sessionId)
       return
     }
