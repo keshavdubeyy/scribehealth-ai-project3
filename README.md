@@ -307,7 +307,7 @@ Each state class implements a `ConsultationState` interface and explicitly block
 
 ---
 
-### 8. Patient Profile Builder ⚠️
+### 8. Patient Profile Builder ✅
 
 A patient record is not a single form. It is a complex object assembled from many optional, domain-validated parts.
 
@@ -364,7 +364,7 @@ The builder enforces step-by-step, validated construction so no partially-initia
 
 ### Task 3 — Architectural Tactics and Patterns
 - [x] 4–5 architectural tactics with explanation of which non-functional requirements they address
-- [ ] 2 design patterns described with diagrams (UML or C4 model)
+- [x] 2 design patterns described with diagrams (UML or C4 model) — `docs/architecture.puml` (system + patterns) and `docs/class-diagram.puml` (class hierarchy for all 7 patterns)
 
 ### Task 4 — Prototype Implementation and Analysis
 - [x] End-to-end non-trivial functionality implemented *(Recording → Sarvam Transcription → Claude SOAP Note → Approve/Reject workflow — fully working)*
