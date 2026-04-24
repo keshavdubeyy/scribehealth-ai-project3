@@ -28,25 +28,25 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 |---|:---:|:---:|:---:|:---:|---|
 | Functional Requirements (12) | 12 | 0 | 0 | **100%** | `██████████` |
 | Non-Functional Requirements (5) | 5 | 0 | 0 | **100%** | `██████████` |
-| Subsystems (8) | 7 | 0 | 1 | **88%** | `█████████░` |
+| Tasks / Subsystems (8) | 6 | 2 | 0 | **88%** | `█████████░` |
 | Design Patterns (7) | 5 | 1 | 1 | **79%** | `███████░░░` |
-| **Overall (24 pts)** | **22** | **1** | **1** | **94%** | `█████████░` |
+| **Overall** | | | | **~92%** | `█████████░` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
-> **Remaining gap:** Builder (PatientProfileBuilder) pattern not yet formalised as a class hierarchy.
+> **Remaining gaps:** Observer pattern (no event bus — notifications fired imperatively) · Builder pattern (`PatientProfileBuilder` class hierarchy not implemented) · complex patient profile fields (chronic conditions, allergies, emergency contact, insurance)
 
 ### Subsystem Task Tracker
 
-| Task | Status |
-| :--- | :---: |
-| User Authentication & Role-Based Access | ✅ |
-| Patient & Consultation Management | ✅ |
-| Template-Based Documentation | ✅ |
-| AI Pipeline (Recording, Transcription, NLP) | ✅ |
-| Review, Approval & Note Sharing | ✅ |
-| Audit Logging & Admin Dashboard | ✅ |
-| Consultation Lifecycle & Notification Hub | ✅ |
-| Patient Profile Builder | ❌ |
+| Task | Status | Notes |
+| :--- | :---: | :--- |
+| User Authentication & Role-Based Access | ✅ | |
+| Patient & Consultation Management | ✅ | |
+| Template-Based Documentation | ✅ | `NoteGeneratorFactory` + 6 `SoapNoteGenerator` subclasses |
+| AI Pipeline (Recording, Transcription, NLP) | ✅ | |
+| Review, Approval & Note Sharing | ✅ | |
+| Audit Logging & Admin Dashboard | ✅ | |
+| Consultation Lifecycle & Notification Hub | ⚠️ | State machine ✅ — Observer pattern ❌ |
+| Patient Profile Builder | ⚠️ | Basic form ✅ — Builder class, complex fields ❌ |
 
 ---
 
@@ -115,7 +115,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | **AI Pipeline** | Audio capture → async transcription → NLP extraction → SOAP note generation | ✅ |
 | **Review & Sharing** | Doctor approval workflow; multi-channel note distribution | ✅ |
 | **Audit & Admin** | Immutable action logging; admin dashboard with audit log view | ✅ |
-| **Lifecycle & Notifications** | State machine for consultation stages; Strategy-driven multi-channel stakeholder alerts | ✅ |
+| **Lifecycle & Notifications** | State machine for consultation stages; Strategy-driven multi-channel stakeholder alerts | ⚠️ |
 | **Profile Builder** | Validated construction of complex patient profiles | ⚠️ |
 | **Prescription Generator** | AI auto-fill prescription, canvas template setup, PDF generation | ✅ |
 
@@ -195,11 +195,11 @@ Doctors can choose from predefined specialty templates (General OPD, Cardiology,
 - ✅ 6 specialty templates implemented: `general_opd`, `cardiology`, `pediatric`, `mental_health_soap`, `physiotherapy`, `surgical_followup`
 - ✅ Claude Haiku auto-detects the appropriate template from the consultation transcript
 - ✅ Each template has its own field schema; note editor adapts to the selected template's fields
-- ⚠️ Factory Method conceptually present via the `NOTE_FIELDS` config map; not implemented as explicit `TemplateFactory` / `NoteTemplate` class hierarchy
+- ✅ **Factory Method fully implemented** — `NoteGeneratorFactory.get(name)` returns the correct `SoapNoteGenerator` subclass; `templateNames()` auto-syncs the Claude detection prompt; adding a new specialty requires only a new subclass
 
 ---
 
-### 4. AI Pipeline — Recording, Transcription, NLP & Note Generation ⚠️
+### 4. AI Pipeline — Recording, Transcription, NLP & Note Generation ✅
 
 When the doctor stops recording, the system handles everything: audio capture → transcription → entity extraction → structured SOAP note, all without blocking the UI.
 
@@ -336,14 +336,14 @@ The builder enforces step-by-step, validated construction so no partially-initia
 | Task | Pattern(s) | Status |
 |---|---|:---:|
 | User Authentication & Role-Based Access | Service Layer | ✅ |
-| Template-Based Documentation | Factory Method | ⚠️ |
+| Template-Based Documentation | Factory Method | ✅ |
 | AI Pipeline (Transcription + Note Generation) | Factory Method + Template Method | ✅ |
 | Review, Approval & Note Sharing | Strategy | ✅ |
 | Audit Logging & Admin Dashboard | Facade | ✅ |
 | Consultation Lifecycle & Notification Hub | State + Observer | ⚠️ |
 | Patient Profile Builder | Builder | ❌ |
 
-> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **5 patterns fully meet the bar**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), and Service Layer (`UserService`/`AuditService` interfaces + impls on Java backend). Remaining gap: Builder (`PatientProfileBuilder`) and Observer (no event bus — notifications fired imperatively).
+> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **6 patterns fully meet the bar**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method × 2 (`TranscriptionServiceFactory` + `NoteGeneratorFactory`), Template Method (`SoapNoteGenerator` + 6 subclasses), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), and Service Layer (`UserService`/`AuditService` interfaces + impls on Java backend). **Remaining gaps:** Builder (`PatientProfileBuilder` class hierarchy not implemented) and Observer (no event bus — notifications fired imperatively at call sites).
 
 ---
 
@@ -353,28 +353,28 @@ The builder enforces step-by-step, validated construction so no partially-initia
 > **Format:** `Project3_<team_number>.pdf` or `.zip` — submitted via Moodle (one member submits)
 
 ### Task 1 — Requirements and Subsystems
-- [x] Functional and non-functional requirements (with architectural significance explained)
-- [x] Subsystem overview — each subsystem's role and functionality
+- [x] ✅ Functional and non-functional requirements (with architectural significance explained)
+- [x] ✅ Subsystem overview — each subsystem's role and functionality
 
 ### Task 2 — Architecture Framework
-- [ ] Stakeholder identification per IEEE 42010 (stakeholders → concerns → viewpoints → views)
-- [ ] 3–4 Architecture Decision Records (ADRs) using the Nygard template
+- [ ] ❌ Stakeholder identification per IEEE 42010 (stakeholders → concerns → viewpoints → views)
+- [ ] ❌ 3–4 Architecture Decision Records (ADRs) using the Nygard template
 
 ### Task 3 — Architectural Tactics and Patterns
-- [x] 4–5 architectural tactics with explanation of which non-functional requirements they address
-- [ ] 2 design patterns described with diagrams (UML or C4 model)
+- [x] ✅ 4–5 architectural tactics with explanation of which non-functional requirements they address
+- [ ] ❌ 2 design patterns described with diagrams (UML or C4 model)
 
 ### Task 4 — Prototype Implementation and Analysis
-- [x] End-to-end non-trivial functionality implemented *(Recording → Sarvam Transcription → Claude SOAP Note → Approve/Reject workflow — fully working)*
-- [ ] Architecture analysis: compare implemented architecture against an alternative pattern
-- [ ] Quantification of at least 2 non-functional requirements (e.g., response time, throughput)
-- [ ] Trade-off discussion
+- [x] ✅ End-to-end non-trivial functionality implemented *(Recording → Sarvam Transcription → Claude SOAP Note → Approve/Reject workflow — fully working)*
+- [ ] ❌ Architecture analysis: compare implemented architecture against an alternative pattern
+- [ ] ❌ Quantification of at least 2 non-functional requirements (e.g., response time, throughput)
+- [ ] ❌ Trade-off discussion
 
 ### Final Report
-- [ ] Comprehensive technical report (design decisions, architecture, implementation, analysis)
-- [ ] Reflections and lessons learned
-- [ ] Individual contributions section
-- [ ] Link to this GitHub repository
+- [ ] ❌ Comprehensive technical report (design decisions, architecture, implementation, analysis)
+- [ ] ❌ Reflections and lessons learned
+- [ ] ❌ Individual contributions section
+- [ ] ❌ Link to this GitHub repository
 
 ---
 

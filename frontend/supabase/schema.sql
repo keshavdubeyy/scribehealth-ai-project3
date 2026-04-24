@@ -192,6 +192,43 @@ create policy "audit_insert" on audit_logs for insert to anon with check (true);
 create policy "audit_read_own" on audit_logs
   for select to anon
 
+-- ─────────────────────────────────────────────────────────────────
+-- Trigger: first profile in an org is always ADMIN
+-- Fires BEFORE INSERT so the role is set before the row is written.
+-- Clinicians invited later (org already has members) keep DOCTOR.
+-- ─────────────────────────────────────────────────────────────────
+create or replace function fn_auto_admin_org_creator()
+returns trigger language plpgsql as $$
+begin
+  if new.organization_id is not null then
+    if not exists (
+      select 1 from profiles
+      where organization_id = new.organization_id
+    ) then
+      new.role := 'ADMIN';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_auto_admin_org_creator on profiles;
+create trigger trg_auto_admin_org_creator
+  before insert on profiles
+  for each row execute function fn_auto_admin_org_creator();
+
+-- Migration: fix existing org creators who were incorrectly saved as DOCTOR
+-- Safe to re-run: only promotes users who are the sole profile in their org
+update profiles p
+set    role = 'ADMIN'
+where  organization_id is not null
+  and  role != 'ADMIN'
+  and  not exists (
+    select 1 from profiles p2
+    where  p2.organization_id = p.organization_id
+      and  p2.email           != p.email
+  );
+
 -- Enable Realtime
 alter publication supabase_realtime add table audit_logs;
 alter publication supabase_realtime add table profiles;
