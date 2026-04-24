@@ -15,14 +15,22 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { active } = await req.json()
+  const { active, role } = await req.json()
 
   const supabase = createServiceClient()
+  const updates: Record<string, any> = {}
+  if (active !== undefined) updates.is_active = active
+  if (role !== undefined)   updates.role      = role
 
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "No fields to update" }, { status: 400 })
+  }
+
+  const userEmail = decodeURIComponent(id)
   const { data, error } = await supabase
     .from("profiles")
-    .update({ is_active: active })
-    .eq("email", decodeURIComponent(id))
+    .update(updates)
+    .eq("email", userEmail)
     .select()
 
   if (error) {
@@ -33,18 +41,38 @@ export async function PATCH(
     return NextResponse.json({ error: "User not found with matching email" }, { status: 404 })
   }
 
-  // Log the administrative action
-  await logAuditServer(
-    session.user?.email ?? "system",
-    active ? "user_activated" : "user_deactivated",
-    "profile",
-    decodeURIComponent(id),
-    { 
-      targetEmail: decodeURIComponent(id), 
-      active,
-      initiator: session.user?.email 
-    }
-  )
+  // Log the administrative action(s)
+  if (active !== undefined) {
+    await logAuditServer(
+      session.user?.email ?? "system",
+      active ? "user_activated" : "user_deactivated",
+      "profile",
+      userEmail,
+      { targetEmail: userEmail, active, initiator: session.user?.email }
+    )
+  }
+  if (role !== undefined) {
+    await logAuditServer(
+      session.user?.email ?? "system",
+      "role_updated",
+      "profile",
+      userEmail,
+      { targetEmail: userEmail, newRole: role, initiator: session.user?.email }
+    )
+  }
 
-  return NextResponse.json({ message: "User status updated", userId: id })
+  // Helper to match the normalization in the GET/POST routes
+  const normalizeUser = (u: any) => ({
+    id:             u.email,
+    name:           u.name,
+    email:          u.email,
+    role:           u.role,
+    active:         u.is_active,
+    organizationId: u.organization_id,
+    createdAt:      u.created_at,
+    specialization: u.specialization,
+    licenseNumber:  u.license_number,
+  })
+
+  return NextResponse.json(normalizeUser(data[0]))
 }
