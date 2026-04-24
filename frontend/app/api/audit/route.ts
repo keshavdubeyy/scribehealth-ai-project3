@@ -11,17 +11,35 @@ export async function GET(req: NextRequest) {
   }
 
   const orgId = session.user?.organizationId
-  if (!orgId) return NextResponse.json({ error: "No organization" }, { status: 400 })
-
   const { searchParams } = new URL(req.url)
   const limit  = Math.min(Number(searchParams.get("limit")  ?? 100), 5000)
   const offset = Number(searchParams.get("offset") ?? 0)
 
   const supabase = createServiceClient()
-  const { data, error } = await supabase
-    .from("audit_logs")
-    .select()
-    .eq("organization_id", orgId)
+  let query = supabase.from("audit_logs").select()
+
+  if (orgId) {
+    // Standard org-restricted admin
+    const { data: orgUsers } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("organization_id", orgId)
+    
+    const userEmails = orgUsers?.map(u => u.email).filter(Boolean) ?? []
+    
+    // Inclusion: Logs for this org OR logs by its members (even if un-tagged)
+    if (userEmails.length > 0) {
+      // Escape emails to prevent injection/syntax errors in .in()
+      const escapedEmails = userEmails.map(e => `"${e}"`).join(",")
+      query = query.or(`organization_id.eq.${orgId},user_email.in.(${escapedEmails})`)
+    } else {
+      query = query.eq("organization_id", orgId)
+    }
+  } else {
+    // Global admin / No org assigned — see everything
+  }
+
+  const { data, error } = await query
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1)
 
@@ -37,7 +55,7 @@ export async function POST(req: NextRequest) {
   if (!email) return NextResponse.json({ error: "No email in session" }, { status: 400 })
 
   const orgId = session.user?.organizationId
-  if (!orgId) return NextResponse.json({ error: "No organization" }, { status: 400 })
+  // No org check — allow logs without organization association
 
   const { action, entityType, entityId, metadata } = await req.json() as {
     action: string

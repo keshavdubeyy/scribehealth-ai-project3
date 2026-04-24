@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Upload, Trash2, CheckCircle, Move, Loader2, Image as ImageIcon } from "lucide-react"
+import { logAudit } from "@/lib/audit"
 
 // Pixel safe-zone used only while drawing in the canvas editor
 interface PixelZone {
@@ -186,6 +187,10 @@ export default function PrescriptionTemplatePage() {
         if (!res.ok) throw new Error((await res.json()).error ?? "Save failed")
         const { template } = await res.json()
         setPrescriptionTemplate(template)
+        await logAudit("template_created", "prescription_template", template.id, { 
+          filename: imageFile.name, 
+          imageWidth: img.naturalWidth 
+        })
         setImageFile(null)
       } else if (prescriptionTemplate) {
         // Existing image — PATCH safe zone only
@@ -196,6 +201,7 @@ export default function PrescriptionTemplatePage() {
         })
         if (!res.ok) throw new Error((await res.json()).error ?? "Update failed")
         setPrescriptionTemplate({ ...prescriptionTemplate, safeZone })
+        await logAudit("template_updated", "prescription_template", prescriptionTemplate.id)
       }
 
       toast.success("Template saved.")
@@ -212,7 +218,11 @@ export default function PrescriptionTemplatePage() {
     try {
       const res = await fetch(`/api/prescription-templates/${prescriptionTemplate.id}`, { method: "DELETE" })
       if (!res.ok) throw new Error((await res.json()).error ?? "Delete failed")
+      
+      const deletedId = prescriptionTemplate.id
       setPrescriptionTemplate(null)
+      await logAudit("template_deleted", "prescription_template", deletedId)
+      
       setLocalDataUrl(null)
       setImageFile(null)
       setPixelZone({ x: 0, y: 0, width: 0, height: 0 })

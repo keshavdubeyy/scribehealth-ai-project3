@@ -49,6 +49,7 @@ import { toast } from "sonner"
 import { format } from "date-fns"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { logAudit } from "@/lib/audit"
 
 import { NoteSection } from "@/components/features/scribe/note-section"
 import { TranscriptPanel } from "@/components/features/scribe/transcript-panel"
@@ -102,6 +103,7 @@ function LinkPatientDialog({
     try {
       const p = patients.find(p => p.id === selected)
       await updateSession(sessionId, { patientId: selected })
+      await logAudit("session_linked", "session", sessionId, { patientId: selected, patientName: p?.name })
       toast.success(`Linked to ${p?.name ?? selected}`)
       onOpenChange(false)
       router.refresh()
@@ -116,6 +118,7 @@ function LinkPatientDialog({
     setIsSaving(true)
     try {
       await updateSession(sessionId, { patientId: "" })
+      await logAudit("session_unlinked", "session", sessionId)
       toast.success("Patient unlinked")
       onOpenChange(false)
       router.refresh()
@@ -203,6 +206,7 @@ function DeleteDialog({ open, onOpenChange, sessionId, onDeleted }: DeleteDialog
     setIsDeleting(true)
     try {
       await deleteSession(sessionId)
+      await logAudit("session_deleted", "session", sessionId)
       toast.success("Session deleted")
       onOpenChange(false)
       onDeleted()

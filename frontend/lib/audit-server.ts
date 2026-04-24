@@ -14,12 +14,21 @@ export async function logAuditServer(
 ) {
   try {
     const supabase = createServiceClient()
+    
+    // Fetch user's organization to ensure logs are visible to organization admins
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("organization_id")
+      .eq("email", userEmail)
+      .single()
+
     await supabase.from("audit_logs").insert({
-      user_email:  userEmail,
+      user_email:      userEmail,
       action,
-      entity_type: entityType,
-      entity_id:   entityId,
-      metadata:    metadata ?? {},
+      entity_type:     entityType,
+      entity_id:       entityId,
+      metadata:        metadata ?? {},
+      organization_id: profile?.organization_id ?? null,
     })
   } catch { /* non-fatal */ }
 }

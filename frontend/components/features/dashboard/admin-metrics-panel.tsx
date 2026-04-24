@@ -77,6 +77,8 @@ export function AdminMetricsPanel() {
   const token               = session?.user?.accessToken
   const orgName             = session?.user?.organizationName || "Your Organization"
 
+  const orgId = (session?.user as any)?.organizationId as string | undefined
+
   const [stats,      setStats]      = useState<Stats | null>(null)
   const [metrics,    setMetrics]    = useState<UsageMetrics | null>(null)
   const [timeRange,  setTimeRange]  = useState<'7d' | '30d'>('7d')
@@ -168,13 +170,24 @@ export function AdminMetricsPanel() {
 
   // ── Real-time updates ─────────────────────────────────────────
   useEffect(() => {
+    if (!token || !orgId) return
+
     const { createClient } = require("@/utils/supabase/client")
     const supabase = createClient()
-    
-    const channel = supabase
+
+    const auditChannel = supabase
       .channel('audit-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, (payload: any) => {
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'audit_logs',
+        filter: `organization_id=eq.${orgId}`,
+      }, (payload: any) => {
         const newLog = payload.new as AuditEntry
+
+        // Keep rawLogs in sync so day-filter table stays current
+        setRawLogs(prev => [newLog, ...prev])
+
         if (newLog.action === "prescription_generated") {
           const isKnown = rawDoctorsRef.current.some(
             d => d.email.toLowerCase() === newLog.user_email.toLowerCase()
@@ -186,7 +199,26 @@ export function AdminMetricsPanel() {
               totalPrescriptions: isKnown ? prev.totalPrescriptions + 1 : prev.totalPrescriptions,
               doctorActivity: prev.doctorActivity.map(d =>
                 d.email.toLowerCase() === newLog.user_email.toLowerCase()
-                  ? { ...d, prescriptions: d.prescriptions + 1, lastActive: 'Just now', status: 'Active' as const }
+                  ? { ...d, prescriptions: d.prescriptions + 1, lastActive: 'Just now', lastActiveTs: Date.now(), status: 'Active' as const }
+                  : d
+              ),
+            }
+          })
+        }
+
+        if (newLog.action === "login_success") {
+          const now7d = Date.now() - 7 * 24 * 60 * 60 * 1000
+          setMetrics(prev => {
+            if (!prev) return prev
+            const wasInactive = prev.doctorActivity.find(
+              d => d.email.toLowerCase() === newLog.user_email.toLowerCase() && d.lastActiveTs < now7d
+            )
+            return {
+              ...prev,
+              active7d: wasInactive ? prev.active7d + 1 : prev.active7d,
+              doctorActivity: prev.doctorActivity.map(d =>
+                d.email.toLowerCase() === newLog.user_email.toLowerCase()
+                  ? { ...d, lastActive: 'Just now', lastActiveTs: Date.now(), status: 'Active' as const }
                   : d
               ),
             }
@@ -195,8 +227,27 @@ export function AdminMetricsPanel() {
       })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [])
+    // Refresh stats cards whenever a profile is created or updated (e.g. activation toggle)
+    const profilesChannel = supabase
+      .channel('profiles-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'profiles',
+        filter: `organization_id=eq.${orgId}`,
+      }, () => {
+        fetch(`${API}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => (r.ok ? r.json() : null))
+          .then(s => { if (s) setStats(s) })
+          .catch(() => {})
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(auditChannel)
+      supabase.removeChannel(profilesChannel)
+    }
+  }, [token, orgId])
 
   const chartData = useMemo(() =>
     timeRange === '7d' ? metrics?.trendData7d : metrics?.trendData30d,

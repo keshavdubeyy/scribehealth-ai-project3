@@ -350,6 +350,7 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
                 setSaveState("saving")
                 try {
                   await updateSession(session.id, { soap: note, status: "UNDER_REVIEW" })
+                  await logAudit("note_under_review", "session", session.id)
                   toast.success("Session note saved")
                   router.refresh()
                 } catch {

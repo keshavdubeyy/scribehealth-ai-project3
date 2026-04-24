@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { createServiceClient } from "@/utils/supabase/service"
+import { logAuditServer } from "@/lib/audit-server"
 
 export const runtime = "nodejs"
 
@@ -75,6 +76,12 @@ export async function POST(req: NextRequest) {
     await supabase.auth.admin.deleteUser(authData.user.id)
     return NextResponse.json({ error: profError.message }, { status: 500 })
   }
+
+  await logAuditServer(session.user.email!, "user_created", "profile", email, {
+    createdName: name,
+    createdEmail: email,
+    role: rawRole === "ADMIN" ? "ADMIN" : "DOCTOR",
+  })
 
   return NextResponse.json(normalizeUser(profile))
 }

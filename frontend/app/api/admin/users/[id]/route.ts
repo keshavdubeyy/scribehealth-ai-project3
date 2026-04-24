@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { createServiceClient } from "@/utils/supabase/service"
+import { logAuditServer } from "@/lib/audit-server"
 
 export const runtime = "nodejs"
 
@@ -31,6 +32,19 @@ export async function PATCH(
   if (!data || data.length === 0) {
     return NextResponse.json({ error: "User not found with matching email" }, { status: 404 })
   }
+
+  // Log the administrative action
+  await logAuditServer(
+    session.user?.email ?? "system",
+    active ? "user_activated" : "user_deactivated",
+    "profile",
+    decodeURIComponent(id),
+    { 
+      targetEmail: decodeURIComponent(id), 
+      active,
+      initiator: session.user?.email 
+    }
+  )
 
   return NextResponse.json({ message: "User status updated", userId: id })
 }
