@@ -71,7 +71,6 @@ export function RecordingModal({
   const timerRef         = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const sessionIdRef     = React.useRef<string | null>(null)
 
-  // Reset when modal opens
   React.useEffect(() => {
     if (isOpen) {
       setStep("consent")
@@ -202,7 +201,6 @@ export function RecordingModal({
         const { subject, body } = transcriptionFailedTemplate(patientName, sessionId)
         void sendSystemNotification(userEmail, subject, body, `transcription_failed:${sessionId}`)
       }
-      // Session stays RECORDED — doctor can retry from the session page
       onSessionReady(sessionId)
       return
     }
