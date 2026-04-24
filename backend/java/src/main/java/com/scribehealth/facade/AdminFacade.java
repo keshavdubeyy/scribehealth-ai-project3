@@ -1,5 +1,6 @@
 package com.scribehealth.facade;
 
+import com.scribehealth.dto.RegisterRequest;
 import com.scribehealth.model.AuditLog;
 import com.scribehealth.model.User;
 import com.scribehealth.service.AuditService;
@@ -47,6 +48,13 @@ public class AdminFacade {
 
     public Map<String, Long> getStats() {
         return userService.getStats();
+    }
+
+    public User createUser(RegisterRequest request, String actorEmail) {
+        User created = userService.createUser(request);
+        auditService.log(actorEmail, "user_created", "user", created.getId(),
+                "{\"newUserEmail\":\"" + created.getEmail() + "\",\"role\":\"" + created.getRole().name() + "\"}");
+        return created;
     }
 
     public List<AuditLog> getAuditLogs(int limit, int offset) {

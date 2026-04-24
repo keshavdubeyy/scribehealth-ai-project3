@@ -4,7 +4,8 @@ import { createServiceClient } from "@/utils/supabase/service"
 export const runtime = "nodejs"
 
 export async function POST(req: NextRequest) {
-  const { mode, name, email, password, organizationName, organizationType, inviteCode, specialization } = await req.json()
+  const { mode, name, email: rawEmail, password, organizationName, organizationType, inviteCode, specialization } = await req.json()
+  const email = (rawEmail as string)?.toLowerCase()
 
   if (!name || !email || !password) {
     return NextResponse.json({ message: "Name, email, and password are required." }, { status: 400 })

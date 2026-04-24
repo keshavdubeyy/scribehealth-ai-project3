@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -31,7 +31,7 @@ import {
   Users, UserCheck, UserX, ShieldCheck, BarChart2,
   ThumbsUp, ThumbsDown, Building2, FileText,
   Plus, ArrowUpRight, Clock, MoreHorizontal,
-  Calendar, ChevronRight, TrendingUp,
+  Calendar, ChevronLeft, ChevronRight, TrendingUp,
   Loader2
 } from "lucide-react"
 import {
@@ -77,9 +77,13 @@ export function AdminMetricsPanel() {
   const token               = session?.user?.accessToken
   const orgName             = session?.user?.organizationName || "Your Organization"
 
-  const [stats,   setStats]       = useState<Stats | null>(null)
-  const [metrics, setMetrics]     = useState<UsageMetrics | null>(null)
-  const [timeRange, setTimeRange] = useState<'7d' | '30d'>('7d')
+  const [stats,      setStats]      = useState<Stats | null>(null)
+  const [metrics,    setMetrics]    = useState<UsageMetrics | null>(null)
+  const [timeRange,  setTimeRange]  = useState<'7d' | '30d'>('7d')
+  const [rawLogs,    setRawLogs]    = useState<AuditEntry[]>([])
+  const [rawDoctors, setRawDoctors] = useState<any[]>([])
+  const rawDoctorsRef = useRef<any[]>([])
+  const [activityDay, setActivityDay] = useState<Date | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -122,28 +126,37 @@ export function AdminMetricsPanel() {
         })).reverse()
       }
 
-      const activity = doctors.map((d: any) => {
-        const docLogs        = logs.filter(l => l.user_email === d.email)
-        const prescriptions   = docLogs.filter(l => l.action === "prescription_generated").length
-        const prescriptions7d = docLogs.filter(l => l.action === "prescription_generated" && new Date(l.created_at).getTime() > day7).length
-        const lastLog        = docLogs.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-        const lastActiveTs   = lastLog ? new Date(lastLog.created_at).getTime() : 0
-        const isActive7d     = lastActiveTs > day7
-        
-        return {
-          name: d.name,
-          email: d.email,
-          status: isActive7d ? 'Active' : 'Inactive' as 'Active' | 'Inactive',
-          prescriptions,
-          prescriptions7d,
-          lastActiveTs,
-          lastActive: lastLog ? formatRelativeTime(lastLog.created_at) : 'Never'
-        }
-      })
+      const buildActivity = (doctorList: any[], logList: AuditEntry[], fromTs: number, toTs: number) =>
+        doctorList.map((d: any) => {
+          const dEmail       = d.email.toLowerCase()
+          const docLogs      = logList.filter(l => l.user_email.toLowerCase() === dEmail)
+          const inRange      = docLogs.filter(l => {
+            const t = new Date(l.created_at).getTime()
+            return t >= fromTs && t <= toTs
+          })
+          const prescriptions  = inRange.filter(l => l.action === "prescription_generated").length
+          const lastLog        = docLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+          const lastActiveTs   = lastLog ? new Date(lastLog.created_at).getTime() : 0
+          const isActiveInRange = inRange.length > 0
+          return {
+            name: d.name, email: d.email,
+            status: isActiveInRange ? 'Active' : 'Inactive' as 'Active' | 'Inactive',
+            prescriptions,
+            lastActiveTs,
+            lastActive: lastLog ? formatRelativeTime(lastLog.created_at) : 'Never',
+          }
+        })
 
+      const activity = buildActivity(doctors, logs, 0, now)
+
+      const knownEmails = new Set(doctors.map((d: any) => d.email.toLowerCase()))
+
+      setRawLogs(logs)
+      rawDoctorsRef.current = doctors
+      setRawDoctors(doctors)
       setStats(s)
       setMetrics({
-        totalPrescriptions: logs.filter(l => l.action === "prescription_generated").length,
+        totalPrescriptions: logs.filter(l => l.action === "prescription_generated" && knownEmails.has(l.user_email.toLowerCase())).length,
         active7d: activity.filter((a: any) => a.lastActiveTs > day7).length,
         inactiveDocs: activity.filter((a: any) => a.status === 'Inactive').length,
         trendData7d: getTrend(7),
@@ -163,21 +176,19 @@ export function AdminMetricsPanel() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, (payload: any) => {
         const newLog = payload.new as AuditEntry
         if (newLog.action === "prescription_generated") {
-          // Update local state immediately for real-time feel
+          const isKnown = rawDoctorsRef.current.some(
+            d => d.email.toLowerCase() === newLog.user_email.toLowerCase()
+          )
           setMetrics(prev => {
             if (!prev) return prev
-            const day7 = Date.now() - 7 * 24 * 60 * 60 * 1000
-            const is7d  = new Date(newLog.created_at).getTime() > day7
-            
             return {
               ...prev,
-              totalPrescriptions: prev.totalPrescriptions + 1,
-              active7d: is7d ? prev.active7d : prev.active7d, // approx
-              doctorActivity: prev.doctorActivity.map(d => 
-                d.email === newLog.user_email 
-                  ? { ...d, prescriptions: d.prescriptions + 1, lastActive: 'Just now', status: 'Active' } 
+              totalPrescriptions: isKnown ? prev.totalPrescriptions + 1 : prev.totalPrescriptions,
+              doctorActivity: prev.doctorActivity.map(d =>
+                d.email.toLowerCase() === newLog.user_email.toLowerCase()
+                  ? { ...d, prescriptions: d.prescriptions + 1, lastActive: 'Just now', status: 'Active' as const }
                   : d
-              )
+              ),
             }
           })
         }
@@ -187,9 +198,33 @@ export function AdminMetricsPanel() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  const chartData = useMemo(() => 
-    timeRange === '7d' ? metrics?.trendData7d : metrics?.trendData30d, 
+  const chartData = useMemo(() =>
+    timeRange === '7d' ? metrics?.trendData7d : metrics?.trendData30d,
   [timeRange, metrics])
+
+  const filteredActivity = useMemo(() => {
+    if (!activityDay || rawDoctors.length === 0) return metrics?.doctorActivity ?? []
+
+    const fromTs = new Date(activityDay).setHours(0, 0, 0, 0)
+    const toTs   = new Date(activityDay).setHours(23, 59, 59, 999)
+
+    return rawDoctors.map((d: any) => {
+      const docLogs   = rawLogs.filter(l => l.user_email === d.email)
+      const inDay     = rawLogs.filter(l => {
+        const t = new Date(l.created_at).getTime()
+        return l.user_email === d.email && t >= fromTs && t <= toTs
+      })
+      const prescriptions = inDay.filter(l => l.action === "prescription_generated").length
+      const lastLog       = docLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+      return {
+        name: d.name, email: d.email,
+        status: (inDay.length > 0 ? 'Active' : 'Inactive') as 'Active' | 'Inactive',
+        prescriptions,
+        lastActiveTs: lastLog ? new Date(lastLog.created_at).getTime() : 0,
+        lastActive: lastLog ? formatRelativeTime(lastLog.created_at) : 'Never',
+      }
+    }).sort((a, b) => b.prescriptions - a.prescriptions)
+  }, [activityDay, rawLogs, rawDoctors, metrics])
 
   if (!stats || !metrics) return <div className="h-60 flex items-center justify-center gap-2 text-muted-foreground"><Loader2 className="animate-spin size-4" /> Loading dashboard...</div>
 
@@ -326,6 +361,48 @@ export function AdminMetricsPanel() {
               <Clock className="size-4 text-primary" />
               <CardTitle className="text-sm font-bold uppercase tracking-wider">Doctor Activity</CardTitle>
             </div>
+            {/* ── Day navigator ── */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost" size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => {
+                  const base = activityDay ? new Date(activityDay) : new Date()
+                  base.setDate(base.getDate() - 1)
+                  setActivityDay(new Date(base))
+                }}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="text-[11px] font-bold tabular-nums w-24 text-center select-none">
+                {activityDay
+                  ? activityDay.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                  : 'All Time'}
+              </span>
+              <Button
+                variant="ghost" size="sm"
+                className="h-7 w-7 p-0"
+                disabled={activityDay !== null && activityDay >= new Date(new Date().setHours(0,0,0,0))}
+                onClick={() => {
+                  if (!activityDay) return
+                  const next = new Date(activityDay)
+                  next.setDate(next.getDate() + 1)
+                  const today = new Date(); today.setHours(0,0,0,0)
+                  setActivityDay(next >= today ? null : next)
+                }}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+              {activityDay && (
+                <Button
+                  variant="outline" size="sm"
+                  className="h-7 text-[10px] font-bold px-2 ml-1"
+                  onClick={() => setActivityDay(null)}
+                >
+                  Reset
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -333,14 +410,17 @@ export function AdminMetricsPanel() {
                 <TableRow>
                   <TableHead className="px-6">Doctor</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-center">Prescriptions</TableHead>
-                  <TableHead className="text-center">Last 7 Days</TableHead>
+                  <TableHead className="text-center">
+                    {activityDay
+                      ? activityDay.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+                      : 'All Time'}
+                  </TableHead>
                   <TableHead className="text-center">Last Active</TableHead>
                   <TableHead className="text-right px-6">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {metrics.doctorActivity.map((doc, i) => (
+                {filteredActivity.map((doc, i) => (
                   <TableRow key={i}>
                     <TableCell className="px-6 py-3">
                       <div className="font-medium text-foreground text-xs">{doc.name}</div>
@@ -351,8 +431,7 @@ export function AdminMetricsPanel() {
                         {doc.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-center font-mono text-xs">{doc.prescriptions}</TableCell>
-                    <TableCell className="text-center font-mono text-xs text-blue-600 font-bold">{doc.prescriptions7d}</TableCell>
+                    <TableCell className="text-center font-mono text-xs font-bold text-blue-600">{doc.prescriptions}</TableCell>
                     <TableCell className="text-center text-xs text-muted-foreground italic">
                       {doc.lastActive}
                     </TableCell>

@@ -273,6 +273,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     }))
   },
 
+
   addSession: async (patientId) => {
     const res = await fetch("/api/sessions", {
       method: "POST",

@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const limit  = Math.min(Number(searchParams.get("limit")  ?? 100), 500)
+  const limit  = Math.min(Number(searchParams.get("limit")  ?? 100), 5000)
   const offset = Number(searchParams.get("offset") ?? 0)
 
   const supabase = createServiceClient()

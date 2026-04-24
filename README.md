@@ -29,11 +29,11 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | Functional Requirements (12) | 12 | 0 | 0 | **100%** | `██████████` |
 | Non-Functional Requirements (5) | 5 | 0 | 0 | **100%** | `██████████` |
 | Subsystems (8) | 8 | 0 | 0 | **100%** | `██████████` |
-| Design Patterns (7) | 6 | 1 | 0 | **93%** | `█████████░` |
-| **Overall (24 pts)** | **24** | **1** | **0** | **97%** | `█████████░` |
+| Design Patterns (7) | 7 | 0 | 0 | **100%** | `██████████` |
+| **Overall (24 pts)** | **24** | **0** | **0** | **100%** | `██████████` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
-> **Remaining gap:** Observer (no event bus — notifications fired imperatively at call sites).
+> **All patterns fully implemented.**
 
 ### Subsystem Task Tracker
 
@@ -195,11 +195,11 @@ Doctors can choose from predefined specialty templates (General OPD, Cardiology,
 - ✅ 6 specialty templates implemented: `general_opd`, `cardiology`, `pediatric`, `mental_health_soap`, `physiotherapy`, `surgical_followup`
 - ✅ Claude Haiku auto-detects the appropriate template from the consultation transcript
 - ✅ Each template has its own field schema; note editor adapts to the selected template's fields
-- ⚠️ Factory Method conceptually present via the `NOTE_FIELDS` config map; not implemented as explicit `TemplateFactory` / `NoteTemplate` class hierarchy
+- ✅ **Factory Method fully implemented** — `NoteGeneratorFactory.get(name)` returns the correct `SoapNoteGenerator` subclass; `templateNames()` auto-syncs the Claude detection prompt; adding a new specialty requires only a new subclass
 
 ---
 
-### 4. AI Pipeline — Recording, Transcription, NLP & Note Generation ⚠️
+### 4. AI Pipeline — Recording, Transcription, NLP & Note Generation ✅
 
 When the doctor stops recording, the system handles everything: audio capture → transcription → entity extraction → structured SOAP note, all without blocking the UI.
 
@@ -275,7 +275,7 @@ All system actions are logged (who, what entity, when) and are accessible only t
 
 ---
 
-### 7. Consultation Lifecycle & Notification Hub ⚠️
+### 7. Consultation Lifecycle & Notification Hub ✅
 
 A consultation moves through well-defined stages. The system enforces legal transitions and automatically notifies stakeholders at each milestone — no manual polling required.
 
@@ -302,8 +302,8 @@ Each state class implements a `ConsultationState` interface and explicitly block
 - ✅ Status badges colour-coded across session list and session detail views for all 7 states
 - ✅ `APPROVED` state locks the note; `REJECTED` enables regeneration
 - ✅ **State machine enforced** — `lib/session-state-machine.ts` declares `VALID_TRANSITIONS` for all 9 statuses; `assertTransition(from, to)` throws on illegal jumps; `transitionSession()` in the store validates every status change before it hits the DB; `APPROVED` is terminal — no further transitions possible
-- ❌ No `ConsultationSubject` / Observer pattern — no event bus; components read Zustand store directly; notifications are fired imperatively at call sites rather than via subscribed observers
-- ✅ **Automatic notifications** fire on key lifecycle events: `note_approved` (doctor notified, audit logged) and `transcription_failed` (doctor notified after 3 retries); patient prescription sharing triggered on-demand from the prescription tab
+- ✅ **Observer Pattern (Java)** — `ConsultationObserver` interface + `ConsultationEventPublisher` (subscribe/unsubscribe/publish); `AuditLoggerObserver`, `DoctorNotifierObserver`, and `SessionStatusObserver` registered in `SessionServiceImpl`; `transitionSession()` publishes `ConsultationEvent` to all subscribers after each valid state change
+- ✅ **Automatic notifications** fire on key lifecycle events: `note_approved`, `note_rejected` (doctor notified, audit logged), `transcription_failed` (doctor notified after 3 retries); all dispatched through the Observer event bus
 
 ---
 
@@ -338,14 +338,14 @@ The builder enforces step-by-step, validated construction so no partially-initia
 | Task | Pattern(s) | Status |
 |---|---|:---:|
 | User Authentication & Role-Based Access | Service Layer | ✅ |
-| Template-Based Documentation | Factory Method | ⚠️ |
+| Template-Based Documentation | Factory Method | ✅ |
 | AI Pipeline (Transcription + Note Generation) | Factory Method + Template Method | ✅ |
 | Review, Approval & Note Sharing | Strategy | ✅ |
 | Audit Logging & Admin Dashboard | Facade | ✅ |
-| Consultation Lifecycle & Notification Hub | State + Observer | ⚠️ |
+| Consultation Lifecycle & Notification Hub | State + Observer | ✅ |
 | Patient Profile Builder | Builder | ✅ |
 
-> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **5 patterns fully meet the bar**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), and Service Layer (`UserService`/`AuditService` interfaces + impls on Java backend). Remaining gap: Builder (`PatientProfileBuilder`) and Observer (no event bus — notifications fired imperatively).
+> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **7 patterns fully implemented**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), Service Layer (`UserService`/`AuditService` interfaces + implementations on Java backend), Observer (`ConsultationEventPublisher` + 3 concrete observer classes in Java), and Builder (`PatientProfileBuilder` with value objects for ChronicCondition, Allergy, EmergencyContact, InsuranceDetails).
 
 ---
 
@@ -359,8 +359,8 @@ The builder enforces step-by-step, validated construction so no partially-initia
 - [x] Subsystem overview — each subsystem's role and functionality
 
 ### Task 2 — Architecture Framework
-- [ ] Stakeholder identification per IEEE 42010 (stakeholders → concerns → viewpoints → views)
-- [ ] 3–4 Architecture Decision Records (ADRs) using the Nygard template
+- [ ] ❌ Stakeholder identification per IEEE 42010 (stakeholders → concerns → viewpoints → views)
+- [ ] ❌ 3–4 Architecture Decision Records (ADRs) using the Nygard template
 
 ### Task 3 — Architectural Tactics and Patterns
 - [x] 4–5 architectural tactics with explanation of which non-functional requirements they address
@@ -373,10 +373,10 @@ The builder enforces step-by-step, validated construction so no partially-initia
 - [ ] Trade-off discussion
 
 ### Final Report
-- [ ] Comprehensive technical report (design decisions, architecture, implementation, analysis)
-- [ ] Reflections and lessons learned
-- [ ] Individual contributions section
-- [ ] Link to this GitHub repository
+- [ ] ❌ Comprehensive technical report (design decisions, architecture, implementation, analysis)
+- [ ] ❌ Reflections and lessons learned
+- [ ] ❌ Individual contributions section
+- [ ] ❌ Link to this GitHub repository
 
 ---
 
@@ -386,7 +386,7 @@ To get the ScribeHealth AI system running locally, follow these steps:
 
 ### 1. Database Setup (Supabase)
 
-The system uses **Supabase** (PostgreSQL + Storage) instead of MongoDB.
+The system uses **Supabase** (PostgreSQL + Storage).
 
 - Run `frontend/supabase/schema.sql` in your Supabase project's SQL Editor
 - Create a **public** Storage bucket named `sessions`
@@ -395,19 +395,23 @@ The system uses **Supabase** (PostgreSQL + Storage) instead of MongoDB.
 
 ### 2. Backend Execution (Spring Boot)
 
-The backend handles authentication and is configured to run on **Port 8081**.
+The backend handles authentication, patient records, and session data. It runs on **Port 8081**.
 
 ```bash
 cd backend/java
+# Option A: Run with Supabase (Production)
 ./mvnw spring-boot:run
+
+# Option B: Run with H2 Fallback (Local Dev if Supabase port 5432 is blocked)
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 - **API Base:** `http://localhost:8081/api`
-- **Auth Endpoints:** `/api/auth/login`, `/api/auth/register`
+- **Auth Endpoints:** `/api/auth/login`, `/api/auth/register`, `/api/auth/logout`.
 
 ### 3. Frontend Execution (Next.js)
 
-The frontend uses Turbopack for high-speed development.
+The frontend uses Next.js with Turbopack for high-speed development.
 
 ```bash
 cd frontend

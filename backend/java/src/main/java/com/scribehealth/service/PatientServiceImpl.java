@@ -8,21 +8,28 @@ import com.scribehealth.repository.PatientRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-
 import java.util.List;
 
 @Service
 public class PatientServiceImpl implements PatientService {
 
     private final PatientRepository patientRepository;
+    private final AuditService auditService;
 
-    public PatientServiceImpl(PatientRepository patientRepository) {
+    public PatientServiceImpl(PatientRepository patientRepository, AuditService auditService) {
         this.patientRepository = patientRepository;
+        this.auditService = auditService;
     }
 
     @Override
     public List<Patient> getPatientsForDoctor(String doctorEmail) {
         return patientRepository.findByDoctorEmail(doctorEmail);
+    }
+
+    @Override
+    public Patient getPatient(String patientId, String doctorEmail) {
+        return patientRepository.findByIdAndDoctorEmail(patientId, doctorEmail)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
     @Override
@@ -44,7 +51,9 @@ public class PatientServiceImpl implements PatientService {
         if (req.getInsuranceDetails()  != null) builder.withInsuranceDetails(req.getInsuranceDetails());
 
         Patient patient = builder.build();
-        return patientRepository.save(patient);
+        Patient saved = patientRepository.save(patient);
+        auditService.log(doctorEmail, "patient_created", "patient", saved.getId());
+        return saved;
     }
 
     @Override
@@ -59,7 +68,9 @@ public class PatientServiceImpl implements PatientService {
         if (req.getEmergencyContact()  != null) patient.setEmergencyContact(req.getEmergencyContact());
         if (req.getInsuranceDetails()  != null) patient.setInsuranceDetails(req.getInsuranceDetails());
 
-        return patientRepository.save(patient);
+        Patient saved = patientRepository.save(patient);
+        auditService.log(doctorEmail, "patient_updated", "patient", saved.getId());
+        return saved;
     }
 
     @Override
@@ -67,5 +78,6 @@ public class PatientServiceImpl implements PatientService {
         patientRepository.findByIdAndDoctorEmail(patientId, doctorEmail)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         patientRepository.deleteById(patientId);
+        auditService.log(doctorEmail, "patient_deleted", "patient", patientId);
     }
 }

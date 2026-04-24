@@ -40,7 +40,7 @@ export default function PatientDetailPage() {
   const router = useRouter()
   const { getPatient, getSessions, fetchSessions, deleteSession, updatePatientProfile } = useScribeStore()
 
-  const [mounted,              setMounted]              = React.useState(false)
+  const [mounted,              setMounted]          = React.useState(false)
   const [isRecordingModalOpen, setIsRecordingModalOpen] = React.useState(false)
   const [isDeleting,           setIsDeleting]           = React.useState(false)
   const [searchQuery,          setSearchQuery]          = React.useState("")
@@ -87,6 +87,7 @@ export default function PatientDetailPage() {
     await updatePatientProfile(patientId as string, data)
     toast.success("Profile updated.")
   }
+
 
   function onSessionReady(sessionId: string) {
     setIsRecordingModalOpen(false)

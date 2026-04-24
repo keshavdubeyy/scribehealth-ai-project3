@@ -29,6 +29,13 @@ public class PatientController {
         return patientService.getPatientsForDoctor(email);
     }
 
+    @GetMapping("/{id}")
+    public Patient getPatient(@AuthenticationPrincipal String email,
+                              @PathVariable String id) {
+        return patientService.getPatient(id, email);
+    }
+
+    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping
     public ResponseEntity<?> createPatient(@AuthenticationPrincipal String email,
                                            @RequestBody CreatePatientRequest req) {
@@ -49,6 +56,7 @@ public class PatientController {
         return ResponseEntity.ok(updated);
     }
 
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletePatient(@AuthenticationPrincipal String email,
                                            @PathVariable String id) {

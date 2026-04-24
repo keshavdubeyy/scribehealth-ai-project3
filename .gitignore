@@ -65,3 +65,11 @@ descrip.md
 
 application.properties
 backend/db/
+
+# ===========================
+# Local tooling / logs
+# ===========================
+.claude/
+.agents/
+celery.log
+CREDENTIALS.md

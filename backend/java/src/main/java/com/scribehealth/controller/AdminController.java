@@ -1,8 +1,11 @@
 package com.scribehealth.controller;
 
+import com.scribehealth.dto.RegisterRequest;
 import com.scribehealth.facade.AdminFacade;
 import com.scribehealth.model.AuditLog;
 import com.scribehealth.model.User;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -34,6 +37,14 @@ public class AdminController {
     @GetMapping("/users/{id}")
     public ResponseEntity<UserSummary> getUser(@PathVariable String id) {
         return ResponseEntity.ok(new UserSummary(adminFacade.getUser(id)));
+    }
+
+    @PostMapping("/users")
+    public ResponseEntity<UserSummary> createUser(
+            @Valid @RequestBody RegisterRequest request,
+            @AuthenticationPrincipal String actorEmail) {
+        User created = adminFacade.createUser(request, actorEmail);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new UserSummary(created));
     }
 
     @PatchMapping("/users/{id}/deactivate")
