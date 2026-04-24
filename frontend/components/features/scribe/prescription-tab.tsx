@@ -158,6 +158,31 @@ export function PrescriptionTab({ session, patient }: PrescriptionTabProps) {
     }
   }
 
+  const handleSaveToRecord = async (silent = false) => {
+    try {
+      // 1. Update the session record in Supabase
+      await useScribeStore.getState().updateSession(session.id, {
+        prescription: { 
+          diagnosis: whatsWrong, 
+          medicines, 
+          nextSteps: nextSteps.join("\n") 
+        }
+      })
+
+      // 2. Log the audit event for the dashboard
+      const { logAudit } = await import("@/lib/audit")
+      await logAudit("prescription_generated", "session", session.id, { 
+        patientName, 
+        medicinesCount: medicines.length,
+        isSystemSave: silent 
+      })
+
+      if (!silent) toast.success("Prescription saved to patient record")
+    } catch (err) {
+      if (!silent) toast.error("Failed to save prescription")
+    }
+  }
+
   const handleDownloadPdf = async () => {
     if (!prescriptionTemplate) {
       toast.error("Upload your letterhead in Rx Template first")
@@ -189,14 +214,8 @@ export function PrescriptionTab({ session, patient }: PrescriptionTabProps) {
       a.click()
       URL.revokeObjectURL(url)
       
-      // Log audit event
-      await useScribeStore.getState().updateSession(session.id, {
-        prescription: { diagnosis: whatsWrong, medicines, nextSteps: nextSteps.join("\n") }
-      })
-      const { logAudit } = await import("@/lib/audit")
-      await logAudit("prescription_generated", "session", session.id, { 
-        patientName, medicinesCount: medicines.length 
-      })
+      // Also ensure it is saved in DB and logged
+      await handleSaveToRecord(true)
 
       toast.success("Prescription downloaded")
     } catch (err) {
@@ -424,13 +443,17 @@ export function PrescriptionTab({ session, patient }: PrescriptionTabProps) {
           </Button>
         </div>
 
-        {/* Download PDF */}
-        <Button className="w-full gap-2" onClick={handleDownloadPdf} disabled={isGeneratingPdf || isAutoFilling}>
-          {isGeneratingPdf
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating PDF…</>
-            : <><FileDown className="w-4 h-4" /> Download prescription PDF</>
-          }
-        </Button>
+        <div className="grid grid-cols-2 gap-3">
+          <Button variant="outline" className="gap-2" onClick={() => handleSaveToRecord(false)} disabled={isGeneratingPdf || isAutoFilling}>
+             Save to Record
+          </Button>
+          <Button className="gap-2" onClick={handleDownloadPdf} disabled={isGeneratingPdf || isAutoFilling}>
+            {isGeneratingPdf
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating PDF…</>
+              : <><FileDown className="w-4 h-4" /> Download PDF</>
+            }
+          </Button>
+        </div>
 
       </div>
 
