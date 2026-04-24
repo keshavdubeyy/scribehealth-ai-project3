@@ -1,0 +1,81 @@
+@startuml Sequence_Diagram_Sync_SOAP
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam sequenceArrowColor #444
+skinparam sequenceLifeLineBorderColor #888
+skinparam sequenceParticipantBorderColor #555
+skinparam noteBorderColor #AAAAAA
+skinparam noteBackgroundColor #FFFFF0
+
+title ScribeHealth AI — Synchronous SOAP Note Generation Flow\n(FR-06, FR-07, NFR-02, NFR-03)
+
+actor "Doctor" as D
+participant "Next.js\nFrontend\n(ScribeStore)" as FE
+participant "POST /api/\ngenerate-note" as API
+participant "NoteGenerator\nFactory" as NGF
+participant "SoapNoteGenerator\n(Template Method)" as SNG
+participant "Claude Sonnet\nclaude-sonnet-4-6" as CL
+database "Supabase\n(sessions)" as DB
+
+D -> FE : Trigger note generation\n(transcript available, template selected)
+activate FE
+
+FE -> FE : assertTransition(TRANSCRIBED → UNDER_REVIEW)
+note right : FR-11: illegal transitions throw\nState Machine enforcement
+
+FE -> API : POST /api/generate-note\n{ transcript, templateName, sessionId }
+activate API
+
+API -> NGF : NoteGeneratorFactory.get(templateName)
+activate NGF
+NGF --> API : SoapNoteGenerator instance\n(e.g. CardiologyNoteGenerator)
+deactivate NGF
+
+note right of NGF
+  NFR-03: Extensibility
+  New specialty = new subclass only
+  Factory selects correct generator
+end note
+
+API -> SNG : generator.generate(transcript, anthropicClient)
+activate SNG
+
+SNG -> SNG : specialtyContext()\n→ specialty-aware prompt suffix
+
+SNG -> CL : client.messages.create({\n  model: "claude-sonnet-4-6",\n  max_tokens: 2048,\n  messages: [{ role: "user",\n    content: specialtyPrompt + transcript }]\n})
+activate CL
+note right of CL
+  Prompt includes:
+  - Specialty context
+  - Transcript
+  - Required field keys
+  - JSON-only instruction
+end note
+
+CL --> SNG : { content: [{ type: "text", text: "{ ...JSON }" }] }
+deactivate CL
+
+SNG -> SNG : extractJson(text)\nnormaliseFields(raw)\n→ fill missing keys with ""
+
+SNG --> API : Record<string, string>\n{ subjective, objective,\n  assessment, plan, ... }
+deactivate SNG
+
+API --> FE : { soap: SoapNote, templateName }
+deactivate API
+
+FE -> DB : UPDATE sessions SET\n  status = 'UNDER_REVIEW',\n  soap = <jsonb>,\n  updated_at = now()
+DB --> FE : OK
+
+FE -> DB : INSERT audit_logs\n{ action: 'note_generated',\n  entityType: 'session',\n  entityId: sessionId }
+
+FE --> D : SOAP note displayed\nin review editor
+deactivate FE
+
+note over D, DB
+  Total path: Doctor trigger → Claude response → DB write
+  Target: < 500ms for DB ops (NFR-02)
+  Claude latency: ~1–3s (external API, async from user perspective)
+  Human-in-the-loop: Note is UNDER_REVIEW until Doctor approves (NFR-01)
+end note
+
+@enduml

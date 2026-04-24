@@ -1,0 +1,85 @@
+@startuml Deployment_Diagram
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam nodeBorderColor #555
+skinparam arrowColor #444
+skinparam componentBorderColor #777
+
+title ScribeHealth AI — Deployment Diagram (Dev & Prod Targets)
+
+' ─── DEVELOPMENT ──────────────────────────────────────────────────────────────
+node "Developer Workstation\n[macOS / Linux]" as DEV #E8F5E9 {
+  node "Node.js 20 Process\n[localhost:3000]" as NextDev {
+    component "Next.js Dev Server\n(next dev)\nApp Router + API Routes\nHot reload enabled" as FEDev
+  }
+  node "JVM Process\n[localhost:8080]" as SpringDev {
+    component "Spring Boot\n(mvn spring-boot:run)\nREST API + Auth + Audit\nDevtools auto-restart" as BEDev
+  }
+  node "Environment\n.env.local" as EnvDev {
+    component "SARVAM_API_KEY\nANTHROPIC_API_KEY\nSUPABASE_URL\nSUPABASE_SERVICE_KEY\nJWT_SECRET\nTRANSCRIPTION_PROVIDER=sarvam" as EnvVarsDev
+  }
+}
+
+' ─── PRODUCTION ───────────────────────────────────────────────────────────────
+node "Vercel Edge Network\n[Production Frontend]" as VERCEL #D6EAF8 {
+  node "Next.js Serverless\n[Global CDN]" as NextProd {
+    component "Next.js App Router\nServerless Functions\n(API Routes as lambdas)\nEdge-cached static assets" as FEProd
+  }
+  node "Vercel Environment\n[Encrypted secrets]" as EnvProd {
+    component "SARVAM_API_KEY\nANTHROPIC_API_KEY\nSUPABASE_URL\nSUPABASE_SERVICE_KEY\nJWT_SECRET\nNEXTAUTH_SECRET\nNEXTAUTH_URL" as EnvVarsProd
+  }
+}
+
+node "Cloud VM / Container Host\n[Production Backend]" as CLOUD #FDEBD0 {
+  node "JVM Runtime\n[Port 8080, TLS terminated at LB]" as SpringProd {
+    component "Spring Boot JAR\n(java -jar scribehealth.jar)\nJWT filter chain\nService Layer + Facade\nState + Observer patterns" as BEProd
+  }
+}
+
+' ─── EXTERNAL SERVICES ────────────────────────────────────────────────────────
+cloud "Supabase Cloud\n[Managed PostgreSQL + Storage]" as SUPA #E8F5E9 {
+  database "PostgreSQL\n(profiles, patients,\nsessions, audit_logs,\nprescription_templates)" as PGDB
+  component "Supabase Storage\n(audio recordings,\nprescription images)" as STG
+  component "Supabase Realtime\n(audit log live feed)" as RT
+}
+
+cloud "Sarvam AI\n[api.sarvam.ai]" as SARVAM #FFFACD {
+  component "saarika:v2.5\nSpeech-to-Text API" as STT
+}
+
+cloud "Anthropic API\n[api.anthropic.com]" as ANTHROPIC #FFF3E0 {
+  component "claude-haiku-4-5\n(entity extraction)" as HAIKU
+  component "claude-sonnet-4-6\n(SOAP generation)" as SONNET
+}
+
+' ─── DEV CONNECTIONS ──────────────────────────────────────────────────────────
+FEDev --> BEDev : "REST / JWT\n[localhost:8080]"
+FEDev --> PGDB : "Supabase JS client\n[TLS]"
+BEDev --> PGDB : "JDBC / JPA\n[TLS]"
+FEDev --> STT : "POST audio\n[HTTPS]"
+FEDev --> HAIKU : "POST prompt\n[HTTPS]"
+FEDev --> SONNET : "POST prompt\n[HTTPS]"
+
+' ─── PROD CONNECTIONS ─────────────────────────────────────────────────────────
+FEProd --> BEProd : "REST / Bearer JWT\n[HTTPS]"
+FEProd --> PGDB : "Supabase JS client\n[TLS / RLS]"
+BEProd --> PGDB : "JDBC / JPA\n[TLS]"
+FEProd --> STT : "POST audio buffer\n[HTTPS]"
+FEProd --> HAIKU : "POST entity-extraction\n[HTTPS / SDK]"
+FEProd --> SONNET : "POST SOAP generation\n[HTTPS / SDK]"
+FEProd --> STG : "Upload audio\n[HTTPS]"
+FEProd --> RT : "Subscribe audit feed\n[WebSocket / TLS]"
+
+note bottom of SUPA
+  NFR-01: TLS enforced at all layers
+  NFR-04: audit_logs append-only (no UPDATE/DELETE)
+  NFR-05: Supabase manages HA + backups
+end note
+
+note bottom of VERCEL
+  NFR-02: Serverless lambdas scale to zero;
+  cold start < 200ms for CRUD routes
+  Static assets served from CDN edge
+end note
+
+@enduml
