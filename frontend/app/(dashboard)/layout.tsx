@@ -5,7 +5,8 @@ import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { StoreInitializer } from "@/components/store-initializer"
-import { DeactivatedOverlay } from "@/components/deactivated-overlay"
+import { DeactivatedGuard } from "@/components/deactivated-guard"
+import { NextAuthProvider } from "@/components/providers/session-provider"
 
 export default async function DashboardLayout({
   children,
@@ -18,11 +19,8 @@ export default async function DashboardLayout({
     redirect("/login")
   }
 
-  const isActive = (session?.user as any)?.isActive ?? true
-
   return (
-    <TooltipProvider>
-      <DeactivatedOverlay isActive={isActive} />
+    <NextAuthProvider session={session}>
       <StoreInitializer email={session.user?.email ?? ""} />
       <SidebarProvider
         style={
@@ -39,13 +37,15 @@ export default async function DashboardLayout({
             <main className="flex flex-1 flex-col overflow-hidden">
               <div className="flex flex-1 flex-col overflow-y-auto">
                 <div className="flex flex-col py-8 px-6 sm:px-10 lg:px-12 w-full animate-in fade-in duration-300">
-                  {children}
+                  <DeactivatedGuard isActive={(session.user as any)?.isActive ?? true}>
+                    {children}
+                  </DeactivatedGuard>
                 </div>
               </div>
             </main>
           </SidebarInset>
         </div>
       </SidebarProvider>
-    </TooltipProvider>
+    </NextAuthProvider>
   )
 }
