@@ -29,11 +29,11 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | Functional Requirements (12) | 12 | 0 | 0 | **100%** | `██████████` |
 | Non-Functional Requirements (5) | 5 | 0 | 0 | **100%** | `██████████` |
 | Subsystems (8) | 8 | 0 | 0 | **100%** | `██████████` |
-| Design Patterns (7) | 7 | 0 | 0 | **100%** | `██████████` |
-| **Overall (24 pts)** | **24** | **0** | **0** | **100%** | `██████████` |
+| Design Patterns (6) | 6 | 0 | 1 | **86%** | `█████████░` |
+| **Overall (24 pts)** | **23** | **0** | **1** | **96%** | `██████████` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
-> **All patterns fully implemented.**
+> **6 patterns fully implemented; Strategy pattern removed (was partially implemented but never wired to running code).**
 
 ### Subsystem Task Tracker
 
@@ -83,13 +83,13 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 |---|---|---|:---:|
 | NFR-01 | **Security** — PHI data must be encrypted in transit (TLS) and at rest; JWT tokens expire in 8 hours | Drives auth filter chain, HTTPS enforcement, token expiry config | ✅ |
 | NFR-02 | **Performance** — Transcription pipeline must not block the UI; API responses under 500ms for CRUD | Drives async processing, non-blocking transcription handoff | ✅ |
-| NFR-03 | **Extensibility** — New transcription providers or sharing channels added without modifying core logic | Drives Factory Method and Strategy patterns | ✅ |
+| NFR-03 | **Extensibility** — New transcription providers or templates added without modifying core logic | Drives Factory Method and Template Method patterns | ✅ |
 | NFR-04 | **Auditability** — All actions traceable; logs immutable and admin-only | Drives AuditLog collection, Facade pattern, role-based access | ✅ |
 | NFR-05 | **Reliability** — Transcription failures recovered via retry; no data loss on pipeline error | Drives retry mechanism, session status persistence | ✅ |
 
 > - **NFR-01** — Supabase enforces TLS; NextAuth JWT with configurable expiry; all data encrypted at rest
 > - **NFR-02** — Transcription runs server-side async; CRUD under 500ms via Supabase direct queries
-> - **NFR-03** — Fully extensible on both axes: (1) sharing channels via Strategy pattern (`NotificationStrategy` interface + 3 concrete classes — add Slack with one new class); (2) transcription providers via `TranscriptionServiceFactory` (`TranscriptionProvider` interface + `SarvamTranscriptionProvider` — swap to Whisper/Google STT with one new class + one env var change); (3) SOAP note templates via `SoapNoteGenerator` Template Method (new specialty = new subclass only)
+> - **NFR-03** — Fully extensible: (1) transcription providers via `TranscriptionServiceFactory` (`TranscriptionProvider` interface + `SarvamTranscriptionProvider` — swap to Whisper/Google STT with one new class + one env var change); (2) SOAP note templates via `SoapNoteGenerator` Template Method (new specialty = new subclass only)
 > - **NFR-04** — Global append-only `audit_logs` table; all key actions logged with actor + timestamp + entity; admin view built
 > - **NFR-05** — `withRetry()` wrapper retries transcription up to 3 times (1s → 2s backoff); transcript saved even if note generation fails
 
@@ -115,7 +115,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | **AI Pipeline** | Audio capture → async transcription → NLP extraction → SOAP note generation | ✅ |
 | **Review & Sharing** | Doctor approval workflow; multi-channel note distribution | ✅ |
 | **Audit & Admin** | Immutable action logging; admin dashboard with audit log view | ✅ |
-| **Lifecycle & Notifications** | State machine for consultation stages; Strategy-driven multi-channel stakeholder alerts | ✅ |
+| **Lifecycle & Notifications** | State machine for consultation stages; Observer-driven multi-channel stakeholder alerts | ✅ |
 | **Profile Builder** | Validated construction of complex patient profiles | ✅ |
 | **Prescription Generator** | AI auto-fill prescription, canvas template setup, PDF generation | ✅ |
 
@@ -124,7 +124,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | Tactic | NFR Addressed | How |
 |---|---|---|
 | **Separation of Concerns** | NFR-03 Extensibility | Each pipeline stage (recording, transcription, NLP, generation) is an isolated module with a defined interface |
-| **Extensibility through Interfaces** | NFR-03 Extensibility | Factory Method and Strategy patterns mean new providers/channels require only a new implementing class |
+| **Extensibility through Interfaces** | NFR-03 Extensibility | Factory Method and Template Method patterns mean new providers/templates require only a new implementing class |
 | **Async Transcription with Retry** | NFR-02 Performance, NFR-05 Reliability | Transcription runs off the request thread; `withRetry()` retries up to 3× with linear backoff on failure |
 | **Human-in-the-loop Verification** | NFR-01 Security, NFR-04 Auditability | No AI output enters permanent records without explicit doctor Approve action; notes are locked on approval |
 | **Immutable Audit Logging** | NFR-04 Auditability | Every state-changing action appends to `audit_logs` table; accessible via admin-only `/dashboard/audit-log` |
@@ -237,9 +237,7 @@ No AI output enters a patient's permanent record without a doctor's review. Once
 2. Doctor reads, edits if necessary, and approves or rejects the note
 3. Approved notes are saved permanently; rejected notes are flagged for regeneration
 
-**Sharing:** Approved notes can be sent via Email, SMS, or WhatsApp. New channels (e.g. Slack) can be added without touching existing logic.
-
-**Design Pattern:** Strategy Pattern - a common `NoteShareStrategy` interface with interchangeable `EmailShareStrategy`, `SmsShareStrategy`, and `WhatsAppShareStrategy` implementations.
+**Sharing:** Approved notes can be sent via Email, SMS, or WhatsApp.
 
 **Implementation status:**
 - ✅ Doctor can view and edit any field of the generated note
@@ -247,8 +245,6 @@ No AI output enters a patient's permanent record without a doctor's review. Once
 - ✅ **Approve note** button locks all fields permanently; green "Approved" banner shown; action written to audit log (FR-08)
 - ✅ **Reject note** button flags session as `REJECTED`; red banner shown with **Regenerate note** button (FR-08)
 - ✅ Regeneration calls Claude via `/api/generate-note` and returns note to `UNDER_REVIEW` state
-- ✅ **Strategy Pattern** — `NotificationStrategy` interface with `EmailNotificationStrategy` (mailto), `WhatsAppNotificationStrategy` (wa.me), `SmsNotificationStrategy` (sms:) as interchangeable implementations in `lib/notifications.ts`
-- ✅ **`NotificationService`** fans out to all registered strategies; `buildDoctorNotificationService(email, phone?)` factory pre-wires available channels
 - ✅ **Patient-facing sharing** — prescription tab has a "Share prescription" dropdown; on share: PDF is generated and downloaded, then Email (`mailto:`), WhatsApp (`wa.me/`), or SMS (`sms:`) opens with pre-filled prescription content; only shown when patient has email or phone on record (FR-09)
 - ✅ **Doctor-facing system notifications** — `note_approved` and `transcription_failed` events fire `sendSystemNotification()` → `/api/notify` → logged as `notification_sent` in `audit_logs`; note_ready notification intentionally skipped (doctor is already on the session page when pipeline completes)
 - ✅ **`/api/notify`** — server-side fire-and-forget POST that logs each notification dispatch to `audit_logs` as `notification_sent` (non-blocking, never throws)
@@ -340,12 +336,12 @@ The builder enforces step-by-step, validated construction so no partially-initia
 | User Authentication & Role-Based Access | Service Layer | ✅ |
 | Template-Based Documentation | Factory Method | ✅ |
 | AI Pipeline (Transcription + Note Generation) | Factory Method + Template Method | ✅ |
-| Review, Approval & Note Sharing | Strategy | ✅ |
+| Review, Approval & Note Sharing | — | ✅ |
 | Audit Logging & Admin Dashboard | Facade | ✅ |
 | Consultation Lifecycle & Notification Hub | State + Observer | ✅ |
 | Patient Profile Builder | Builder | ✅ |
 
-> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **7 patterns fully implemented**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), Service Layer (`UserService`/`AuditService` interfaces + implementations on Java backend), Observer (`ConsultationEventPublisher` + 3 concrete observer classes in Java), and Builder (`PatientProfileBuilder` with value objects for ChronicCondition, Allergy, EmergencyContact, InsuranceDetails).
+> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **6 patterns fully implemented and integrated into running code**: Service Layer (`UserService`/`AuditService` interfaces + implementations), Factory Method (`TranscriptionServiceFactory`, `NoteGeneratorFactory`), Template Method (`SoapNoteGenerator` hierarchy), Facade (`AdminFacade`), State (`ConsultationState` + 7 concrete states), Observer (`ConsultationEventPublisher` + 3 observers), and Builder (`PatientProfileBuilder` with validation).
 
 ---
 
