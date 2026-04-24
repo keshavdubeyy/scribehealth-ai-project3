@@ -8,5 +8,6 @@ public interface SessionService {
     List<ClinicalSession> getSessionsByPatient(String doctorEmail, String patientId);
     ClinicalSession createSession(String email, ClinicalSession session);
     ClinicalSession updateSession(String email, String id, ClinicalSession session);
+    ClinicalSession transitionSession(String email, String id, String targetStatus);
     void deleteSession(String sessionId, String doctorEmail);
 }
