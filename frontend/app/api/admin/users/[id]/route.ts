@@ -8,38 +8,29 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const session = await auth()
   if (session?.user?.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { id } = await params // user's email
-  const body = await req.json()
-  const { name, role, active } = body
-
-  const updateData: Record<string, unknown> = {}
-  if (name   !== undefined) updateData.name      = name
-  if (role   !== undefined) updateData.role      = role
-  if (active !== undefined) updateData.is_active = active
+  const { active } = await req.json()
 
   const supabase = createServiceClient()
+
   const { data, error } = await supabase
     .from("profiles")
-    .update(updateData)
-    .eq("email", id)
-    .eq("organization_id", session.user.organizationId)
+    .update({ is_active: active })
+    .eq("email", decodeURIComponent(id))
     .select()
-    .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
-  return NextResponse.json({
-    id:             data.email,
-    name:           data.name,
-    email:          data.email,
-    role:           data.role,
-    active:         data.is_active,
-    organizationId: data.organization_id,
-    createdAt:      data.created_at,
-  })
+  if (!data || data.length === 0) {
+    return NextResponse.json({ error: "User not found with matching email" }, { status: 404 })
+  }
+
+  return NextResponse.json({ message: "User status updated", userId: id })
 }

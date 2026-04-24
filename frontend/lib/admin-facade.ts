@@ -60,13 +60,13 @@ async function apiFetch<T>(
 
   if (!res.ok) {
     // Try to extract a server-side message; fall back to HTTP status text
-    let message = res.statusText
+    let message = `API Error ${res.status}: ${res.statusText}`
     try {
       const body = await res.json()
       if (body?.message) message = body.message
       else if (body?.error) message = body.error
     } catch {
-      // ignore parse errors — keep statusText
+      // ignore parse errors — keep formatted message
     }
     throw new Error(message)
   }
