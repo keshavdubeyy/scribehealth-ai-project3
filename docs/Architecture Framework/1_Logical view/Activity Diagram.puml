@@ -1,0 +1,67 @@
+@startuml Logical_Activity_Diagram
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam activityBorderColor #555
+skinparam activityBackgroundColor #FFFFFF
+skinparam arrowColor #444
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+
+title ScribeHealth AI — Domain Event Flow (Bounded Context Transitions)
+
+|Auth & Access Context|
+start
+:Doctor authenticates;
+note right: JWT issued\naudit: login_success
+:Role-based access granted;
+
+|Patient & Session Context|
+:Doctor selects patient\ncreates session;
+note right: Status = SCHEDULED
+:Doctor starts recording;
+note right: SCHEDULED → IN_PROGRESS
+:Doctor stops recording;
+note right: IN_PROGRESS → RECORDED\naudio saved to Supabase Storage
+
+|AI Pipeline Context|
+:Transcription requested\n(SarvamTranscriptionProvider);
+note right: Async — non-blocking (NFR-02)\nwithRetry() × 3 if failure (NFR-05)
+:Medical entities extracted\n(Claude Haiku);
+note right: symptoms, diagnoses,\nmedications, allergies, vitals
+:SOAP note generated\n(SoapNoteGenerator → Claude Sonnet);
+note right: Template Method selects\nspecialty generator (NFR-03)
+
+|Lifecycle Context|
+:ConsultationEventPublisher.publish();
+note right: Observer pattern (FR-12)\nAuditLoggerObserver\nDoctorNotifierObserver\nSessionStatusObserver
+
+|Patient & Session Context|
+:Session updated\nStatus = UNDER_REVIEW;
+
+|Review & Sharing Context|
+:Doctor reviews\nand edits note;
+note right: audit: note_edited
+
+if (Doctor decision?) then (Approve)
+  :assertTransition(UNDER_REVIEW → APPROVED);
+  :Note locked permanently;
+  note right: APPROVED is terminal\naudit: note_approved
+  |Review & Sharing Context|
+  :Share note via\nEmail / WhatsApp / SMS;
+  note right: FR-09 sharing channels
+else (Reject)
+  :assertTransition(UNDER_REVIEW → REJECTED);
+  note right: audit: note_rejected
+  |AI Pipeline Context|
+  :Regenerate SOAP note;
+  :assertTransition(REJECTED → UNDER_REVIEW);
+  note right: Regeneration path
+endif
+
+|Audit & Admin Context|
+:Every action appended\nto audit_logs (immutable);
+note right: NFR-04\nAdmin views via /api/admin/audit-logs
+
+stop
+
+@enduml

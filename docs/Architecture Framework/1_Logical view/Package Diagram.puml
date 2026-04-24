@@ -1,0 +1,75 @@
+@startuml Logical_Package_Diagram
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam packageBorderColor #555
+skinparam classBorderColor #666
+skinparam arrowColor #444
+skinparam classBackgroundColor #FFFFFF
+
+title ScribeHealth AI — Logical View: Bounded Contexts
+
+package "Auth & Access Context" <<Rectangle>> #EAF4FB {
+  class User
+  class JwtUtil
+  class AuthService
+  class DoctorProfileService
+  class SecurityConfig
+}
+
+package "Patient & Session Context" <<Rectangle>> #EAF7EA {
+  class Patient
+  class ClinicalSession
+  class PatientService
+  class SessionService
+}
+
+package "AI Pipeline Context" <<Rectangle>> #FFFACD {
+  class TranscriptionProvider
+  class SarvamTranscriptionProvider
+  class SoapNoteGenerator
+  class NoteGeneratorFactory
+  class MedicalEntities
+}
+
+package "Lifecycle Context" <<Rectangle>> #FFF0F5 {
+  class ConsultationState
+  class ConsultationStateFactory
+  class ConsultationEventPublisher
+  interface ConsultationObserver
+}
+
+package "Audit & Admin Context" <<Rectangle>> #FFF8EE {
+  class AuditLog
+  class AuditService
+  class AdminFacade
+  class UserService
+}
+
+package "Review & Sharing Context" <<Rectangle>> #F0F0FF {
+  class NotificationTemplates
+  class SessionStateMachine
+}
+
+package "Profile Builder Context" <<Rectangle>> #F5F5F5 {
+  class PatientProfileBuilder
+}
+
+package "Prescription Context" <<Rectangle>> #F0FFF0 {
+  class Prescription
+  class PrescriptionTemplate
+}
+
+' Cross-context dependencies
+"Auth & Access Context"      --> "Patient & Session Context"  : doctor-scoped access
+"Patient & Session Context"  --> "Lifecycle Context"           : triggers transitions
+"Lifecycle Context"          --> "AI Pipeline Context"         : TRANSCRIBED event\ntriggers SOAP gen
+"Lifecycle Context"          --> "Audit & Admin Context"       : every transition\nlogged
+"AI Pipeline Context"        --> "Patient & Session Context"   : writes soap, entities\nto session
+"Review & Sharing Context"   --> "Patient & Session Context"   : reads/updates session
+"Review & Sharing Context"   --> "Lifecycle Context"           : asserts transitions
+"Profile Builder Context"    --> "Patient & Session Context"   : builds Patient entity
+"Prescription Context"       --> "Review & Sharing Context"    : shares via\nnotification templates
+"Audit & Admin Context"      --> "Auth & Access Context"       : UserService manages\nUser entities
+
+@enduml

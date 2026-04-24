@@ -1,0 +1,76 @@
+@startuml Scenario1_EndToEnd
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam sequenceArrowColor #444
+skinparam sequenceParticipantBackgroundColor #FFFFFF
+skinparam sequenceParticipantBorderColor #555
+skinparam sequenceLifeLineBorderColor #888
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+skinparam sequenceGroupBorderColor #999
+
+title Scenario 1 — End-to-End Consultation Workflow\n(Happy Path: Doctor records → AI generates → Doctor approves)
+
+actor "Doctor"              as D
+participant "Frontend\n(ScribeStore)"        as FE
+participant "/api/transcribe\n+ /api/generate-note" as API
+participant "Sarvam AI"     as SAR
+participant "Claude Sonnet" as CS
+participant "Supabase"      as DB
+participant "Observer\nPipeline"             as OBS
+
+D -> FE : Login (credentials)
+FE -> DB : Supabase Auth.signInWithPassword()
+DB --> FE : user session + JWT
+FE -> DB : <<audit>> login_success
+note right : JWT stored in browser\nrole = DOCTOR
+
+D -> FE : Select patient → New Session
+FE -> DB : INSERT sessions{status=SCHEDULED}
+DB --> FE : sessionId
+FE -> DB : <<audit>> session_created
+
+D -> FE : Start Recording
+FE -> DB : UPDATE sessions{status=IN_PROGRESS}
+note right : assertTransition(SCHEDULED → IN_PROGRESS)
+
+D -> FE : Stop Recording
+FE -> DB : audio blob → Supabase Storage → audioUrl
+FE -> DB : UPDATE sessions{status=RECORDED, audioUrl}
+
+FE -> API : POST /api/transcribe {audioUrl, mimeType}
+API -> SAR : speech-to-text API call
+SAR --> API : transcript : String
+API -> DB : UPDATE sessions{status=TRANSCRIBED, transcription}
+note right : RECORDED → TRANSCRIBED\npipeline continues
+
+API -> API : POST /api/extract-entities {transcript}
+API -> DB : UPDATE sessions{entities (JSONB)}
+
+API -> API : POST /api/generate-note {transcript, template}
+note right : NoteGeneratorFactory selects\nGeneralOpdNoteGenerator (default)
+API -> CS : Claude Sonnet SOAP prompt
+CS --> API : SoapNote{s, o, a, p, …}
+API -> DB : UPDATE sessions{status=UNDER_REVIEW, soap}
+
+API -> OBS : ConsultationEventPublisher.publish()
+OBS -> DB : <<audit>> note_ready
+OBS -> OBS : DoctorNotifierObserver logs INFO
+
+D -> FE : Open session → Review note
+D -> FE : Edit "assessment" field
+FE -> DB : UPDATE sessions{edits, soap}
+FE -> DB : <<audit>> note_edited
+
+D -> FE : Click Approve
+FE -> FE : assertTransition(UNDER_REVIEW → APPROVED)
+FE -> DB : UPDATE sessions{status=APPROVED}
+FE -> DB : <<audit>> note_approved
+note right : Note is LOCKED — immutable\nNo further edits possible
+
+D -> FE : Share note (Email)
+FE -> FE : noteApprovedTemplate(patientName, sessionId)
+FE -> FE : sendSystemNotification() → mailto:
+note right : FR-09 sharing channels:\nEmail / WhatsApp / SMS
+
+@enduml

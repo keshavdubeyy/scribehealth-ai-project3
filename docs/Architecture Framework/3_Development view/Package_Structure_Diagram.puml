@@ -1,0 +1,130 @@
+@startuml Development_Package_Structure
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam packageBorderColor #555
+skinparam classBorderColor #666
+skinparam arrowColor #444
+skinparam classBackgroundColor #FFFFFF
+
+title ScribeHealth AI — Development View: Package Structure
+
+package "scribehealth-ai-project3 (root)" <<Rectangle>> #F5F5F5 {
+
+  package "frontend/ (Next.js 16)" <<Rectangle>> #EAF4FB {
+    package "app/" <<Rectangle>> #FFFFFF {
+      package "app/api/" #FFFACD {
+        class "auth/"           as Rauth   <<route>>
+        class "sessions/"       as Rses    <<route>>
+        class "patients/"       as Rpat    <<route>>
+        class "transcribe/"     as Rtr     <<route>>
+        class "generate-note/"  as Rgn     <<route>>
+        class "extract-entities/" as Ree   <<route>>
+        class "prescriptions/"  as Rpres   <<route>>
+        class "admin/"          as Radm    <<route>>
+        class "audit/"          as Raud    <<route>>
+        class "notify/"         as Rnot    <<route>>
+      }
+      package "app/(pages)/" #F0F0FF {
+        class "login/"          as Plogin  <<page>>
+        class "dashboard/"      as Pdash   <<page>>
+        class "patients/[id]/"  as Ppat    <<page>>
+        class "sessions/[id]/"  as Pses    <<page>>
+        class "admin/"          as Padm    <<page>>
+      }
+    }
+    package "lib/" <<Rectangle>> #EAF7EA {
+      class "auth.ts"                <<NextAuth config>>
+      class "session-state-machine.ts" <<State pattern (FR-11)>>
+      class "transcription-factory.ts" <<Factory Method (NFR-03)>>
+      class "soap-note-generator.ts"   <<Template Method (NFR-03)>>
+      class "notifications.ts"         <<Notification templates>>
+      class "audit.ts"                 <<Client audit logger>>
+      class "audit-server.ts"          <<Server audit logger>>
+      class "mock-store.ts"            <<Zustand store>>
+    }
+    package "lib/types/" <<Rectangle>> #F5F5F5 {
+      class "index.ts"   <<core domain types>>
+    }
+    package "components/" <<Rectangle>> #FFF8EE {
+      class "session-recorder.tsx"   <<audio capture>>
+      class "soap-note-editor.tsx"   <<review UI>>
+      class "prescription-tab.tsx"   <<prescription UI>>
+      class "audit-log-table.tsx"    <<admin UI>>
+    }
+    package "utils/supabase/" <<Rectangle>> #F5F5F5 {
+      class "client.ts"   <<browser client>>
+      class "server.ts"   <<server client>>
+      class "service.ts"  <<service-role client>>
+    }
+  }
+
+  package "backend/java/ (Spring Boot 3.2)" <<Rectangle>> #FFF0F5 {
+    package "com.scribehealth" <<Rectangle>> #FFFFFF {
+      package "controller/" #EAF4FB {
+        class "AuthController"
+        class "PatientController"
+        class "SessionController"
+        class "DoctorController"
+        class "AdminController"
+      }
+      package "service/" #EAF7EA {
+        class "AuthServiceImpl"
+        class "PatientServiceImpl"
+        class "SessionServiceImpl"
+        class "AuditServiceImpl"
+        class "UserServiceImpl"
+        class "DoctorProfileServiceImpl"
+      }
+      package "model/" #FFFACD {
+        class "User"
+        class "Patient"
+        class "ClinicalSession"
+        class "AuditLog"
+      }
+      package "repository/" #F0F0FF {
+        class "UserRepository"
+        class "PatientRepository"
+        class "SessionRepository"
+        class "AuditLogRepository"
+      }
+      package "facade/" #FFF8EE {
+        class "AdminFacade"   <<Facade Pattern>>
+      }
+      package "builder/" #FFF8EE {
+        class "PatientProfileBuilder"   <<Builder Pattern>>
+      }
+      package "lifecycle/state/" #FFF0F5 {
+        class "ConsultationState"       <<State Pattern>>
+        class "ConsultationStateFactory"
+      }
+      package "lifecycle/observer/" #FFF0F5 {
+        class "ConsultationEventPublisher"  <<Observer Pattern>>
+        class "AuditLoggerObserver"
+        class "DoctorNotifierObserver"
+        class "SessionStatusObserver"
+      }
+      package "config/" #F5F5F5 {
+        class "SecurityConfig"
+        class "JwtAuthFilter"
+      }
+      package "util/" #F5F5F5 {
+        class "JwtUtil"
+      }
+      package "dto/" #F5F5F5 {
+        class "LoginRequest"
+        class "RegisterRequest"
+        class "AuthResponse"
+        class "CreatePatientRequest"
+      }
+    }
+  }
+
+  package "docs/" <<Rectangle>> #EEEEEE {
+    class "Architecture Framework/"  <<this folder>>
+    class "Requirements & Subsystems/"
+    class "ADRs/"
+  }
+}
+
+@enduml
