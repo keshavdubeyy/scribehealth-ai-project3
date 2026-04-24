@@ -16,7 +16,7 @@ A team of **five members** will build a modular, extensible system that covers:
 - Clinical note generation from transcripts (SOAP format)
 - Doctor review and approval of notes
 
-The system must integrate at least **five design patterns** (Strategy, Factory Method, Template Method, Service Layer, Facade) with justifications. The architecture should be modular and maintainable.
+The system integrates **six design patterns** (Factory Method, Template Method, Service Layer, Facade, State, Observer, Builder) with justifications. The architecture is modular and maintainable.
 
 ---
 
