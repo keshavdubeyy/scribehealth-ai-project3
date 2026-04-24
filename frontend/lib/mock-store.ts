@@ -171,7 +171,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     const supabase = createClient()
     const { data, error } = await supabase
       .from("patients")
-      .select("id, name, age, gender, email, phone, chronic_conditions, allergies, emergency_contact, insurance_details")
+      .select("*")
       .eq("doctor_email", email)
       .order("created_at", { ascending: false })
     if (error) throw new Error(error.message)
