@@ -5,9 +5,12 @@ import { useParams, useRouter } from "next/navigation"
 import { useScribeStore } from "@/lib/mock-store"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, ChevronRight, User, Trash2, Loader2, Search } from "lucide-react"
+import { ArrowLeft, Plus, ChevronRight, Trash2, Loader2, Search } from "lucide-react"
 import { format } from "date-fns"
 import { RecordingModal } from "@/components/features/scribe/recording-modal"
+import { PatientProfileCard } from "@/components/features/patients/patient-profile-card"
+import { EditProfileDialog } from "@/components/features/patients/edit-profile-dialog"
+import type { EditProfileData } from "@/components/features/patients/edit-profile-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +38,7 @@ import { PageHeader } from "@/components/page-header"
 export default function PatientDetailPage() {
   const { patientId } = useParams()
   const router = useRouter()
-  const { getPatient, getSessions, fetchSessions, deleteSession } = useScribeStore()
+  const { getPatient, getSessions, fetchSessions, deleteSession, updatePatientProfile } = useScribeStore()
 
   const [mounted,              setMounted]          = React.useState(false)
   const [isRecordingModalOpen, setIsRecordingModalOpen] = React.useState(false)
@@ -43,6 +46,7 @@ export default function PatientDetailPage() {
   const [searchQuery,          setSearchQuery]          = React.useState("")
   const [isConfirmOpen,        setIsConfirmOpen]        = React.useState(false)
   const [confirmConfig,        setConfirmConfig]        = React.useState<{ type: "session" | "patient"; id: string }>({ type: "session", id: "" })
+  const [isEditProfileOpen,    setIsEditProfileOpen]    = React.useState(false)
 
   React.useEffect(() => {
     setMounted(true)
@@ -79,6 +83,12 @@ export default function PatientDetailPage() {
     }
   }
 
+  async function handleEditProfile(data: EditProfileData) {
+    await updatePatientProfile(patientId as string, data)
+    toast.success("Profile updated.")
+  }
+
+
   function onSessionReady(sessionId: string) {
     setIsRecordingModalOpen(false)
     router.push(`/patients/${patient!.id}/sessions/${sessionId}`)
@@ -92,6 +102,18 @@ export default function PatientDetailPage() {
         patientId={patientId as string}
         patientName={patient?.name ?? ""}
         onSessionReady={onSessionReady}
+      />
+
+      <EditProfileDialog
+        open={isEditProfileOpen}
+        onOpenChange={setIsEditProfileOpen}
+        initial={{
+          chronicConditions: patient.chronicConditions,
+          allergies:         patient.allergies,
+          emergencyContact:  patient.emergencyContact,
+          insuranceDetails:  patient.insuranceDetails,
+        }}
+        onSubmit={handleEditProfile}
       />
 
       {/* Delete confirmation */}
@@ -140,6 +162,13 @@ export default function PatientDetailPage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <Button
             variant="outline"
+            className="h-10 px-5 text-muted-foreground font-semibold"
+            onClick={() => setIsEditProfileOpen(true)}
+          >
+            Edit Profile
+          </Button>
+          <Button
+            variant="outline"
             className="h-10 px-5 text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/5 font-semibold"
             onClick={() => { setConfirmConfig({ type: "patient", id: patientId as string }); setIsConfirmOpen(true) }}
           >
@@ -151,6 +180,13 @@ export default function PatientDetailPage() {
           </Button>
         </div>
       </div>
+
+      <PatientProfileCard
+        chronicConditions={patient.chronicConditions}
+        allergies={patient.allergies}
+        emergencyContact={patient.emergencyContact}
+        insuranceDetails={patient.insuranceDetails}
+      />
 
       {/* Sessions */}
       <div className="flex flex-col gap-4">

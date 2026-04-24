@@ -98,7 +98,29 @@ export type NoteFields =
   | SurgicalFollowupNote
   | Record<string, string>   // fallback for partial/unknown templates
 
-// ── Core Models ────────────────────────────────
+export interface ChronicCondition {
+  name: string
+  icdCode?: string
+  diagnosedYear?: number
+}
+
+export interface Allergy {
+  substance: string
+  severity: "mild" | "moderate" | "severe"
+  reaction?: string
+}
+
+export interface EmergencyContact {
+  name: string
+  relationship?: string
+  phone: string
+}
+
+export interface InsuranceDetails {
+  provider: string
+  policyNumber: string
+  validUntil?: string
+}
 
 export interface Session {
   id: string
@@ -135,6 +157,10 @@ export interface Patient {
   notes: string | null
   created_at: string
   updated_at: string
+  chronicConditions?: ChronicCondition[]
+  allergies?: Allergy[]
+  emergencyContact?: EmergencyContact
+  insuranceDetails?: InsuranceDetails
 }
 
 export interface Doctor {

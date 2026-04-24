@@ -5,13 +5,41 @@ import { createClient } from "@/utils/supabase/client"
 import { logAudit } from "@/lib/audit"
 import { assertTransition } from "@/lib/session-state-machine"
 
+export interface ChronicCondition {
+  name: string
+  icdCode?: string
+  diagnosedYear?: number
+}
+
+export interface Allergy {
+  substance: string
+  severity: "mild" | "moderate" | "severe"
+  reaction?: string
+}
+
+export interface EmergencyContact {
+  name: string
+  relationship?: string
+  phone: string
+}
+
+export interface InsuranceDetails {
+  provider: string
+  policyNumber: string
+  validUntil?: string
+}
+
 export interface Patient {
   id: string
   name: string
   age: number
   gender: string
-  email?: string   // for FR-09: sharing approved notes with patient
-  phone?: string   // for FR-09: WhatsApp / SMS sharing
+  email?: string
+  phone?: string
+  chronicConditions?: ChronicCondition[]
+  allergies?: Allergy[]
+  emergencyContact?: EmergencyContact
+  insuranceDetails?: InsuranceDetails
 }
 
 // Full 7-stage lifecycle (FR-11). Old values kept for backward compat with existing DB rows.
@@ -92,6 +120,7 @@ interface ScribeStore {
 
   fetchPatients: () => Promise<void>
   addPatient: (patient: Omit<Patient, "id">) => Promise<string>
+  updatePatientProfile: (id: string, data: Omit<Patient, "id" | "name" | "age" | "gender">) => Promise<void>
   deletePatient: (id: string) => Promise<void>
   fetchAllSessions: () => Promise<void>
   fetchSessions: (patientId: string) => Promise<void>
@@ -142,18 +171,22 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     const supabase = createClient()
     const { data, error } = await supabase
       .from("patients")
-      .select("id, name, age, gender, email, phone")
+      .select("id, name, age, gender, email, phone, chronic_conditions, allergies, emergency_contact, insurance_details")
       .eq("doctor_email", email)
       .order("created_at", { ascending: false })
     if (error) throw new Error(error.message)
     set({
       patients: (data ?? []).map(row => ({
-        id:     row.id,
-        name:   row.name,
-        age:    row.age,
-        gender: row.gender,
-        email:  (row.email as string) ?? undefined,
-        phone:  (row.phone as string) ?? undefined,
+        id:                row.id,
+        name:              row.name,
+        age:               row.age,
+        gender:            row.gender,
+        email:             (row.email as string)             ?? undefined,
+        phone:             (row.phone as string)             ?? undefined,
+        chronicConditions: (row.chronic_conditions as ChronicCondition[]) ?? undefined,
+        allergies:         (row.allergies as Allergy[])                   ?? undefined,
+        emergencyContact:  (row.emergency_contact as EmergencyContact)    ?? undefined,
+        insuranceDetails:  (row.insurance_details as InsuranceDetails)    ?? undefined,
       })),
     })
   },
@@ -162,13 +195,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     const res = await fetch("/api/patients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name:          data.name,
-        age:           data.age,
-        gender:        data.gender,
-        patientEmail:  data.email ?? null,
-        phone:         data.phone ?? null,
-      }),
+      body: JSON.stringify(data),
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
@@ -178,6 +205,22 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
     set(state => ({ patients: [{ id, ...data }, ...state.patients] }))
     await logAudit("patient_created", "patient", id, { name: data.name })
     return id
+  },
+
+  updatePatientProfile: async (id, data) => {
+    const res = await fetch(`/api/patients/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error((body as { error?: string }).error ?? "Failed to update patient")
+    }
+    set(state => ({
+      patients: state.patients.map(p => p.id === id ? { ...p, ...data } : p),
+    }))
+    await logAudit("patient_updated", "patient", id)
   },
 
   deletePatient: async (id) => {
@@ -229,6 +272,7 @@ export const useScribeStore = create<ScribeStore>()((set, get) => ({
       ],
     }))
   },
+
 
   addSession: async (patientId) => {
     const res = await fetch("/api/sessions", {

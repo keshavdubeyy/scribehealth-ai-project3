@@ -29,24 +29,24 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | Functional Requirements (12) | 12 | 0 | 0 | **100%** | `██████████` |
 | Non-Functional Requirements (5) | 5 | 0 | 0 | **100%** | `██████████` |
 | Subsystems (8) | 8 | 0 | 0 | **100%** | `██████████` |
-| Design Patterns (7) | 6 | 0 | 1 | **86%** | `████████░░` |
-| **Overall (24 pts)** | **23** | **0** | **1** | **96%** | `█████████░` |
+| Design Patterns (7) | 7 | 0 | 0 | **100%** | `██████████` |
+| **Overall (24 pts)** | **24** | **0** | **0** | **100%** | `██████████` |
 
 > **Scoring:** `(✅ × 1 + ⚠️ × 0.5) / total`  
-> **Remaining gap:** Builder (`PatientProfileBuilder`) pattern not yet formalised as a class hierarchy.
+> **All patterns fully implemented.**
 
 ### Subsystem Task Tracker
 
-| Task | Status | Notes |
-| :--- | :---: | :--- |
-| User Authentication & Role-Based Access | ✅ | |
-| Patient & Consultation Management | ✅ | |
-| Template-Based Documentation | ✅ | `NoteGeneratorFactory` + 6 `SoapNoteGenerator` subclasses |
-| AI Pipeline (Recording, Transcription, NLP) | ✅ | |
-| Review, Approval & Note Sharing | ✅ | |
-| Audit Logging & Admin Dashboard | ✅ | |
-| Consultation Lifecycle & Notification Hub | ⚠️ | State machine ✅ — Observer pattern ❌ |
-| Patient Profile Builder | ⚠️ | Basic form ✅ — Builder class, complex fields ❌ |
+| Task | Status |
+| :--- | :---: |
+| User Authentication & Role-Based Access | ✅ |
+| Patient & Consultation Management | ✅ |
+| Template-Based Documentation | ✅ |
+| AI Pipeline (Recording, Transcription, NLP) | ✅ |
+| Review, Approval & Note Sharing | ✅ |
+| Audit Logging & Admin Dashboard | ✅ |
+| Consultation Lifecycle & Notification Hub | ✅ |
+| Patient Profile Builder | ✅ |
 
 ---
 
@@ -74,7 +74,7 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 > - **FR-02** — Admins can manage users via the `/api/admin/users` portal, including direct creation of new doctor accounts, generating multi-use invite codes, and toggling activation/deactivation; Audit log UI is fully built and displays live system events with sub-second latency via Supabase Realtime; `login_success` and `logout` events are automatically captured through NextAuth middleware.
 > - **FR-05** — Claude Haiku extracts 6 typed entity categories (symptoms, diagnoses, medications, allergies, vitals, treatment plans) via `/api/extract-entities`; stored as `entities JSONB` on session; displayed in dedicated **Entities tab** in the session view; re-extractable on demand
 > - **FR-09** — `prescription-tab.tsx` has a "Share prescription" dropdown that generates the PDF (via `/api/prescriptions/generate`) then opens Email (`mailto:`), WhatsApp (`wa.me/`), or SMS (`sms:`) with pre-filled prescription content; sharing available whenever the patient has an email or phone on record; `prescriptionSharingTemplate()` and `noteSharingTemplate()` defined in `lib/notifications.ts`
-> - **FR-10** — All system actions logged: `login_success`, `logout` (via NextAuth signIn/signOut → `logAuditServer`), `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`, `notification_sent` (via `/api/notify`)
+> - **FR-10** — All system actions logged: `login_success`, `logout` (via NextAuth signIn/signOut → `logAuditServer`), `patient_created`, `patient_updated`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`, `notification_sent` (via `/api/notify`)
 > - **FR-11** — `lib/session-state-machine.ts` defines `VALID_TRANSITIONS` map + `assertTransition()` which throws on illegal jumps; `transitionSession()` in the store validates every status change before writing; `APPROVED` is terminal (no further transitions); `REJECTED → UNDER_REVIEW` is the only regeneration path; sessions now start in `SCHEDULED` and advance through the full 7-state chain
 
 ### Non-Functional Requirements
@@ -115,8 +115,8 @@ The system must integrate at least **five design patterns** (Strategy, Factory M
 | **AI Pipeline** | Audio capture → async transcription → NLP extraction → SOAP note generation | ✅ |
 | **Review & Sharing** | Doctor approval workflow; multi-channel note distribution | ✅ |
 | **Audit & Admin** | Immutable action logging; admin dashboard with audit log view | ✅ |
-| **Lifecycle & Notifications** | State machine for consultation stages; Strategy-driven multi-channel stakeholder alerts | ⚠️ |
-| **Profile Builder** | Validated construction of complex patient profiles | ⚠️ |
+| **Lifecycle & Notifications** | State machine for consultation stages; Strategy-driven multi-channel stakeholder alerts | ✅ |
+| **Profile Builder** | Validated construction of complex patient profiles | ✅ |
 | **Prescription Generator** | AI auto-fill prescription, canvas template setup, PDF generation | ✅ |
 
 ### Architectural Tactics
@@ -268,7 +268,7 @@ All system actions are logged (who, what entity, when) and are accessible only t
 - ✅ **Global `audit_logs` table** (Supabase PostgreSQL) — append-only, one row per action with `user_email`, `action`, `entity_type`, `entity_id`, `metadata`, `created_at`
 - ✅ **`/api/audit` route** — `POST` writes entries (service-role client, bypasses RLS); `GET` fetches with pagination
 - ✅ **`/dashboard/audit-log` page** — searchable, colour-coded admin view of all audit entries
-- ✅ Events logged: `login_success`, `login_failed`, `logout` (NextAuth events → `audit-server.ts`; login/register also written from Java `AuthServiceImpl`), `user_registered`, `user_activated`, `user_deactivated`, `patient_created`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`, `notification_sent`
+- ✅ Events logged: `login_success`, `login_failed`, `logout` (NextAuth events → `audit-server.ts`; login/register also written from Java `AuthServiceImpl`), `user_registered`, `user_activated`, `user_deactivated`, `patient_created`, `patient_updated`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`, `notification_sent`
 - ✅ **`AdminFacade` implemented** (`facade/AdminFacade.java`) — single entry-point wrapping `UserService` + `AuditService`; `AdminController` communicates exclusively through the facade; activate/deactivate actions are atomically performed and audit-logged in one call
 - ✅ **`GET /api/admin/audit-logs`** — new endpoint exposed through `AdminFacade.getAuditLogs(limit, offset)` → `AuditService` → `AuditLogRepository` with native `LIMIT/OFFSET` pagination
 - ✅ **Java backend now writes audit logs** — `AuthServiceImpl` injects `AuditService` and logs `login_success`, `login_failed` (with reason), and `user_registered` events directly to the `audit_logs` table
@@ -302,8 +302,8 @@ Each state class implements a `ConsultationState` interface and explicitly block
 - ✅ Status badges colour-coded across session list and session detail views for all 7 states
 - ✅ `APPROVED` state locks the note; `REJECTED` enables regeneration
 - ✅ **State machine enforced** — `lib/session-state-machine.ts` declares `VALID_TRANSITIONS` for all 9 statuses; `assertTransition(from, to)` throws on illegal jumps; `transitionSession()` in the store validates every status change before it hits the DB; `APPROVED` is terminal — no further transitions possible
-- ✅ **Observer Pattern** — `ConsultationSubject` (`lib/consultation-observer.ts`) maintains a subscriber list; `DoctorNotifierObserver` fires system notifications, `AuditLoggerObserver` writes to audit log, `DashboardRefresherObserver` triggers UI refresh — all registered on component mount and cleaned up on unmount
-- ✅ **Automatic notifications** fire on key lifecycle events: `note_approved`, `note_rejected` (doctor notified, audit logged), `transcription_failed` (doctor notified after 3 retries), `note_ready` (fired on manual note generation); all dispatched through `consultationSubject.notify()` rather than imperative call sites
+- ✅ **Observer Pattern (Java)** — `ConsultationObserver` interface + `ConsultationEventPublisher` (subscribe/unsubscribe/publish); `AuditLoggerObserver`, `DoctorNotifierObserver`, and `SessionStatusObserver` registered in `SessionServiceImpl`; `transitionSession()` publishes `ConsultationEvent` to all subscribers after each valid state change
+- ✅ **Automatic notifications** fire on key lifecycle events: `note_approved`, `note_rejected` (doctor notified, audit logged), `transcription_failed` (doctor notified after 3 retries); all dispatched through the Observer event bus
 
 ---
 
@@ -322,12 +322,14 @@ The builder enforces step-by-step, validated construction so no partially-initia
 **Design Pattern:** Builder Pattern - `PatientProfileBuilder` with fluent API and a terminal `build()` that runs all validations before persisting.
 
 **Implementation status:**
-- ✅ Patient creation form captures: name, age, gender, **email** (for note/prescription sharing), **phone** (for WhatsApp/SMS) — all persisted to Supabase
-- ❌ **Chronic conditions** field not implemented
-- ❌ **Allergies** with severity metadata not implemented (per-session entity extraction exists, but not stored on patient profile)
-- ❌ **Emergency contact** not implemented
-- ❌ **Insurance details** not implemented
-- ✅ `PatientProfileBuilder` with fluent API and `build()` validation implemented in Java backend with full domain validation including ICD-10 code validation, phone number validation, and required field checks
+- ✅ Patient creation form captures: name, age, gender, **email**, **phone** — all persisted to Supabase
+- ✅ **Chronic conditions** — multi-entry with optional ICD code and diagnosed year
+- ✅ **Allergies** with severity (mild / moderate / severe) and optional reaction description
+- ✅ **Emergency contact** — name, relationship, phone; validated at build time
+- ✅ **Insurance details** — provider, policy number, optional valid-until date
+- ✅ **`PatientProfileBuilder`** (`builder/PatientProfileBuilder.java`) — fluent API with `withChronicConditions()`, `withAllergies()`, `withEmergencyContact()`, `withInsuranceDetails()`, and terminal `build()` that runs all validations before the entity reaches the repository
+- ✅ **Multi-step Add Patient dialog** (3 steps: Basic Info → Medical History → Emergency & Insurance) — step 1 required, steps 2–3 optional
+- ✅ **`PatientProfileCard`** — read-only card on patient detail page displaying conditions, allergies with severity colours, emergency contact, and insurance block
 
 ---
 
@@ -343,7 +345,7 @@ The builder enforces step-by-step, validated construction so no partially-initia
 | Consultation Lifecycle & Notification Hub | State + Observer | ✅ |
 | Patient Profile Builder | Builder | ✅ |
 
-> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **7 patterns fully implemented**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), Service Layer (`UserService`/`AuditService` interfaces + implementations on Java backend), Observer (`ConsultationSubject` + 3 concrete observer classes), and Builder (`PatientProfileBuilder` with value objects for ChronicCondition, Allergy, EmergencyContact, InsuranceDetails).
+> **What's implemented vs required:** The project requires at least **5 design patterns** formally implemented. Currently **7 patterns fully implemented**: Strategy (`NotificationStrategy` + 3 concrete classes), Factory Method + Template Method (`TranscriptionServiceFactory`, `SoapNoteGenerator` hierarchy), Facade (`AdminFacade` wrapping `UserService` + `AuditService`), Service Layer (`UserService`/`AuditService` interfaces + implementations on Java backend), Observer (`ConsultationEventPublisher` + 3 concrete observer classes in Java), and Builder (`PatientProfileBuilder` with value objects for ChronicCondition, Allergy, EmergencyContact, InsuranceDetails).
 
 ---
 
@@ -353,22 +355,22 @@ The builder enforces step-by-step, validated construction so no partially-initia
 > **Format:** `Project3_<team_number>.pdf` or `.zip` — submitted via Moodle (one member submits)
 
 ### Task 1 — Requirements and Subsystems
-- [x] ✅ Functional and non-functional requirements (with architectural significance explained)
-- [x] ✅ Subsystem overview — each subsystem's role and functionality
+- [x] Functional and non-functional requirements (with architectural significance explained)
+- [x] Subsystem overview — each subsystem's role and functionality
 
 ### Task 2 — Architecture Framework
 - [ ] ❌ Stakeholder identification per IEEE 42010 (stakeholders → concerns → viewpoints → views)
 - [ ] ❌ 3–4 Architecture Decision Records (ADRs) using the Nygard template
 
 ### Task 3 — Architectural Tactics and Patterns
-- [x] ✅ 4–5 architectural tactics with explanation of which non-functional requirements they address
-- [ ] ❌ 2 design patterns described with diagrams (UML or C4 model)
+- [x] 4–5 architectural tactics with explanation of which non-functional requirements they address
+- [ ] 2 design patterns described with diagrams (UML or C4 model)
 
 ### Task 4 — Prototype Implementation and Analysis
-- [x] ✅ End-to-end non-trivial functionality implemented *(Recording → Sarvam Transcription → Claude SOAP Note → Approve/Reject workflow — fully working)*
-- [ ] ❌ Architecture analysis: compare implemented architecture against an alternative pattern
-- [ ] ❌ Quantification of at least 2 non-functional requirements (e.g., response time, throughput)
-- [ ] ❌ Trade-off discussion
+- [x] End-to-end non-trivial functionality implemented *(Recording → Sarvam Transcription → Claude SOAP Note → Approve/Reject workflow — fully working)*
+- [ ] Architecture analysis: compare implemented architecture against an alternative pattern
+- [ ] Quantification of at least 2 non-functional requirements (e.g., response time, throughput)
+- [ ] Trade-off discussion
 
 ### Final Report
 - [ ] ❌ Comprehensive technical report (design decisions, architecture, implementation, analysis)
@@ -386,10 +388,10 @@ To get the ScribeHealth AI system running locally, follow these steps:
 
 The system uses **Supabase** (PostgreSQL + Storage).
 
-- Run `frontend/supabase/schema.sql` in your Supabase project's SQL Editor.
-- Create a **public** Storage bucket named `sessions`.
-- Create a **public** Storage bucket named `prescription-templates`.
-- Copy your Supabase URL and keys into `frontend/.env.local`.
+- Run `frontend/supabase/schema.sql` in your Supabase project's SQL Editor
+- Create a **public** Storage bucket named `sessions`
+- Create a **public** Storage bucket named `prescription-templates`
+- Copy your Supabase URL and keys into `frontend/.env.local`
 
 ### 2. Backend Execution (Spring Boot)
 
@@ -418,6 +420,8 @@ npm run dev
 ```
 
 - **Web Interface:** [http://localhost:3000](http://localhost:3000)
-- **Environment Setup:** Configure required keys in `frontend/.env.local` (refer to `frontend/.env.local.example` for the full list of required AI and database credentials).
+- **Required `.env.local` keys:** `NEXT_PUBLIC_API_BASE`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SARVAM_API_KEY`, `ANTHROPIC_API_KEY`, `AUTH_SECRET`
 
+### 4. Admin Credentials
 
+Once the server is running, use the **Enroll Session** flow to create a Doctor or Admin account and access the dashboard.

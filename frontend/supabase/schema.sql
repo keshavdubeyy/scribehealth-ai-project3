@@ -14,15 +14,20 @@ create table if not exists organizations (
 -- ─────────────────────────────────────────────────────────────────
 -- patients
 create table if not exists patients (
-  id               text        primary key,
-  doctor_email     text        not null,
-  organization_id  text        references organizations(id) on delete set null,
-  name             text        not null,
-  age              integer     not null,
-  gender           text        not null,
-  email            text,
-  phone            text,
-  created_at       timestamptz not null default now()
+  id                  text        primary key,
+  doctor_email        text        not null,
+  organization_id     text        references organizations(id) on delete set null,
+  name                text        not null,
+  age                 integer     not null,
+  gender              text        not null,
+  email               text,
+  phone               text,
+  -- Patient Profile Builder fields (Task 8)
+  chronic_conditions  jsonb,      -- [{ name, icd_code?, diagnosed_year? }]
+  allergies           jsonb,      -- [{ substance, severity, reaction? }]
+  emergency_contact   jsonb,      -- { name, relationship?, phone }
+  insurance_details   jsonb,      -- { provider, policy_number, valid_until? }
+  created_at          timestamptz not null default now()
 );
 
 -- Migration for existing deployments:
@@ -106,13 +111,20 @@ create table if not exists invites (
 );
 
 -- Migration helpers for existing deployments (must run before indexes below):
-alter table patients add column if not exists organization_id text references organizations(id) on delete set null;
-alter table sessions add column if not exists organization_id text references organizations(id) on delete set null;
+alter table patients add column if not exists organization_id    text references organizations(id) on delete set null;
+alter table sessions add column if not exists organization_id    text references organizations(id) on delete set null;
+-- Patient Profile Builder columns (Task 8 — safe to run on live data, all nullable):
+alter table patients add column if not exists chronic_conditions jsonb;
+alter table patients add column if not exists allergies          jsonb;
+alter table patients add column if not exists emergency_contact  jsonb;
+alter table patients add column if not exists insurance_details  jsonb;
 
 -- Indexes
 create index if not exists idx_organizations_is_active             on organizations(is_active);
 create index if not exists idx_patients_doctor_email               on patients(doctor_email);
 create index if not exists idx_patients_organization_id            on patients(organization_id);
+create index if not exists idx_patients_allergies                  on patients using gin(allergies);
+create index if not exists idx_patients_chronic_conditions         on patients using gin(chronic_conditions);
 create index if not exists idx_sessions_patient_id                 on sessions(patient_id);
 create index if not exists idx_sessions_doctor_email               on sessions(doctor_email);
 create index if not exists idx_sessions_organization_id            on sessions(organization_id);
@@ -191,43 +203,6 @@ create policy "templates_doctor_owns" on prescription_templates
 create policy "audit_insert" on audit_logs for insert to anon with check (true);
 create policy "audit_read_own" on audit_logs
   for select to anon
-
--- ─────────────────────────────────────────────────────────────────
--- Trigger: first profile in an org is always ADMIN
--- Fires BEFORE INSERT so the role is set before the row is written.
--- Clinicians invited later (org already has members) keep DOCTOR.
--- ─────────────────────────────────────────────────────────────────
-create or replace function fn_auto_admin_org_creator()
-returns trigger language plpgsql as $$
-begin
-  if new.organization_id is not null then
-    if not exists (
-      select 1 from profiles
-      where organization_id = new.organization_id
-    ) then
-      new.role := 'ADMIN';
-    end if;
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists trg_auto_admin_org_creator on profiles;
-create trigger trg_auto_admin_org_creator
-  before insert on profiles
-  for each row execute function fn_auto_admin_org_creator();
-
--- Migration: fix existing org creators who were incorrectly saved as DOCTOR
--- Safe to re-run: only promotes users who are the sole profile in their org
-update profiles p
-set    role = 'ADMIN'
-where  organization_id is not null
-  and  role != 'ADMIN'
-  and  not exists (
-    select 1 from profiles p2
-    where  p2.organization_id = p.organization_id
-      and  p2.email           != p.email
-  );
 
 -- Enable Realtime
 alter publication supabase_realtime add table audit_logs;

@@ -170,7 +170,7 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
     setIsApproving(true)
     try {
       await updateSession(session.id, { soap: note })
-      await transitionSession(session.id, "APPROVED")
+      await transitionSession(session.id, "APPROVED")    // UNDER_REVIEW → APPROVED
       await logAudit("note_approved", "session", session.id)
       if (userEmail) {
         const { subject, body } = noteApprovedTemplate(patientName, session.id)
@@ -189,7 +189,7 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
   const handleReject = async () => {
     setIsRejecting(true)
     try {
-      await transitionSession(session.id, "REJECTED")
+      await transitionSession(session.id, "REJECTED")    // UNDER_REVIEW → REJECTED
       await logAudit("note_rejected", "session", session.id)
       toast.info("Note rejected — use 'Regenerate' to create a new one")
       router.refresh()
@@ -416,7 +416,7 @@ export function NoteSection({ session }: NoteSectionProps) {
         if (!res.ok) throw new Error("Generation failed")
         const { note } = await res.json() as { note: Record<string, string> }
         await updateSession(session.id, { soap: note })
-        await transitionSession(session.id, "UNDER_REVIEW")
+        await transitionSession(session.id, "UNDER_REVIEW")   // TRANSCRIBED → UNDER_REVIEW
         await logAudit("note_generated", "session", session.id)
         toast.success("Clinical note generated")
         router.refresh()

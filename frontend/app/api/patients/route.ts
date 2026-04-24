@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { createServiceClient } from "@/utils/supabase/service"
+import type { ChronicCondition, Allergy, EmergencyContact, InsuranceDetails } from "@/lib/mock-store"
 
 export const runtime = "nodejs"
 
@@ -8,33 +9,41 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const email = session.user?.email
-  const orgId = session.user?.organizationId
-  if (!email) return NextResponse.json({ error: "No email in session" }, { status: 400 })
+  const doctorEmail = session.user?.email
+  const orgId       = session.user?.organizationId
+  if (!doctorEmail) return NextResponse.json({ error: "No email in session" }, { status: 400 })
 
-  const { name, age, gender, patientEmail, phone } = await req.json() as {
+  const body = await req.json() as {
     name: string
     age: number
     gender: string
-    patientEmail?: string
+    email?: string
     phone?: string
+    chronicConditions?: ChronicCondition[]
+    allergies?: Allergy[]
+    emergencyContact?: EmergencyContact
+    insuranceDetails?: InsuranceDetails
   }
 
-  if (!name || !age || !gender) {
+  if (!body.name || !body.age || !body.gender) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
 
-  const id = Math.random().toString(36).substring(7)
+  const id       = Math.random().toString(36).substring(7)
   const supabase = createServiceClient()
   const { error } = await supabase.from("patients").insert({
     id,
-    doctor_email: email,
-    organization_id: orgId,
-    name,
-    age,
-    gender,
-    email: patientEmail ?? null,
-    phone: phone ?? null,
+    doctor_email:       doctorEmail,
+    organization_id:    orgId ?? null,
+    name:               body.name,
+    age:                body.age,
+    gender:             body.gender,
+    email:              body.email              ?? null,
+    phone:              body.phone              ?? null,
+    chronic_conditions: body.chronicConditions  ?? null,
+    allergies:          body.allergies           ?? null,
+    emergency_contact:  body.emergencyContact    ?? null,
+    insurance_details:  body.insuranceDetails    ?? null,
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

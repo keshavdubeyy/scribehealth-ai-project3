@@ -11,17 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Plus, Search, Trash2, ChevronRight, Loader2 } from "lucide-react"
+import { Plus, Search, Trash2, ChevronRight } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,21 +23,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Label } from "@/components/ui/label"
+import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-
 import { PageHeader } from "@/components/page-header"
+import { AddPatientDialog } from "@/components/features/patients/add-patient-dialog"
+import type { PatientFormData } from "@/components/features/patients/add-patient-dialog"
 
 export default function PatientsPage() {
   const router  = useRouter()
   const { patients, fetchPatients, addPatient, deletePatient } = useScribeStore()
-  const [mounted,          setMounted]          = React.useState(false)
-  const [searchQuery,      setSearchQuery]      = React.useState("")
-  const [isAddOpen,        setIsAddOpen]        = React.useState(false)
-  const [isDeleteOpen,     setIsDeleteOpen]     = React.useState(false)
-  const [patientToDelete,  setPatientToDelete]  = React.useState<string | null>(null)
-  const [isSubmitting,     setIsSubmitting]     = React.useState(false)
+  const [mounted,         setMounted]         = React.useState(false)
+  const [searchQuery,     setSearchQuery]     = React.useState("")
+  const [isAddOpen,       setIsAddOpen]       = React.useState(false)
+  const [isDeleteOpen,    setIsDeleteOpen]    = React.useState(false)
+  const [patientToDelete, setPatientToDelete] = React.useState<string | null>(null)
+  const [isDeleting,      setIsDeleting]      = React.useState(false)
 
   React.useEffect(() => { setMounted(true); fetchPatients() }, [fetchPatients])
 
@@ -55,32 +48,14 @@ export default function PatientsPage() {
       p.id.toLowerCase().includes(searchQuery.toLowerCase())
     ), [patients, searchQuery])
 
-  async function handleAddPatient(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setIsSubmitting(true)
-    const fd = new FormData(e.currentTarget)
-    try {
-      await addPatient({
-        name:   fd.get("name")   as string,
-        age:    parseInt(fd.get("age") as string),
-        gender: fd.get("gender") as string,
-        email:  (fd.get("email")  as string) || undefined,
-        phone:  (fd.get("phone")  as string) || undefined,
-      })
-      setIsAddOpen(false)
-      toast.success("Patient added.")
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.error("addPatient error:", err)
-      toast.error(msg || "Something went wrong.")
-    } finally {
-      setIsSubmitting(false)
-    }
+  async function handleAddPatient(data: PatientFormData) {
+    await addPatient(data)
+    toast.success("Patient added.")
   }
 
   async function handleDelete() {
     if (!patientToDelete) return
-    setIsSubmitting(true)
+    setIsDeleting(true)
     try {
       await deletePatient(patientToDelete)
       toast.success("Patient deleted.")
@@ -88,7 +63,7 @@ export default function PatientsPage() {
     } catch {
       toast.error("Something went wrong. Please try again.")
     } finally {
-      setIsSubmitting(false)
+      setIsDeleting(false)
       setPatientToDelete(null)
     }
   }
@@ -112,59 +87,22 @@ export default function PatientsPage() {
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
-
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-10 px-5 font-bold shadow-sm shadow-primary/20 gap-2">
-                <Plus className="size-4" />
-                Add Patient
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-sm">
-              <form onSubmit={handleAddPatient} className="space-y-5">
-                <DialogHeader>
-                  <DialogTitle>Add patient</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Full name</Label>
-                    <Input id="name" name="name" placeholder="John Doe" required />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="age">Age</Label>
-                      <Input id="age" name="age" type="number" placeholder="30" required />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="gender">Gender</Label>
-                      <Input id="gender" name="gender" placeholder="Male" required />
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">
-                      Email <span className="text-muted-foreground font-normal">(optional — for note sharing)</span>
-                    </Label>
-                    <Input id="email" name="email" type="email" placeholder="patient@example.com" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="phone">
-                      Phone <span className="text-muted-foreground font-normal">(optional — for WhatsApp / SMS)</span>
-                    </Label>
-                    <Input id="phone" name="phone" type="tel" placeholder="+91 98765 43210" />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={isSubmitting} className="w-full">
-                    {isSubmitting ? <Loader2 className="animate-spin size-4" /> : "Add patient"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button
+            className="h-10 px-5 font-bold shadow-sm shadow-primary/20 gap-2"
+            onClick={() => setIsAddOpen(true)}
+          >
+            <Plus className="size-4" />
+            Add Patient
+          </Button>
         </div>
       </div>
 
-      {/* Delete confirmation */}
+      <AddPatientDialog
+        open={isAddOpen}
+        onOpenChange={setIsAddOpen}
+        onSubmit={handleAddPatient}
+      />
+
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -179,13 +117,12 @@ export default function PatientsPage() {
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isSubmitting ? <Loader2 className="animate-spin size-4" /> : "Delete"}
+              {isDeleting ? <Loader2 className="animate-spin size-4" /> : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Table */}
       <div className="bg-card border border-border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
