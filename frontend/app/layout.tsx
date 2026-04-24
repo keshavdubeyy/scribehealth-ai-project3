@@ -5,6 +5,7 @@ import { NextAuthProvider } from "@/components/providers/session-provider";
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
 import { cn } from "@/lib/utils";
+import { auth } from "@/lib/auth";
 
 const geistHeading = Geist({subsets:['latin'],variable:'--font-heading'});
 
@@ -26,17 +27,18 @@ export const metadata: Metadata = {
 };
 
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth()
   return (
     <html lang="en" className={cn("font-sans", geist.variable, geistHeading.variable)}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NextAuthProvider>
+        <NextAuthProvider session={session}>
           <TooltipProvider>
             {children}
             <Toaster />

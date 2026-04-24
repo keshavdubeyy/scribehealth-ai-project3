@@ -33,7 +33,10 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient()
 
-  // Fetch template row
+  const doctorEmail = session.user?.email
+  if (!doctorEmail) return NextResponse.json({ error: "No email in session" }, { status: 400 })
+
+  // Fetch template row and verify ownership
   const { data: tmpl, error: tmplError } = await supabase
     .from("prescription_templates")
     .select()
@@ -42,6 +45,10 @@ export async function POST(req: NextRequest) {
 
   if (tmplError || !tmpl) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 })
+  }
+
+  if (tmpl.doctor_email !== doctorEmail) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   // Download letterhead image from Supabase Storage

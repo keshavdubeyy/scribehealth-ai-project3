@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { name, email: rawEmail, password, organizationId, specialization, licenseNumber } = await req.json()
+  const { name, email: rawEmail, password, role: rawRole, specialization, licenseNumber } = await req.json()
   const email = (rawEmail as string)?.toLowerCase()
 
   const supabase = createServiceClient()
@@ -62,8 +62,8 @@ export async function POST(req: NextRequest) {
     .insert({
       email,
       name,
-      role:            "DOCTOR",
-      organization_id: organizationId || session.user.organizationId,
+      role:            rawRole === "ADMIN" ? "ADMIN" : "DOCTOR",
+      organization_id: session.user.organizationId,
       specialization:  specialization || null,
       license_number:  licenseNumber  || null,
       is_active:       true,

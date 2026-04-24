@@ -22,10 +22,12 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { PageHeader } from "@/components/page-header"
 import { AdminMetricsPanel } from "@/components/features/dashboard/admin-metrics-panel"
+import { useUserRole } from "@/hooks/use-user-role"
 
 export default function DashboardPage() {
   const router = useRouter()
   const { data: session } = useSession()
+  const { isAdmin, isLoading: roleLoading } = useUserRole()
   const { patients, sessions, fetchPatients, fetchAllSessions } = useScribeStore()
   const [mounted, setMounted] = React.useState(false)
   const [search, setSearch] = React.useState("")
@@ -60,9 +62,7 @@ export default function DashboardPage() {
       s.patientName.toLowerCase().includes(search.toLowerCase())
     ), [recentSessions, search])
 
-  const isAdmin = session?.user?.role === "ADMIN"
-
-  if (!mounted) return null
+  if (!mounted || roleLoading) return null
 
   if (isAdmin) {
     return (

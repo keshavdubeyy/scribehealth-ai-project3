@@ -13,15 +13,16 @@ export async function getDoctorStatsLogic(organizationId: string) {
 
   if (sessErr) throw sessErr
 
-  // Fetch audit logs for productivity and activity tracking
+  // Fetch audit logs scoped to this org
   const { data: logs, error: logErr } = await supabase
     .from("audit_logs")
     .select("user_email, action, created_at")
+    .eq("organization_id", organizationId)
     .in("action", [
-      "note_approved", 
-      "note_rejected", 
-      "session_created", 
-      "prescription_generated", 
+      "note_approved",
+      "note_rejected",
+      "session_created",
+      "prescription_generated",
       "prescription_shared"
     ])
     .order("created_at", { ascending: false })

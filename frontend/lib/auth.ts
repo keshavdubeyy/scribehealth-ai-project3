@@ -17,7 +17,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const supabase = createServiceClient()
 
-          // 1. Authenticate with Supabase Auth
           const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
             email: credentials.email as string,
             password: credentials.password as string,
@@ -28,35 +27,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null
           }
 
-          const email = credentials.email.toString().toLowerCase()
-
-          // 2. Fetch profile metadata (role, name, org) from our 'profiles' table
-          const { data: profile, error: profError } = await supabase
-            .from("profiles")
-            .select("*, organizations(name)")
-            .eq("email", email)
-            .maybeSingle()
-
-          if (profError) {
-            console.error("Profile lookup failed:", profError.message)
-          }
-
-          // Enforce role from database profile
-          const effectiveRole = profile?.role || "DOCTOR"
-          const effectiveName = profile?.name || authData.user.email?.split("@")[0] || "User"
-          const effectiveOrg  = profile?.organization_id || null
-
-          console.log(`Auth Debug - Email: ${email}, Found Role: ${profile?.role}, Effective Role: ${effectiveRole}`)
-
-          // Return enriched session user
+          // Return only identity — role is always fetched fresh in the jwt callback
           return {
-            id:               authData.user.id,
-            name:             effectiveName,
-            email:            authData.user.email as string,
-            role:             effectiveRole,
-            token:            authData.session?.access_token || "",
-            organizationId:   effectiveOrg,
-            organizationName: (profile as any)?.organizations?.name || null,
+            id:    authData.user.id,
+            email: authData.user.email as string,
+            name:  authData.user.user_metadata?.name || authData.user.email?.split("@")[0] || "User",
+            token: authData.session?.access_token || "",
           }
         } catch (error) {
           console.error("Auth process error:", error)
@@ -72,10 +48,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role             = user.role
-        token.accessToken      = user.token
-        token.organizationId   = user.organizationId
-        token.organizationName = user.organizationName
+        token.email       = user.email ?? token.email
+        token.accessToken = (user as any).token ?? ""
+      }
+      // Always fetch role live from profiles — never trust a cached JWT role
+      const email = (token.email as string | undefined)?.toLowerCase()
+      if (email) {
+        const supabase = createServiceClient()
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id, role, organization_id, name, is_active, organizations(name)")
+          .eq("email", email)
+          .maybeSingle()
+        token.role             = profile?.role             ?? "DOCTOR"
+        token.organizationId   = profile?.organization_id  ?? null
+        token.organizationName = (profile as any)?.organizations?.name ?? null
+        token.isActive         = profile?.is_active        ?? true
+        token.userId           = profile?.id               ?? null
+        if (profile?.name) token.name = profile.name
       }
       return token
     },
@@ -85,6 +75,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.accessToken      = token.accessToken      as string
         session.user.organizationId   = token.organizationId   as string
         session.user.organizationName = token.organizationName as string
+        session.user.isActive         = token.isActive         as boolean
+        session.user.id               = token.userId           as string
       }
       return session
     },

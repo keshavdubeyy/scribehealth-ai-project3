@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
+import { useUserRole } from "@/hooks/use-user-role"
 import {
   LayoutDashboard, Users, ClipboardList, LogOut, FileText,
   Stethoscope, ShieldCheck, ScrollText,
@@ -30,10 +31,10 @@ const adminNav = [
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const pathname                = usePathname()
-  const { data: session }       = useSession()
-  const isAdmin                 = session?.user?.role === "ADMIN"
-  const navItems                = isAdmin ? adminNav : doctorNav
+  const pathname              = usePathname()
+  const { data: session }     = useSession()
+  const { isAdmin, isLoading } = useUserRole()
+  const navItems              = isAdmin ? adminNav : doctorNav
 
   const userName = session?.user?.name ?? (isAdmin ? "Admin" : "Doctor")
   const initials = userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)

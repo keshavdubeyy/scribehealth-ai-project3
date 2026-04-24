@@ -73,13 +73,14 @@ create table if not exists prescription_templates (
 -- audit logs: immutable append-only table, one row per system action
 -- user_email here is the actor (doctor or admin) — intentionally kept as user_email
 create table if not exists audit_logs (
-  id           uuid        primary key default gen_random_uuid(),
-  user_email   text        not null,
-  action       text        not null,
-  entity_type  text        not null,
-  entity_id    text        not null,
-  metadata     jsonb       not null default '{}'::jsonb,
-  created_at   timestamptz not null default now()
+  id              uuid        primary key default gen_random_uuid(),
+  user_email      text        not null,
+  action          text        not null,
+  entity_type     text        not null,
+  entity_id       text        not null,
+  metadata        jsonb       not null default '{}'::jsonb,
+  organization_id text        references organizations(id) on delete set null,
+  created_at      timestamptz not null default now()
 );
 
 -- ─────────────────────────────────────────────────────────────────
@@ -111,13 +112,22 @@ create table if not exists invites (
 );
 
 -- Migration helpers for existing deployments (must run before indexes below):
-alter table patients add column if not exists organization_id    text references organizations(id) on delete set null;
-alter table sessions add column if not exists organization_id    text references organizations(id) on delete set null;
+alter table patients   add column if not exists organization_id    text references organizations(id) on delete set null;
+alter table sessions   add column if not exists organization_id    text references organizations(id) on delete set null;
+alter table audit_logs add column if not exists organization_id    text references organizations(id) on delete set null;
 -- Patient Profile Builder columns (Task 8 — safe to run on live data, all nullable):
-alter table patients add column if not exists chronic_conditions jsonb;
-alter table patients add column if not exists allergies          jsonb;
-alter table patients add column if not exists emergency_contact  jsonb;
-alter table patients add column if not exists insurance_details  jsonb;
+alter table patients   add column if not exists chronic_conditions jsonb;
+alter table patients   add column if not exists allergies          jsonb;
+alter table patients   add column if not exists emergency_contact  jsonb;
+alter table patients   add column if not exists insurance_details  jsonb;
+
+-- Backfill organization_id on existing audit_logs rows using the actor's profile
+update audit_logs al
+set    organization_id = p.organization_id
+from   profiles p
+where  al.user_email      = p.email
+  and  al.organization_id is null
+  and  p.organization_id  is not null;
 
 -- Indexes
 create index if not exists idx_organizations_is_active             on organizations(is_active);
@@ -131,6 +141,7 @@ create index if not exists idx_sessions_organization_id            on sessions(o
 create index if not exists idx_prescription_templates_doctor_email on prescription_templates(doctor_email);
 create index if not exists idx_audit_logs_user_email               on audit_logs(user_email);
 create index if not exists idx_audit_logs_created_at               on audit_logs(created_at desc);
+create index if not exists idx_audit_logs_organization_id          on audit_logs(organization_id);
 
 -- ─────────────────────────────────────────────────────────────────
 -- Row Level Security
@@ -203,6 +214,7 @@ create policy "templates_doctor_owns" on prescription_templates
 create policy "audit_insert" on audit_logs for insert to anon with check (true);
 create policy "audit_read_own" on audit_logs
   for select to anon
+  using (organization_id = current_setting('app.current_org_id', true));
 
 -- Enable Realtime
 alter publication supabase_realtime add table audit_logs;
