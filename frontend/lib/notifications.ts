@@ -1,106 +1,15 @@
 /**
- * FR-12 + FR-09: Stakeholder notification via Strategy pattern.
+ * FR-09 + FR-12: Notification templates and system notification sender.
  *
- * NotificationStrategy is the common interface.
- * EmailNotificationStrategy, WhatsAppNotificationStrategy, and SmsNotificationStrategy
- * are interchangeable concrete implementations — new channels (Slack, push, etc.)
- * require only a new class; the service and callers are untouched.
- *
- * NotificationService holds a registered list of strategies and fans out
- * every event to all of them in one call.
+ * Provides pre-built notification templates for lifecycle events
+ * and a fire-and-forget system notification sender.
  */
 
 export interface NotificationPayload {
-  to: string        // email address or phone number depending on strategy
+  to: string
   subject: string
   body: string
 }
-
-// ── Strategy interface ────────────────────────────────────────────────────────
-
-export interface NotificationStrategy {
-  readonly channel: "email" | "whatsapp" | "sms"
-  fire(payload: NotificationPayload): void
-}
-
-// ── Concrete strategies ───────────────────────────────────────────────────────
-
-/** Opens the system email client pre-filled via mailto: URI. */
-export class EmailNotificationStrategy implements NotificationStrategy {
-  readonly channel = "email" as const
-
-  fire({ to, subject, body }: NotificationPayload) {
-    const uri = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    window.open(uri, "_blank")
-  }
-}
-
-/** Opens WhatsApp Web / app pre-filled with the notification text. */
-export class WhatsAppNotificationStrategy implements NotificationStrategy {
-  readonly channel = "whatsapp" as const
-
-  constructor(private readonly phone: string) {}
-
-  fire({ subject, body }: NotificationPayload) {
-    const text = `*${subject}*\n\n${body}`
-    const digits = this.phone.replace(/\D/g, "")
-    window.open(`https://wa.me/${digits}?text=${encodeURIComponent(text)}`, "_blank")
-  }
-}
-
-/** Opens the native SMS app pre-filled. */
-export class SmsNotificationStrategy implements NotificationStrategy {
-  readonly channel = "sms" as const
-
-  constructor(private readonly phone: string) {}
-
-  fire({ subject, body }: NotificationPayload) {
-    const text = `${subject}\n\n${body}`
-    window.open(`sms:${this.phone}?body=${encodeURIComponent(text)}`, "_blank")
-  }
-}
-
-// ── Service ───────────────────────────────────────────────────────────────────
-
-export class NotificationService {
-  private readonly strategies: NotificationStrategy[] = []
-
-  register(strategy: NotificationStrategy): this {
-    this.strategies.push(strategy)
-    return this
-  }
-
-  fire(payload: NotificationPayload): void {
-    for (const strategy of this.strategies) {
-      strategy.fire(payload)
-    }
-  }
-
-  get channelCount(): number {
-    return this.strategies.length
-  }
-}
-
-// ── Factory ───────────────────────────────────────────────────────────────────
-
-/**
- * Build a service pre-wired for the doctor's available contact channels.
- * Pass phone only if available — omitting it skips WhatsApp and SMS.
- */
-export function buildDoctorNotificationService(
-  email: string,
-  phone?: string,
-): NotificationService {
-  const svc = new NotificationService()
-  svc.register(new EmailNotificationStrategy())
-  if (phone) {
-    svc.register(new WhatsAppNotificationStrategy(phone))
-    svc.register(new SmsNotificationStrategy(phone))
-  }
-  return svc
-}
-
-// ── Lifecycle event templates ─────────────────────────────────────────────────
 
 type TemplateResult = Omit<NotificationPayload, "to">
 
@@ -235,12 +144,7 @@ export function prescriptionSharingTemplate(
   }
 }
 
-// ── System notification (doctor-facing, server-side) ──────────────────────────
-
-/**
- * Send a system notification to the doctor via the server-side /api/notify
- * endpoint. This is fire-and-forget — no email client is opened.
- */
+/** FR-12: Send a system notification to the doctor via the server-side /api/notify endpoint. */
 export async function sendSystemNotification(
   to: string,
   subject: string,
