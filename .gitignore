@@ -73,3 +73,7 @@ backend/db/
 .agents/
 celery.log
 CREDENTIALS.md
+.next/
+skills-lock.json
+frontend/tsconfig.tsbuildinfo
+.mcp.json
