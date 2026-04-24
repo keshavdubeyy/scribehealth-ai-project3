@@ -1,0 +1,84 @@
+@startuml Audit_Admin_Subsystem
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+class AuditLog <<entity: audit_logs>> {
+  - id : UUID  <<PK, auto>>
+  - userEmail : String
+  - action : String
+  - entityType : String
+  - entityId : String
+  - metadata : String  <<jsonb>>
+  - createdAt : Instant  <<append-only>>
+}
+note right : Immutable — no update/delete\nactions: login_success, logout,\npatient_created/updated/deleted,\nsession_created/deleted,\nnote_approved/rejected…
+
+interface AuditLogRepository <<JpaRepository<AuditLog,UUID>>> {
+  + findRecentLogs(limit, offset) : List<AuditLog>
+}
+
+interface AuditService {
+  + log(userEmail, action, entityType, entityId) : void
+  + log(userEmail, action, entityType, entityId, metadataJson) : void
+  + getRecentLogs(limit, offset) : List<AuditLog>
+}
+
+class AuditServiceImpl <<@Service>> {
+  - auditLogRepository : AuditLogRepository
+}
+note right : Failures silently swallowed —\naudit must never block callers
+
+interface UserService {
+  + getAllUsers() : List<User>
+  + getUser(id) : User
+  + createUser(RegisterRequest) : User
+  + activateUser(id) : User
+  + deactivateUser(id) : User
+  + getStats() : Map<String,Long>
+}
+
+class UserServiceImpl <<@Service>> {
+  - userRepository : UserRepository
+  - passwordEncoder : PasswordEncoder
+}
+
+class AdminFacade <<@Component>> {
+  - userService : UserService
+  - auditService : AuditService
+  + getAllUsers() : List<User>
+  + getUser(id) : User
+  + createUser(request, actorEmail) : User
+  + activateUser(targetId, actorEmail) : void
+  + deactivateUser(targetId, actorEmail) : void
+  + getStats() : Map<String,Long>
+  + getAuditLogs(limit, offset) : List<AuditLog>
+}
+note right : Facade Pattern\nSingle entry-point for all admin ops\nHides UserService + AuditService coordination
+
+class AdminController <<@RestController: /api/admin>> {
+  + getAllUsers() : ResponseEntity
+  + createUser() : ResponseEntity
+  + activateUser() : ResponseEntity
+  + deactivateUser() : ResponseEntity
+  + getStats() : ResponseEntity
+  + getAuditLogs() : ResponseEntity
+}
+note right : @PreAuthorize(“hasRole(‘ADMIN’)”)
+
+class AuditServer <<TS module>> {
+  + {static} logAuditServer(userEmail, action,\n  entityType, entityId, metadata?) : Promise<void>
+}
+note right : Server-side — called from\nNextAuth signIn/signOut events
+
+class AuditClient <<TS module>> {
+  + {static} logAudit(action, entityType,\n  entityId, metadata?) : Promise<void>
+}
+note right : Client-side fire-and-forget\nPOST /api/audit
+
+AuditServiceImpl ..|> AuditService
+UserServiceImpl ..|> UserService
+AuditServiceImpl --> AuditLogRepository
+AdminFacade --> UserService
+AdminFacade --> AuditService
+AdminController --> AdminFacade
+@enduml

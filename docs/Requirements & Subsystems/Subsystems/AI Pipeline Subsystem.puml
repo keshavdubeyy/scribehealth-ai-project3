@@ -1,0 +1,84 @@
+@startuml AI_Pipeline_Subsystem
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+note “Factory Method Pattern (NFR-03)\nNew provider = new class + 1 env var change” as NF
+
+interface TranscriptionProvider {
+  + name : string  <<readonly>>
+  + transcribe(audioBuffer, mimeType?) : Promise<string>
+}
+
+class SarvamTranscriptionProvider {
+  + name = “sarvam”
+  - apiKey : string
+  + transcribe(audioBuffer, mimeType?) : Promise<string>
+}
+note right : POST sarvam.ai/speech-to-text\nmodel: saarika:v2.5
+
+class TranscriptionServiceFactory {
+  + {static} create(provider?) : TranscriptionProvider
+}
+note right : Reads TRANSCRIPTION_PROVIDER env\nDefault = “sarvam”
+
+note “Template Method Pattern (NFR-03)\nNew specialty = new subclass only” as NT
+
+abstract class SoapNoteGenerator {
+  + templateName : string  <<abstract>>
+  + fields : string[]  <<abstract>>
+  + generate(transcript, client: Anthropic) : Promise<Record<string,string>>
+  # specialtyContext() : string
+  - callModel(transcript, client) : Promise<Record<string,string>>
+  - normaliseFields(raw) : Record<string,string>
+}
+
+class GeneralOpdNoteGenerator {
+  templateName = “general_opd”
+  fields = [subjective, objective, assessment,\ndiagnosis, prescription, advice, follow_up]
+}
+class MentalHealthNoteGenerator {
+  templateName = “mental_health_soap”
+  # specialtyContext() : string
+}
+class PhysiotherapyNoteGenerator {
+  templateName = “physiotherapy”
+  # specialtyContext() : string
+}
+class PediatricNoteGenerator {
+  templateName = “pediatric”
+  # specialtyContext() : string
+}
+class CardiologyNoteGenerator {
+  templateName = “cardiology”
+  # specialtyContext() : string
+}
+class SurgicalFollowupNoteGenerator {
+  templateName = “surgical_followup”
+  # specialtyContext() : string
+}
+
+class NoteGeneratorFactory {
+  + {static} get(templateName) : SoapNoteGenerator
+  + {static} templateNames() : string[]
+}
+
+interface MedicalEntities {
+  + symptoms : string[]
+  + diagnoses : string[]
+  + medications : Array<{name,dosage,frequency}>
+  + allergies : Array<{substance,severity}>
+  + vitals : Array<{metric,value,unit}>
+  + treatmentPlans : string[]
+}
+
+SarvamTranscriptionProvider ..|> TranscriptionProvider
+TranscriptionServiceFactory ..> TranscriptionProvider : <<creates>>
+
+GeneralOpdNoteGenerator --|> SoapNoteGenerator
+MentalHealthNoteGenerator --|> SoapNoteGenerator
+PhysiotherapyNoteGenerator --|> SoapNoteGenerator
+PediatricNoteGenerator --|> SoapNoteGenerator
+CardiologyNoteGenerator --|> SoapNoteGenerator
+SurgicalFollowupNoteGenerator --|> SoapNoteGenerator
+NoteGeneratorFactory ..> SoapNoteGenerator : <<selects>>
+@enduml

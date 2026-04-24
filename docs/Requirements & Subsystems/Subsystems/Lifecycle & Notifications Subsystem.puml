@@ -1,0 +1,113 @@
+@startuml Lifecycle_Notifications_Subsystem
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+note “State Pattern (FR-11)\nIllegal transitions throw — APPROVED is terminal” as NS
+
+interface ConsultationState {
+  + statusName() : String
+  + transitionTo(targetStatus) : ConsultationState
+}
+
+class ScheduledState {
+  statusName() = “SCHEDULED”
+  note: allows IN_PROGRESS
+}
+class InProgressState {
+  statusName() = “IN_PROGRESS”
+  note: allows RECORDED
+}
+class RecordedState {
+  statusName() = “RECORDED”
+  note: allows TRANSCRIBED
+}
+class TranscribedState {
+  statusName() = “TRANSCRIBED”
+  note: allows UNDER_REVIEW
+}
+class UnderReviewState {
+  statusName() = “UNDER_REVIEW”
+  note: allows APPROVED or REJECTED
+}
+class ApprovedState <<terminal>> {
+  statusName() = “APPROVED”
+}
+class RejectedState {
+  statusName() = “REJECTED”
+  note: allows UNDER_REVIEW
+}
+
+class IllegalStateTransitionException {
+  IllegalStateTransitionException(from, to)
+}
+
+class ConsultationStateFactory {
+  + {static} fromStatus(status) : ConsultationState
+}
+
+ScheduledState   ..|> ConsultationState
+InProgressState  ..|> ConsultationState
+RecordedState    ..|> ConsultationState
+TranscribedState ..|> ConsultationState
+UnderReviewState ..|> ConsultationState
+ApprovedState    ..|> ConsultationState
+RejectedState    ..|> ConsultationState
+ConsultationState ..> IllegalStateTransitionException : <<throws on invalid>>
+ConsultationStateFactory ..> ConsultationState : <<creates>>
+
+note “Observer Pattern (FR-12)\nPublisher notifies all subscribers on every transition” as NO
+
+class ConsultationEvent {
+  - sessionId : String
+  - doctorEmail : String
+  - fromStatus : String
+  - toStatus : String
+}
+
+interface ConsultationObserver {
+  + onEvent(event : ConsultationEvent) : void
+}
+
+class ConsultationEventPublisher {
+  - observers : List<ConsultationObserver>
+  + subscribe(observer) : void
+  + unsubscribe(observer) : void
+  + publish(event) : void
+}
+
+class AuditLoggerObserver {
+  - auditService : AuditService
+  + onEvent(event) : void
+}
+note right : toStatus → audit action\n(session_started, note_approved…)
+
+class DoctorNotifierObserver {
+  + onEvent(event) : void
+}
+note right : Logs INFO for\nUNDER_REVIEW, APPROVED, REJECTED
+
+class SessionStatusObserver {
+  + onEvent(event) : void
+}
+note right : Logs all lifecycle transitions
+
+AuditLoggerObserver    ..|> ConsultationObserver
+DoctorNotifierObserver ..|> ConsultationObserver
+SessionStatusObserver  ..|> ConsultationObserver
+ConsultationEventPublisher “1” o-- “0..*” ConsultationObserver
+ConsultationEventPublisher ..> ConsultationEvent : publishes
+AuditLoggerObserver --> AuditService
+
+note “Frontend mirror (TypeScript)\nFR-11 enforced client-side too” as NTS
+class SessionStateMachine <<TS module>> {
+  + {static} VALID_TRANSITIONS : Record<SessionStatus, SessionStatus[]>
+  + {static} canTransition(from, to) : boolean
+  + {static} assertTransition(from, to) : void
+}
+
+class SessionServiceImpl <<@Service>> {
+  + transitionSession(email, id, targetStatus) : ClinicalSession
+}
+SessionServiceImpl --> ConsultationStateFactory
+SessionServiceImpl --> ConsultationEventPublisher
+@enduml
