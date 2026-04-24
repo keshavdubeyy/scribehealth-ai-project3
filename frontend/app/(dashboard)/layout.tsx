@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { StoreInitializer } from "@/components/store-initializer"
+import { DeactivatedOverlay } from "@/components/deactivated-overlay"
 
 export default async function DashboardLayout({
   children,
@@ -17,8 +18,11 @@ export default async function DashboardLayout({
     redirect("/login")
   }
 
+  const isActive = (session?.user as any)?.isActive ?? true
+
   return (
     <TooltipProvider>
+      <DeactivatedOverlay isActive={isActive} />
       <StoreInitializer email={session.user?.email ?? ""} />
       <SidebarProvider
         style={
