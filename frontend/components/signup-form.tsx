@@ -117,7 +117,6 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
           router.push("/login")
         } else {
           router.push("/patients/dashboard")
-          router.refresh()
         }
       } else {
         const data = await res.json()

@@ -20,8 +20,8 @@
 // (no @types/node), while still working correctly in both server and client renders.
 const API_BASE: string =
   typeof process !== "undefined" && typeof process.env !== "undefined"
-    ? (process.env["NEXT_PUBLIC_API_BASE"] ?? "http://localhost:8081/api")
-    : "http://localhost:8081/api"
+    ? (process.env["NEXT_PUBLIC_API_BASE"] ?? "/api")
+    : "/api"
 
 // ── Shared response types ─────────────────────────────────────────────────────
 
@@ -107,8 +107,10 @@ export class AdminFacade {
    * @param activate true → activate, false → deactivate
    */
   toggleUserActivation(userId: string, activate: boolean): Promise<{ message: string; userId: string }> {
-    const action = activate ? "activate" : "deactivate"
-    return apiFetch(`/admin/users/${userId}/${action}`, this.token, { method: "PATCH" })
+    return apiFetch(`/admin/users/${userId}`, this.token, {
+      method: "PATCH",
+      body: JSON.stringify({ active: activate }),
+    })
   }
 
   /**

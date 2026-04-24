@@ -27,6 +27,7 @@ export async function PATCH(
     .from("profiles")
     .update(updateData)
     .eq("email", id)
+    .eq("organization_id", session.user.organizationId)
     .select()
     .single()
 
