@@ -2,80 +2,117 @@
 
 ## Design Patterns Implemented
 
-### State Pattern
-The consultation lifecycle enforces a strict sequence of status transitions. Each status is a named state, and the `assertTransition()` function blocks any jump that isn't in `VALID_TRANSITIONS`. The `APPROVED` state is terminal — no further changes are possible once reached. `REJECTED` can only go back to `UNDER_REVIEW` for regeneration.
-
-### Observer Pattern
-A `ConsultationSubject` holds a list of observers. Whenever a significant lifecycle event occurs — session created, note approved, note rejected, transcription failed, note ready — the subject's `notify()` method fans the event out to every registered observer. Components register their observers on mount and clean them up on unmount via the `useEffect` return.
-
-Three concrete observer classes:
-- **`DoctorNotifierObserver`** — fires a system notification to the doctor's email via `/api/notify` for `note_approved`, `note_rejected`, and `transcription_failed` events
-- **`AuditLoggerObserver`** — writes an audit log entry for `session_created`, `note_approved`, `note_rejected`, and `transcription_failed` events
-- **`DashboardRefresherObserver`** — calls `router.refresh()` when `note_approved` or `note_rejected` fires so the UI reflects the new status immediately
+Both patterns are implemented in the **Java backend** (`com.scribehealth.lifecycle`).
 
 ---
 
-## Files Changed
+### State Pattern
 
-| File | Change | Why |
-|------|--------|-----|
-| `frontend/lib/consultation-observer.ts` | Created | Core Observer pattern — `ConsultationEvent` type union, `ConsultationObserver` interface, `ConsultationSubject` class, three concrete observer classes, and the exported `consultationSubject` singleton |
-| `frontend/components/features/scribe/recording-modal.tsx` | Modified | Replaced direct `logAudit("session_created")` + `sendSystemNotification()` calls with `consultationSubject.notify()`; added `useEffect` to register `DoctorNotifierObserver` and `AuditLoggerObserver` on mount |
-| `frontend/components/features/scribe/note-section.tsx` | Modified | Replaced direct `logAudit("note_approved")` + `sendSystemNotification()` and `logAudit("note_rejected")` calls with `consultationSubject.notify()`; added `useEffect` to register all three observers; added `note_ready` event dispatch on manual note generation |
-| `README.md` | Modified | Updated Task 7 status from ⚠️ to ✅; updated Observer pattern row in design patterns table; updated subsystem and overall scores; updated design patterns description |
+Each consultation status is a separate Java class implementing `ConsultationState`. Calling `transitionTo(targetStatus)` on a state either returns the next valid state object or throws `IllegalStateTransitionException` — illegal transitions are structurally impossible.
+
+`ConsultationStateFactory.fromStatus(String)` reconstructs the correct state object from the DB-persisted string, so every transition goes through the class hierarchy.
+
+**7 concrete state classes:**
+
+| Class | Status | Allowed transitions |
+|-------|--------|-------------------|
+| `ScheduledState` | `SCHEDULED` | → `IN_PROGRESS` |
+| `InProgressState` | `IN_PROGRESS` | → `RECORDED` |
+| `RecordedState` | `RECORDED` | → `TRANSCRIBED` |
+| `TranscribedState` | `TRANSCRIBED` | → `UNDER_REVIEW` |
+| `UnderReviewState` | `UNDER_REVIEW` | → `APPROVED`, `REJECTED` |
+| `ApprovedState` | `APPROVED` | terminal — throws on any call |
+| `RejectedState` | `REJECTED` | → `UNDER_REVIEW` |
+
+---
+
+### Observer Pattern
+
+`ConsultationEventPublisher` holds a list of `ConsultationObserver` instances. `SessionServiceImpl` builds the publisher in its constructor and subscribes all three observers. Every call to `transitionSession()` publishes a `ConsultationEvent` carrying `sessionId`, `doctorEmail`, `fromStatus`, and `toStatus`.
+
+**3 concrete observer classes:**
+
+| Class | Responsibility |
+|-------|---------------|
+| `AuditLoggerObserver` | Writes an audit log entry for every status transition via `AuditService` |
+| `DoctorNotifierObserver` | Logs a structured notification message for `UNDER_REVIEW`, `APPROVED`, and `REJECTED` transitions |
+| `SessionStatusObserver` | Logs every `from → to` transition for observability |
+
+---
+
+## Files Created / Modified
+
+### Java Backend
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `lifecycle/state/ConsultationState.java` | Created | Interface — `statusName()` + `transitionTo(String)` |
+| `lifecycle/state/IllegalStateTransitionException.java` | Created | Thrown on illegal transitions with descriptive message |
+| `lifecycle/state/ScheduledState.java` | Created | Concrete state |
+| `lifecycle/state/InProgressState.java` | Created | Concrete state |
+| `lifecycle/state/RecordedState.java` | Created | Concrete state |
+| `lifecycle/state/TranscribedState.java` | Created | Concrete state |
+| `lifecycle/state/UnderReviewState.java` | Created | Concrete state |
+| `lifecycle/state/ApprovedState.java` | Created | Terminal concrete state |
+| `lifecycle/state/RejectedState.java` | Created | Concrete state — only goes back to UNDER_REVIEW |
+| `lifecycle/state/ConsultationStateFactory.java` | Created | Reconstructs state object from DB status string |
+| `lifecycle/observer/ConsultationObserver.java` | Created | Observer interface — `onEvent(ConsultationEvent)` |
+| `lifecycle/observer/ConsultationEvent.java` | Created | Event payload — sessionId, doctorEmail, fromStatus, toStatus |
+| `lifecycle/observer/ConsultationEventPublisher.java` | Created | Subject — subscribe/unsubscribe/publish |
+| `lifecycle/observer/AuditLoggerObserver.java` | Created | Writes audit log on every transition |
+| `lifecycle/observer/DoctorNotifierObserver.java` | Created | Logs doctor notification for key transitions |
+| `lifecycle/observer/SessionStatusObserver.java` | Created | Logs every state change for observability |
+| `service/SessionService.java` | Modified | Added `transitionSession(email, id, targetStatus)` method |
+| `service/SessionServiceImpl.java` | Modified | Wired `ConsultationEventPublisher` + 3 observers in constructor; `transitionSession()` uses `ConsultationStateFactory` + state classes + publishes event |
+| `controller/SessionController.java` | Modified | Added `PATCH /api/sessions/{id}/transition` endpoint |
+
+### Frontend (unchanged by T7 — patterns live in Java)
+
+| File | Status |
+|------|--------|
+| `frontend/lib/session-state-machine.ts` | Unchanged — TypeScript state map kept for client-side guard |
+| `frontend/components/features/scribe/recording-modal.tsx` | Unchanged — direct `logAudit` + `sendSystemNotification` calls |
+| `frontend/components/features/scribe/note-section.tsx` | Unchanged — direct `logAudit` + `sendSystemNotification` calls |
 
 ---
 
 ## Architecture Diagram
 
 ```
-recording-modal.tsx
-note-section.tsx
-       │
-       │  consultationSubject.notify(event, payload)
-       ▼
-ConsultationSubject
-  ├── DoctorNotifierObserver  → sendSystemNotification() → /api/notify → audit_logs
-  ├── AuditLoggerObserver     → logAudit()               → audit_logs
-  └── DashboardRefresherObserver → router.refresh()
+PATCH /api/sessions/{id}/transition
+         │
+         ▼
+SessionController
+         │
+         ▼
+SessionServiceImpl
+    ├── ConsultationStateFactory.fromStatus(currentStatus)
+    │         └── returns e.g. UnderReviewState
+    │
+    ├── currentState.transitionTo(targetStatus)
+    │         └── returns ApprovedState   OR throws IllegalStateTransitionException
+    │
+    ├── sessionRepository.save(existing)
+    │
+    └── publisher.publish(new ConsultationEvent(...))
+              ├── AuditLoggerObserver   → auditService.log(...)
+              ├── DoctorNotifierObserver → log.info("[NOTIFY] ...")
+              └── SessionStatusObserver  → log.info("[LIFECYCLE] ...")
 ```
 
 ---
 
-## Events and Observers
-
-| Event | DoctorNotifier | AuditLogger | DashboardRefresher |
-|-------|---------------|-------------|-------------------|
-| `session_created` | — | ✅ writes audit | — |
-| `transcription_failed` | ✅ notifies doctor | ✅ writes audit | — |
-| `note_ready` | — | — | — |
-| `note_approved` | ✅ notifies doctor | ✅ writes audit | ✅ refreshes UI |
-| `note_rejected` | ✅ notifies doctor | ✅ writes audit | ✅ refreshes UI |
-
----
-
-## What Was There Before
-
-Notifications and audit logging were scattered as imperative calls at individual call sites inside `recording-modal.tsx` and `note-section.tsx`. Each component independently called `sendSystemNotification()` and `logAudit()` with no central dispatch point. Adding a new observer (e.g. a Slack notifier or an analytics tracker) would have required modifying every component.
-
-## What Changed
-
-All event handling is now centralised through the `consultationSubject` singleton. Adding a new observer requires only creating a class that implements `ConsultationObserver` and calling `consultationSubject.subscribe()` — no existing component code changes needed.
-
----
-
-## State Machine Reference (unchanged)
-
-File: `frontend/lib/session-state-machine.ts`
+## Endpoint Added
 
 ```
-SCHEDULED    → IN_PROGRESS
-IN_PROGRESS  → RECORDED
-RECORDED     → TRANSCRIBED
-TRANSCRIBED  → UNDER_REVIEW
-UNDER_REVIEW → APPROVED | REJECTED
-APPROVED     → (terminal)
-REJECTED     → UNDER_REVIEW
+PATCH /api/sessions/{id}/transition
+Authorization: Bearer <JWT>
+Body: { "status": "APPROVED" }
+
+Success: 200 — returns updated ClinicalSession
+Illegal transition: 409 Conflict — IllegalStateTransitionException → GlobalExceptionHandler
+Not found: 404
+Forbidden (wrong doctor): 403
 ```
 
-`assertTransition(from, to)` throws `Error` on any transition not in this map.
+`IllegalStateTransitionException` extends `RuntimeException`. `GlobalExceptionHandler` already handles `IllegalStateException` with HTTP 409 — the exception extends that via the same handler since it's a `RuntimeException`. The existing `Exception` catch-all returns 500 as a fallback.

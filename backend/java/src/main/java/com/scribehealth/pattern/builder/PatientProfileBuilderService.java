@@ -2,6 +2,8 @@ package com.scribehealth.pattern.builder;
 
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+
 /**
  * Service for building and validating PatientProfile objects.
  * 

@@ -17,11 +17,9 @@ import { Loader2, Sparkles, Check, CheckCircle2, XCircle, Lock } from "lucide-re
 import { Session, useScribeStore } from "@/lib/mock-store"
 import { logAudit } from "@/lib/audit"
 import {
-  consultationSubject,
-  DoctorNotifierObserver,
-  AuditLoggerObserver,
-  DashboardRefresherObserver,
-} from "@/lib/consultation-observer"
+  sendSystemNotification,
+  noteApprovedTemplate,
+} from "@/lib/notifications"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -111,21 +109,6 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
   const saveTimer   = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedTimer  = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  React.useEffect(() => {
-    if (!userEmail) return
-    const doctorNotifier      = new DoctorNotifierObserver(userEmail)
-    const auditLogger         = new AuditLoggerObserver()
-    const dashboardRefresher  = new DashboardRefresherObserver(() => router.refresh())
-    consultationSubject.subscribe(doctorNotifier)
-    consultationSubject.subscribe(auditLogger)
-    consultationSubject.subscribe(dashboardRefresher)
-    return () => {
-      consultationSubject.unsubscribe(doctorNotifier)
-      consultationSubject.unsubscribe(auditLogger)
-      consultationSubject.unsubscribe(dashboardRefresher)
-    }
-  }, [userEmail, router])
-
   const fields   = TEMPLATE_FIELDS[template] ?? TEMPLATE_FIELDS["general_opd"]
   const isLocked = session.status === "APPROVED"
   const isUnderReview = session.status === "UNDER_REVIEW" || session.status === "COMPLETED"
@@ -188,8 +171,13 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
     try {
       await updateSession(session.id, { soap: note })
       await transitionSession(session.id, "APPROVED")
-      consultationSubject.notify("note_approved", { sessionId: session.id, userEmail: userEmail ?? undefined, patientName })
+      await logAudit("note_approved", "session", session.id)
+      if (userEmail) {
+        const { subject, body } = noteApprovedTemplate(patientName, session.id)
+        void sendSystemNotification(userEmail, subject, body, `note_approved:${session.id}`)
+      }
       toast.success("Note approved and locked")
+      router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to approve note")
     } finally {
@@ -202,8 +190,9 @@ function NoteEditor({ session, initialNote, template: initialTemplate }: NoteEdi
     setIsRejecting(true)
     try {
       await transitionSession(session.id, "REJECTED")
-      consultationSubject.notify("note_rejected", { sessionId: session.id, userEmail: userEmail ?? undefined, patientName })
+      await logAudit("note_rejected", "session", session.id)
       toast.info("Note rejected — use 'Regenerate' to create a new one")
+      router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to reject note")
     } finally {
@@ -387,8 +376,7 @@ interface NoteSectionProps {
 
 export function NoteSection({ session }: NoteSectionProps) {
   const router = useRouter()
-  const { updateSession, transitionSession, userEmail, getPatient } = useScribeStore()
-  const patientName = getPatient(session.patientId)?.name ?? "Patient"
+  const { updateSession, transitionSession } = useScribeStore()
   const [isGenerating, setIsGenerating] = React.useState(false)
 
   const initialNote: Record<string, string> = session.soap
@@ -430,7 +418,6 @@ export function NoteSection({ session }: NoteSectionProps) {
         await updateSession(session.id, { soap: note })
         await transitionSession(session.id, "UNDER_REVIEW")
         await logAudit("note_generated", "session", session.id)
-        consultationSubject.notify("note_ready", { sessionId: session.id, userEmail: userEmail ?? undefined, patientName })
         toast.success("Clinical note generated")
         router.refresh()
       } catch {
