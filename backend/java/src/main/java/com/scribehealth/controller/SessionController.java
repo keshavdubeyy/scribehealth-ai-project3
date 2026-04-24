@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/sessions")
@@ -42,6 +43,13 @@ public class SessionController {
                                           @PathVariable String id,
                                           @RequestBody ClinicalSession session) {
         return sessionService.updateSession(email, id, session);
+    }
+
+    @PatchMapping("/{id}/transition")
+    public ClinicalSession transitionSession(@AuthenticationPrincipal String email,
+                                              @PathVariable String id,
+                                              @RequestBody Map<String, String> body) {
+        return sessionService.transitionSession(email, id, body.get("status"));
     }
 
     @ResponseStatus(HttpStatus.NO_CONTENT)
