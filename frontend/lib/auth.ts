@@ -52,19 +52,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.accessToken = (user as any).token ?? ""
       }
       // Always fetch role live from profiles — never trust a cached JWT role
-      const email = (token.email as string | undefined)?.toLowerCase()
+      const email = token.email as string | undefined
       if (email) {
         const supabase = createServiceClient()
         const { data: profile } = await supabase
           .from("profiles")
-          .select("id, role, organization_id, name, is_active, organizations(name)")
+          .select("role, organization_id, name, is_active, organizations(name)")
           .eq("email", email)
           .maybeSingle()
         token.role             = profile?.role             ?? "DOCTOR"
         token.organizationId   = profile?.organization_id  ?? null
         token.organizationName = (profile as any)?.organizations?.name ?? null
         token.isActive         = profile?.is_active        ?? true
-        token.userId           = profile?.id               ?? null
         if (profile?.name) token.name = profile.name
       }
       return token
@@ -76,7 +75,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.organizationId   = token.organizationId   as string
         session.user.organizationName = token.organizationName as string
         session.user.isActive         = token.isActive         as boolean
-        session.user.id               = token.userId           as string
       }
       return session
     },
