@@ -48,8 +48,8 @@ See `docs/architecture.puml` for detailed diagrams.
 
 ## Functional Requirements
 
-| ID | Requirement | Status |
-|---|---|:---:|
+| ID | Requirement | 
+|---|---|
 | FR-01 | Doctors can register, log in, and manage only their own patients and consultations | ✅ |
 | FR-02 | Administrators can manage users (create, activate, deactivate) and view audit logs | ✅ |
 | FR-03 | The system records doctor-patient audio with start, stop, pause, and resume controls | ✅ |
@@ -73,8 +73,8 @@ See `docs/architecture.puml` for detailed diagrams.
 
 ## Non-Functional Requirements
 
-| ID | Requirement | Architectural Significance | Status |
-|---|---|---|:---:|
+| ID | Requirement | Architectural Significance |
+|---|---|---|
 | NFR-01 | **Security** — PHI data must be encrypted in transit (TLS) and at rest; JWT tokens expire in 8 hours | Drives auth filter chain, HTTPS enforcement, token expiry config | ✅ |
 | NFR-02 | **Performance** — Transcription pipeline must not block the UI; API responses under 500ms for CRUD | Drives async processing, non-blocking transcription handoff | ✅ |
 | NFR-03 | **Extensibility** — New transcription providers or templates added without modifying core logic | Drives Factory Method and Template Method patterns | ✅ |
@@ -102,8 +102,8 @@ See `docs/architecture.puml` for detailed diagrams.
 
 ### Subsystems
 
-| Subsystem | Role | Status |
-|---|---|:---:|
+| Subsystem | Role |
+|---|---|
 | **Auth & Access** | JWT login/register, role enforcement, session management | ✅ |
 | **Patient & Session** | CRUD for patient records and clinical sessions; SOAP note storage | ✅ |
 | **AI Pipeline** | Audio capture → async transcription → NLP extraction → SOAP note generation | ✅ |
@@ -165,8 +165,6 @@ The system implements 6 formal design patterns for modularity and extensibility:
 | **Observer** | Java `lifecycle/observer/` | Event-driven notifications on state changes |
 | **Builder** | Java `builder/PatientProfileBuilder.java` | Validated patient profile construction |
 
-> **What's implemented vs required:** The course requires at least **5 design patterns** formally implemented. Currently **6 patterns are fully implemented and integrated into running code**: Service Layer (`UserService`/`AuditService` interfaces + implementations), Factory Method (`TranscriptionServiceFactory` + `NoteGeneratorFactory`), Template Method (`SoapNoteGenerator` hierarchy), Facade (`AdminFacade`), State (`ConsultationState` + 7 concrete states), Observer (`ConsultationEventPublisher` + 3 observers), and Builder (`PatientProfileBuilder` with validation).
-
 ---
 
 ## Project Structure
@@ -192,70 +190,6 @@ scribehealth-ai-project3/
 
 ---
 
-## Getting Started
-
-### Prerequisites
-- Node.js 20+
-- Java 17+
-- Maven (or use `./mvnw`)
-- Supabase account
-
-### 1. Database Setup
-
-Run `frontend/supabase/schema.sql` in your Supabase SQL Editor, then:
-- Create a **public** Storage bucket named `sessions`
-- Create a **public** Storage bucket named `prescription-templates`
-
-### 2. Backend (Spring Boot)
-
-```bash
-cd backend/java
-./mvnw spring-boot:run
-```
-
-- Runs on **Port 8081**
-- API Base: `http://localhost:8081/api`
-- Auth: `/api/auth/login`, `/api/auth/register`, `/api/auth/logout`
-
-### 3. Frontend (Next.js)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-- Runs on **Port 3000**
-- Web: [http://localhost:3000](http://localhost:3000)
-
-### Environment Variables
-
-See `frontend/.env.local.example` for required keys:
-- `NEXT_PUBLIC_API_BASE`
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `SARVAM_API_KEY`
-- `ANTHROPIC_API_KEY`
-- `AUTH_SECRET`
-
----
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/auth/login` | POST | JWT login |
-| `/api/auth/register` | POST | User registration |
-| `/api/auth/logout` | POST | Logout |
-| `/api/patients` | GET/POST | List / create patients |
-| `/api/sessions` | GET/POST | List / create sessions |
-| `/api/sessions/{id}/transition` | PATCH | State transition |
-| `/api/admin/users` | GET/POST | Admin user management |
-| `/api/admin/audit-logs` | GET | Audit log pagination |
-| `/api/notify` | POST | System notification |
-
----
 
 ## License
 
