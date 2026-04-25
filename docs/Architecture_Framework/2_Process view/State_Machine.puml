@@ -1,0 +1,44 @@
+@startuml Process_StateMachine
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam stateBorderColor #555
+skinparam stateBackgroundColor #FFFFFF
+skinparam arrowColor #444
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+
+title ScribeHealth AI — Consultation Lifecycle State Machine (FR-11)
+
+[*] --> SCHEDULED : Doctor creates session\n<<SessionService.createSession()>>
+
+SCHEDULED --> IN_PROGRESS : Doctor starts recording\n<<assertTransition + DB update>>
+
+IN_PROGRESS --> RECORDED : Doctor stops recording\n<<audio saved to Supabase Storage>>
+
+RECORDED --> TRANSCRIBED : Sarvam AI transcription complete\n<<withRetry() × 3 on failure>>
+
+TRANSCRIBED --> UNDER_REVIEW : SOAP note generated\n<<Claude Sonnet + NoteGeneratorFactory>>
+
+UNDER_REVIEW --> APPROVED : Doctor approves\n<<note locked — immutable>>
+
+UNDER_REVIEW --> REJECTED : Doctor rejects\n<<flagged for regeneration>>
+
+REJECTED --> UNDER_REVIEW : Doctor regenerates note\n<<new SOAP → back to review>>
+
+APPROVED --> [*] : Terminal state\n<<no further transitions>>
+
+state SCHEDULED : Default status on session creation.\nassertTransition() blocks any skip.
+
+state IN_PROGRESS : Recording active. Frontend timer starts.
+
+state RECORDED : Audio URL persisted.\nTriggers async AI pipeline.
+
+state TRANSCRIBED : Transcript ready.\nEntity extraction runs next.
+
+state UNDER_REVIEW : SOAP note ready for doctor.\nHuman-in-the-loop checkpoint (NFR-01).
+
+state APPROVED : Immutable record.\nAvailable for sharing (FR-09).\nAudit: note_approved.
+
+state REJECTED : Only valid next state: UNDER_REVIEW.\nRegeneration path active.\nAudit: note_rejected.
+
+@enduml

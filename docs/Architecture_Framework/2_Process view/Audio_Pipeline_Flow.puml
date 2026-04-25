@@ -1,0 +1,87 @@
+@startuml Process_AsyncPipeline
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam sequenceArrowColor #444
+skinparam sequenceLifeLineBorderColor #888
+skinparam sequenceParticipantBackgroundColor #FFFFFF
+skinparam sequenceParticipantBorderColor #555
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+skinparam sequenceGroupBorderColor #999
+skinparam sequenceGroupBackgroundColor #F9F9F9
+hide footbox
+
+title ScribeHealth AI — Audio Pipeline Communication Flow\n(Async, Non-Blocking — NFR-02)
+
+actor "Doctor" as D
+participant "Browser\n(MediaRecorder)" as BR
+participant "/api/transcribe" as TS
+participant "SarvamProvider" as SAR
+participant "/api/extract-entities" as EE
+participant "/api/generate-note" as GN
+participant "Claude" as CL
+participant "Supabase" as DB
+participant "EventPublisher" as PUB
+
+== Step 1: Recording ==
+D -> BR : Start Recording
+BR -> BR : MediaRecorder.start()
+note right : Non-blocking — UI responsive
+D -> BR : Stop Recording
+BR -> TS : POST audio blob (FormData)
+TS -> DB : upload audio → Supabase Storage
+DB --> TS : audioUrl
+TS -> DB : UPDATE sessions {status=RECORDED, audioUrl}
+
+== Step 2: Transcription (FR-04 / NFR-05) ==
+note right of TS : TranscriptionServiceFactory.create()\nFactory Method resolves SarvamProvider
+
+group withRetry (max 3 attempts, 1s→2s backoff)
+  TS -> SAR : POST /speech-to-text (audioBuffer)
+  activate SAR
+  alt Success
+    SAR --> TS : transcript : String
+    deactivate SAR
+    TS -> DB : UPDATE sessions {status=TRANSCRIBED, transcription}
+    TS -> PUB : publish(ConsultationEvent{RECORDED→TRANSCRIBED})
+  else Failure (attempt < 3)
+    SAR --> TS : HTTP error
+    TS -> SAR : retry after backoff
+  else All 3 attempts failed
+    SAR --> TS : final error
+    deactivate SAR
+    TS -> DB : UPDATE sessions {status=RECORDED}\n(preserved — NFR-05 no data loss)
+    TS -> DB : <<audit>> transcription_failed
+  end
+end
+
+== Step 3: Entity Extraction (FR-05) ==
+TS -> EE : POST /api/extract-entities {transcript}
+EE -> CL : Claude Haiku — extract entities
+activate CL
+CL --> EE : MedicalEntities JSON
+deactivate CL
+EE -> DB : UPDATE sessions {entities}
+
+== Step 4: SOAP Note Generation (FR-06 / NFR-03) ==
+TS -> GN : POST /api/generate-note {transcript, template}
+note right of GN : NoteGeneratorFactory.get(template)\nTemplate Method — specialty-aware
+GN -> CL : Claude Sonnet SOAP prompt
+activate CL
+CL --> GN : SoapNote JSON
+deactivate CL
+GN -> DB : UPDATE sessions {status=UNDER_REVIEW, soap}
+GN -> PUB : publish(ConsultationEvent{TRANSCRIBED→UNDER_REVIEW})
+
+== Step 5: Observer Notifications (FR-12) ==
+PUB -> PUB : AuditLoggerObserver → audit: note_ready
+PUB -> PUB : DoctorNotifierObserver → log INFO
+PUB -> PUB : SessionStatusObserver → log transition
+
+note over D, DB
+  The entire pipeline runs server-side and asynchronously.
+  Doctor's UI polls or uses Supabase Realtime for status
+  updates — no blocking on any AI call (NFR-02).
+end note
+
+@enduml
