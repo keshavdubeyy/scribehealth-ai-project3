@@ -1,0 +1,75 @@
+@startuml Prescription_Generator_Subsystem
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+hide empty members
+
+class Medicine {
+  + name : string
+  + dose : string
+  + frequency : MedicineFrequency | string
+  + duration : string
+  + timing : MedicineTiming | string
+}
+
+class Prescription {
+  + patient_name : string
+  + patient_age : string
+  + chief_complaint : string
+  + diagnosis : string
+  + medicines : Medicine[]
+  + next_steps : string[]
+}
+
+class SafeZone {
+  + xPct : number
+  + yPct : number
+  + widthPct : number
+  + heightPct : number
+  + fontSizePt : number
+  + lineHeightPt : number
+}
+note right : Percentage-based canvas coordinates\nfor template image overlay
+
+class PrescriptionTemplate <<entity: prescription_templates>> {
+  + id : string
+  + imagePath : string
+  + imageUrl : string
+  + imageWidth : number
+  + imageHeight : number
+  + safeZone : SafeZone
+}
+
+class ScribeStore <<Zustand store>> {
+  + prescriptionTemplate : PrescriptionTemplate | null
+  + fetchPrescriptionTemplate() : Promise<void>
+  + setPrescriptionTemplate(template) : void
+}
+
+class PrescriptionsGenerateRoute <<POST /api/prescriptions/generate>> {
+  + POST(request) : NextResponse  <<PDF blob>>
+}
+note right : AI auto-fills prescription fields\nfrom session SOAP/transcript
+
+class PrescriptionTemplatesRoute <<GET|POST /api/prescription-templates>> {
+  + GET() : NextResponse
+  + POST() : NextResponse
+}
+note right : Manage doctor’s letterhead\ntemplate + safe-zone config
+
+class NotificationTemplates <<TS module>> {
+  + {static} prescriptionSharingTemplate(patientName, data) : TemplateResult
+}
+note right : Generates prescription message body\nfor Email / WhatsApp / SMS
+
+Prescription *-- Medicine
+PrescriptionTemplate *-- SafeZone
+ScribeStore --> PrescriptionTemplate
+ScribeStore ..> PrescriptionsGenerateRoute : calls
+ScribeStore ..> PrescriptionTemplatesRoute : calls
+PrescriptionsGenerateRoute ..> Prescription : generates
+ScribeStore ..> NotificationTemplates : uses for sharing
+@enduml
