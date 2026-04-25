@@ -1,0 +1,88 @@
+@startuml Deployment_View
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam nodeBorderColor #555
+skinparam nodeBackgroundColor #FFFFFF
+skinparam arrowColor #444
+skinparam componentBorderColor #666
+skinparam componentBackgroundColor #FFFFFF
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+skinparam packageBorderColor #888
+
+title ScribeHealth AI — Deployment View: Infrastructure
+
+' ── Doctor's Browser ──────────────────────────────────────────
+node "Doctor's Browser" <<client device>> #EAF4FB {
+  component "Next.js SPA\n(React 19 + Zustand)" as SPA
+  component "MediaRecorder API\n(browser audio capture)" as MR
+}
+
+' ── Vercel (Frontend Hosting) ─────────────────────────────────
+node "Vercel (Edge Network)" <<PaaS — Frontend>> #E8F0FE {
+  component "Next.js App Router\n(SSR + API Routes)" as NEXT
+  component "Serverless API Routes\n(/api/transcribe · /api/generate-note\n/api/extract-entities · /api/notify\n/api/prescriptions · /api/audit)" as ROUTES
+}
+
+' ── Cloud Run / Railway (Backend) ─────────────────────────────
+node "Cloud Run / Railway (JVM)" <<PaaS — Backend>> #FFF0F5 {
+  component "Spring Boot 3.2 (Java 17)" as SB
+  component "JwtAuthFilter + SecurityConfig" as SEC
+  component "REST Controllers\n(/api/auth · /api/patients\n/api/sessions · /api/admin)" as API
+  component "Service Layer\n(Facade · Observer · State Machine)" as SVC
+}
+
+' ── Supabase ──────────────────────────────────────────────────
+node "Supabase (Managed Cloud)" <<BaaS — DB + Storage>> #EAF7EA {
+  component "PostgreSQL 15\n(profiles · patients · sessions\naudit_logs · prescription_templates)" as PG
+  component "Supabase Storage\n(audio recordings + prescription images)" as STG
+  component "Supabase Auth\n(identity + JWT issuance)" as AUTH
+  component "Supabase Realtime\n(live audit log updates)" as RT
+}
+
+' ── External AI Services ──────────────────────────────────────
+node "Sarvam AI (api.sarvam.ai)" <<External API — STT>> #FFFACD {
+  component "saarika:v2.5\nSpeech-to-Text (Hindi + English)" as SARVAM
+}
+
+node "Anthropic (api.anthropic.com)" <<External API — LLM>> #FFF8EE {
+  component "Claude Haiku (entity extraction)" as HAIKU
+  component "Claude Sonnet (SOAP generation)" as SONNET
+}
+
+' ── Connections ───────────────────────────────────────────────
+SPA     -right-> NEXT    : HTTPS (Vercel Edge)
+MR      -right-> ROUTES  : POST audio blob\n/api/transcribe
+
+NEXT    -down->  SB      : REST (Bearer JWT) HTTPS
+SB      -right-> PG      : JDBC / JPA (internal VPC)
+NEXT    -down->  PG      : Supabase JS client (direct SQL)
+NEXT    -down->  STG     : upload / read audio + images
+NEXT    -down->  AUTH    : NextAuth signIn / signOut
+SB      -down->  AUTH    : JWT validation
+
+ROUTES  -right-> SARVAM  : POST /speech-to-text
+ROUTES  -right-> HAIKU   : POST /messages (entity extraction)
+ROUTES  -right-> SONNET  : POST /messages (SOAP generation)
+
+SPA     -down->  RT      : WebSocket (audit log live updates)
+
+note right of ROUTES : Serverless Functions\n(Node.js runtime)
+note right of SB : Stateless — scales horizontally\nNo session affinity required
+
+note bottom of PG
+  Row-Level Security (RLS): doctors access only their own rows.
+  audit_logs: INSERT-only for all, SELECT restricted to ADMIN.
+end note
+
+note bottom of SARVAM
+  withRetry() — up to 3 attempts
+  1s → 2s linear backoff (NFR-05)
+end note
+
+note bottom of SONNET
+  Template Method selects specialty
+  generator before each API call (NFR-03)
+end note
+
+@enduml
