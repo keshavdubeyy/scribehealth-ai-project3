@@ -1,0 +1,59 @@
+@startuml Development_CICD_Pipeline
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam activityBorderColor #555
+skinparam activityBackgroundColor #FFFFFF
+skinparam arrowColor #444
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+skinparam swimlaneBorderColor #999
+
+title ScribeHealth AI — CI/CD Pipeline
+
+|Developer Workstation|
+start
+:Write code (feature branch);
+:Run local dev servers\nfrontend: npm run dev (port 3000)\nbackend: mvn spring-boot:run (port 8080);
+:Commit & push to GitHub;
+
+|GitHub (Source Control)|
+:Pull Request opened;
+:Automated checks triggered;
+
+|CI — Frontend (GitHub Actions)|
+:npm install;
+:npx tsc --noEmit (TypeScript check);
+:npm run lint (ESLint);
+:npm run build (Next.js production build);
+
+|CI — Backend (GitHub Actions)|
+:mvn clean verify;
+:Unit tests (JUnit 5);
+:Integration tests (Spring Boot Test);
+:mvn package → JAR artifact;
+
+|Code Review|
+:Peer review & approval;
+if (PR approved?) then (yes)
+else (no)
+  :Request changes;
+  stop
+endif
+
+|GitHub (main branch)|
+:Merge to main;
+
+|CD — Staging Deploy|
+:Frontend → Vercel preview URL;
+:Backend → Cloud Run / Railway\n(Docker image from JAR);
+:Run smoke tests against staging;
+
+|CD — Production Deploy|
+:Frontend → Vercel (production domain);
+:Backend → Cloud Run / Railway (tagged release);
+:Database migrations via Supabase CLI\n(SQL files applied);
+:Health-check endpoints verified\n/api/health → 200 OK;
+
+stop
+
+@enduml
