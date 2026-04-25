@@ -65,7 +65,7 @@ See `docs/architecture.puml` for detailed diagrams.
 
 > - **FR-02** — Admins can manage users via the `/api/admin/users` portal, including direct creation of new doctor accounts, generating multi-use invite codes, and toggling activation/deactivation; Audit log UI is fully built and displays live system events with sub-second latency via Supabase Realtime; `login_success` and `logout` events are automatically captured through NextAuth middleware.
 > - **FR-05** — Claude Haiku extracts 6 typed entity categories (symptoms, diagnoses, medications, allergies, vitals, treatment plans) via `/api/extract-entities`; stored as `entities JSONB` on session; displayed in dedicated **Entities tab** in the session view; re-extractable on demand
-> - **FR-09** — `prescription-tab.tsx` has a "Share prescription" dropdown that generates the PDF (via `/api/prescriptions/generate`) then opens Email (`mailto:`), WhatsApp (`wa.me/`), or SMS (`sms:`) with pre-filled prescription content; sharing available whenever the patient has an email or phone on record; `prescriptionSharingTemplate()` and `noteSharingTemplate()` defined in `lib/notifications.ts`
+> - **FR-09** — `prescription-tab.tsx` has a "Share prescription" dropdown that generates the PDF (via `/api/prescriptions/generate`) then opens Email (`mailto:`), WhatsApp (`wa.me/`), or SMS (`sms:`) with pre-filled prescription content via `prescriptionSharingTemplate()`; sharing available whenever the patient has an email or phone on record; `noteSharingTemplate()` is also defined in `lib/notifications.ts` for a future share-note UI surface
 > - **FR-10** — All system actions logged: `login_success`, `logout` (via NextAuth signIn/signOut → `logAuditServer`), `patient_created`, `patient_updated`, `patient_deleted`, `session_created`, `session_deleted`, `note_edited`, `note_approved`, `note_rejected`, `note_generated`, `note_regenerated`, `notification_sent` (via `/api/notify`)
 > - **FR-11** — `lib/session-state-machine.ts` defines `VALID_TRANSITIONS` map + `assertTransition()` which throws on illegal jumps; `transitionSession()` in the store validates every status change before writing; `APPROVED` is terminal (no further transitions); `REJECTED → UNDER_REVIEW` is the only regeneration path; sessions now start in `SCHEDULED` and advance through the full 7-state chain
 
@@ -82,7 +82,7 @@ See `docs/architecture.puml` for detailed diagrams.
 | NFR-05 | **Reliability** — Transcription failures recovered via retry; no data loss on pipeline error | Drives retry mechanism, session status persistence | ✅ |
 
 > - **NFR-01** — Supabase enforces TLS; NextAuth JWT with configurable expiry; all data encrypted at rest
-> - **NFR-02** — Transcription runs server-side async; CRUD under 500ms via Supabase direct queries
+> - **NFR-02** — Transcription pipeline is non-blocking: `RecordingModal` calls `POST /api/transcribe` and processes the result asynchronously without blocking the UI; CRUD under 500ms via Supabase direct queries
 > - **NFR-03** — Fully extensible on both axes: (1) transcription providers via `TranscriptionServiceFactory` (`TranscriptionProvider` interface + `SarvamTranscriptionProvider` — swap to Whisper/Google STT with one new class + one env var change); (2) SOAP note templates via `SoapNoteGenerator` Template Method (new specialty = new subclass only)
 > - **NFR-04** — Global append-only `audit_logs` table; all key actions logged with actor + timestamp + entity; admin view built
 > - **NFR-05** — `withRetry()` wrapper retries transcription up to 3 times (1s → 2s backoff); transcript saved even if note generation fails
@@ -153,7 +153,7 @@ See `docs/architecture.puml` for detailed diagrams.
 
 ## Design Patterns
 
-The system implements 6 formal design patterns for modularity and extensibility:
+The system implements 7 formal design patterns for modularity and extensibility:
 
 | Pattern | Location | Purpose |
 |---|---|---|
