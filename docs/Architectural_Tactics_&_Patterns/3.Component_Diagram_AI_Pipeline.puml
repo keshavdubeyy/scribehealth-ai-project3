@@ -1,0 +1,67 @@
+@startuml Component_Diagram_AI_Pipeline
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam componentBorderColor #555
+skinparam arrowColor #444
+skinparam packageStyle rectangle
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+
+title ScribeHealth AI — Component Diagram: AI Pipeline
+
+package "Next.js API Routes (AI Pipeline Container)" {
+
+  component "POST /api/transcribe\n[TranscribeRoute]"        as TR  <<API Route>> #D6EAF8
+  component "POST /api/generate-note\n[GenerateNoteRoute]"   as GN  <<API Route>> #D6EAF8
+  component "POST /api/extract-entities\n[ExtractEntities]"  as EE  <<API Route>> #D6EAF8
+
+  component "TranscriptionServiceFactory\n[Factory Method]\ncreate(provider?)\nReads TRANSCRIPTION_PROVIDER env" as TSF <<Factory>>   #FDEBD0
+  component "TranscriptionProvider\n[Interface]\ntranscribe(audioBuffer, mimeType)"                               as TPI <<Interface>> #E8F5E9
+  component "SarvamTranscriptionProvider\n[Concrete Product]\nname = 'sarvam'\nPOST sarvam.ai/speech-to-text"    as STP <<Provider>>   #FFFACD
+
+  component "withRetry()\n[Reliability Wrapper]\nmax 3 attempts\n1s → 2s linear backoff (NFR-05)"                as WR  <<Utility>>   #F9EBEA
+
+  component "NoteGeneratorFactory\n[Selector]\nget(templateName) : SoapNoteGenerator"                            as NGF <<Factory>>   #FDEBD0
+  component "SoapNoteGenerator\n[Abstract — Template Method]\ngenerate() · callModel() · normaliseFields()\nspecialtyContext()  [hook]" as SNG <<Abstract>> #E8F5E9
+  component "GeneralOpdNoteGenerator\nMentalHealthNoteGenerator\nPhysiotherapyNoteGenerator\nPediatricNoteGenerator\nCardiologyNoteGenerator\nSurgicalFollowupNoteGenerator"  as Generators <<Concrete Subclasses>> #D5F5E3
+
+  component "Claude Haiku\n[Entity Extraction]\nReturns: symptoms, diagnoses,\nmedications, allergies, vitals" as Haiku  <<External AI>> #FFF3E0
+  component "Claude Sonnet\n[SOAP Generation]\nclaude-sonnet-4-6 · max_tokens: 2048\nReturns structured JSON note"  as Sonnet <<External AI>> #FFF3E0
+}
+
+cloud "Sarvam AI\nsaarika:v2.5" as Sarvam #FFFACD
+
+TR  --> TSF : "create()"
+TSF ..> TPI : <<instantiates>>
+STP ..|> TPI
+TSF --> STP : <<returns>>
+TR  --> WR  : "wraps transcribe()"
+WR  --> STP : "transcribe(audioBuffer)"
+STP --> Sarvam : "POST /speech-to-text"
+
+GN  --> NGF       : "get(templateName)"
+NGF ..> Generators : <<selects>>
+Generators --|> SNG
+GN  --> Sonnet    : "callModel(transcript)"
+
+EE  --> Haiku     : "POST extract-entities prompt"
+
+note right of WR
+  NFR-05: Reliability
+  Audio preserved even if
+  note generation fails
+end note
+
+note right of TSF
+  NFR-03: Extensibility
+  New provider = 1 new class
+  + 1 env var change
+end note
+
+note right of SNG
+  NFR-03: Extensibility
+  New specialty = 1 new subclass
+  API route unchanged
+end note
+
+@enduml

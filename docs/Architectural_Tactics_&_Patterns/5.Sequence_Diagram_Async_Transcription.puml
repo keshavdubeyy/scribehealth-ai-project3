@@ -1,0 +1,112 @@
+@startuml Sequence_Diagram_Async_Transcription
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam sequenceArrowColor #444
+skinparam sequenceLifeLineBorderColor #888
+skinparam sequenceParticipantBorderColor #555
+skinparam noteBorderColor #AAAAAA
+skinparam noteBackgroundColor #FFFFF0
+hide footbox
+
+title ScribeHealth AI — Async Transcription + Retry Flow\n(FR-03, FR-04, FR-11, NFR-02, NFR-05)
+
+actor "Doctor" as D
+participant "Frontend\n(ScribeStore)" as FE
+participant "MediaRecorder\n(Browser)" as MR
+participant "Supabase\nStorage" as S3
+participant "/api/transcribe" as API
+participant "TranscriptionFactory" as TSF
+participant "SarvamProvider" as STP
+participant "Sarvam AI" as SAR
+database "Supabase\n(sessions)" as DB
+
+== Recording Phase (FR-03) ==
+
+D -> FE : Click "Start Recording"
+FE -> FE : assertTransition(SCHEDULED → IN_PROGRESS)
+FE -> DB : UPDATE sessions {status='IN_PROGRESS'}
+FE -> MR : MediaRecorder.start()
+activate MR
+note right : Audio captured — WebM/Opus format
+
+D -> FE : Click "Stop Recording"
+FE -> MR : MediaRecorder.stop()
+MR --> FE : Blob (audio/webm)
+deactivate MR
+
+FE -> FE : assertTransition(IN_PROGRESS → RECORDED)
+FE -> S3 : Upload audio blob → sessions/{id}/recording.webm
+S3 --> FE : audioUrl
+FE -> DB : UPDATE sessions {status='RECORDED', audioUrl}
+
+== Async Transcription Phase (FR-04, NFR-02, NFR-05) ==
+
+note over FE, SAR
+  Transcription runs server-side — UI is NOT blocked.
+  Doctor sees a spinner while pipeline processes asynchronously.
+end note
+
+FE -> API : POST /api/transcribe {audioBuffer, mimeType}
+activate API
+
+API -> TSF : TranscriptionServiceFactory.create('sarvam')
+activate TSF
+TSF --> API : SarvamTranscriptionProvider
+deactivate TSF
+
+note right of TSF
+  NFR-03: Factory Method
+  Swap to Whisper / Google STT
+  with 1 new class + 1 env var
+end note
+
+loop Attempt 1..3 (NFR-05 Reliability)
+  API -> STP : provider.transcribe(audioBuffer, mimeType)
+  activate STP
+  STP -> SAR : POST api.sarvam.ai/speech-to-text\n{file, model:'saarika:v2.5'}
+  activate SAR
+
+  alt Success
+    SAR --> STP : {transcript: "Patient reports…"}
+    STP --> API : transcript : String
+    deactivate SAR
+    deactivate STP
+  else Failure (network / 5xx)
+    SAR --> STP : HTTP 5xx / timeout
+    deactivate SAR
+    STP --> API : throw Error
+    deactivate STP
+    API -> API : wait backoff(attempt) then retry
+    note right : Attempt 1 → 1s · Attempt 2 → 2s\nAttempt 3 → throw
+  end
+end
+
+API --> FE : {transcript: string}
+deactivate API
+
+FE -> FE : assertTransition(RECORDED → TRANSCRIBED)
+FE -> DB : UPDATE sessions {status='TRANSCRIBED', transcription}
+DB --> FE : OK
+
+FE -> DB : INSERT audit_logs {action:'transcription_complete'}
+
+note over FE
+  Pipeline continues automatically:
+  → Extract entities (Claude Haiku)
+  → Generate SOAP note (Claude Sonnet)
+  → Status → UNDER_REVIEW
+end note
+
+FE --> D : Transcript displayed\nPipeline advances to entity extraction
+
+== Failure Path (NFR-05) ==
+
+note over API, DB
+  If all 3 attempts fail:
+  - Session stays in RECORDED status (no data loss)
+  - Error surfaced to UI — doctor can manually retry
+  - audioUrl always preserved in Supabase Storage
+  - Audit log records failure event
+end note
+
+@enduml

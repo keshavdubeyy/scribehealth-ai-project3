@@ -1,0 +1,136 @@
+@startuml State_Pattern
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+hide empty members
+
+title ScribeHealth AI — State Pattern\nConsultation Lifecycle (FR-11, NFR-04, NFR-05)
+
+note as N1
+  Pattern: State (GoF Behavioral)
+  Locations:
+    Java — backend/java/.../lifecycle/state/
+    TypeScript — frontend/lib/session-state-machine.ts
+  FRs addressed: FR-11 (illegal transitions blocked), FR-12 (events on transition)
+  NFRs addressed: NFR-04 (every transition audited), NFR-05 (state persisted)
+  Motivation: Enforce 7-state consultation lifecycle as a first-class domain object.
+  Illegal jumps throw IllegalStateTransitionException before any DB write.
+end note
+
+package "State Interface" #E8F5E9 {
+  interface ConsultationState {
+    + statusName() : String
+    + transitionTo(targetStatus : String) : ConsultationState
+  }
+}
+
+package "Concrete States" #FFFACD {
+  class ScheduledState {
+    + statusName() = "SCHEDULED"
+    + transitionTo("IN_PROGRESS") : InProgressState
+  }
+  class InProgressState {
+    + statusName() = "IN_PROGRESS"
+    + transitionTo("RECORDED") : RecordedState
+  }
+  class RecordedState {
+    + statusName() = "RECORDED"
+    + transitionTo("TRANSCRIBED") : TranscribedState
+  }
+  class TranscribedState {
+    + statusName() = "TRANSCRIBED"
+    + transitionTo("UNDER_REVIEW") : UnderReviewState
+  }
+  class UnderReviewState {
+    + statusName() = "UNDER_REVIEW"
+    + transitionTo("APPROVED") : ApprovedState
+    + transitionTo("REJECTED") : RejectedState
+  }
+  class ApprovedState <<terminal>> {
+    + statusName() = "APPROVED"
+    + transitionTo(any) → throw
+  }
+  class RejectedState {
+    + statusName() = "REJECTED"
+    + transitionTo("UNDER_REVIEW") : UnderReviewState
+  }
+}
+
+package "Factory" #FDEBD0 {
+  class ConsultationStateFactory {
+    + {static} fromStatus(status : String) : ConsultationState
+    .. switch(status) ..
+    "SCHEDULED"    → new ScheduledState()
+    "IN_PROGRESS"  → new InProgressState()
+    "RECORDED"     → new RecordedState()
+    "TRANSCRIBED"  → new TranscribedState()
+    "UNDER_REVIEW" → new UnderReviewState()
+    "APPROVED"     → new ApprovedState()
+    "REJECTED"     → new RejectedState()
+    default        → throw IllegalArgumentException
+  }
+}
+
+package "Exception" #FDEDEC {
+  class IllegalStateTransitionException {
+    + IllegalStateTransitionException(from : String, to : String)
+  }
+}
+
+package "Context (Service)" #D6EAF8 {
+  class SessionServiceImpl <<@Service>> {
+    + transitionSession(email, id, targetStatus) : ClinicalSession
+    .. flow ..
+    1. Load session from DB
+    2. currentState = ConsultationStateFactory.fromStatus(session.status)
+    3. nextState = currentState.transitionTo(targetStatus)
+    4. session.status = nextState.statusName()
+    5. sessionRepository.save(session)
+    6. publisher.publish(ConsultationEvent)
+  }
+}
+
+package "Frontend Mirror (TypeScript)" #EAF2FF {
+  class SessionStateMachine <<TS module>> {
+    + {static} VALID_TRANSITIONS : Record<SessionStatus, SessionStatus[]>
+    .. SCHEDULED    → [IN_PROGRESS] ..
+    .. IN_PROGRESS  → [RECORDED] ..
+    .. RECORDED     → [TRANSCRIBED] ..
+    .. TRANSCRIBED  → [UNDER_REVIEW] ..
+    .. UNDER_REVIEW → [APPROVED, REJECTED] ..
+    .. APPROVED     → []  (terminal) ..
+    .. REJECTED     → [UNDER_REVIEW] ..
+    + {static} canTransition(from, to) : boolean
+    + {static} assertTransition(from, to) : void
+  }
+}
+
+ScheduledState   ..|> ConsultationState
+InProgressState  ..|> ConsultationState
+RecordedState    ..|> ConsultationState
+TranscribedState ..|> ConsultationState
+UnderReviewState ..|> ConsultationState
+ApprovedState    ..|> ConsultationState
+RejectedState    ..|> ConsultationState
+
+ConsultationState           ..> IllegalStateTransitionException : <<throws on invalid>>
+ConsultationStateFactory    ..> ConsultationState              : <<creates>>
+SessionServiceImpl --> ConsultationStateFactory                 : "fromStatus(session.status)"
+SessionServiceImpl --> ConsultationState                        : "currentState.transitionTo(target)"
+
+note right of ApprovedState
+  NFR-05: APPROVED is terminal.
+  No edit or transition permitted
+  after approval. Note locked.
+end note
+
+note right of SessionStateMachine
+  FR-11 enforced client-side too —
+  assertTransition() called in ScribeStore
+  before any API call.
+end note
+
+@enduml

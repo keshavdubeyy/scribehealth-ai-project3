@@ -1,0 +1,48 @@
+@startuml C4_Container_Diagram
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam rectangleBorderColor #555
+skinparam arrowColor #444
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+
+title ScribeHealth AI — C4 Container Diagram
+
+top to bottom direction
+
+actor "Doctor"        as Doctor #LightSteelBlue
+actor "Administrator" as Admin  #LightSalmon
+
+package "ScribeHealth AI [System Boundary]" #FFFFF0 {
+
+  rectangle "Next.js Frontend\n[Container: TypeScript / React 19]\n\nApp Router pages · API routes\nZustand state · audio capture\nsession state machine · review UI" as FE #D6EAF8
+
+  rectangle "Spring Boot Backend\n[Container: Java 17 / Spring Boot 3.2]\n\nREST API · JWT auth filter\nService Layer · Facade · State + Observer\nPatientProfileBuilder (Builder)" as BE #D5F5E3
+
+  rectangle "AI Pipeline\n[Container: Next.js API Routes / TypeScript]\n\nTranscriptionServiceFactory (Factory Method)\nSoapNoteGenerator subclasses (Template Method)\nwithRetry() wrapper (NFR-05)" as AI #FDEBD0
+
+  rectangle "Audit & Admin\n[Container: Java / Spring Boot]\n\nAdminFacade · AuditService\nappend-only audit_logs\nAdmin-only REST endpoints" as Audit #F9EBEA
+}
+
+cloud "Supabase\n[External: PostgreSQL + Storage + Realtime]\npatients · sessions · soap · entities\naudit_logs · prescription_templates" as DB     #E8F5E9
+cloud "Sarvam AI\n[External: REST API]\nsaarika:v2.5 STT"                      as Sarvam #FFFACD
+cloud "Anthropic Claude\n[External: REST API]\nHaiku + Sonnet"                  as Claude #FFF3E0
+cloud "Notification Channels\n[External]\nEmail · WhatsApp · SMS"               as Notify #F3E5F5
+
+Doctor -right-> FE : "Uses browser [HTTPS]"
+Admin  -right-> FE : "Uses browser [HTTPS]"
+
+FE    -right-> BE    : "Auth, patient & session CRUD\n[REST / Bearer JWT]"
+FE    -down->  AI    : "/api/transcribe\n/api/generate-note\n/api/extract-entities"
+FE    -down->  DB    : "Direct CRUD via Supabase client\n[TLS / Row-Level Security]"
+FE    -down->  Notify : "mailto: / wa.me: / sms:"
+
+BE    -right-> DB    : "JPA / Hibernate [JDBC / TLS]"
+BE    -down->  Audit  : "Append audit log on\nevery state change"
+
+AI    -down->  Sarvam : "POST audio buffer [HTTPS]"
+AI    -down->  Claude  : "POST transcript prompt\n[HTTPS / Anthropic SDK]"
+
+Audit -down->  DB    : "INSERT audit_logs (append-only)"
+
+@enduml

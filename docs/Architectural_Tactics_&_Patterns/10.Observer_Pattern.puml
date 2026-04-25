@@ -1,0 +1,122 @@
+@startuml Observer_Pattern
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+hide empty members
+
+title ScribeHealth AI — Observer Pattern\nConsultationEventPublisher (FR-12, NFR-04)
+
+note as N1
+  Pattern: Observer (GoF Behavioral)
+  Location: backend/java/.../lifecycle/observer/
+  FRs addressed: FR-12 (automatic notifications on lifecycle events)
+  NFR addressed: NFR-04 (every transition audited via AuditLoggerObserver)
+  Motivation: Decouple session lifecycle from notification and audit concerns.
+  New observers added without touching SessionServiceImpl.
+end note
+
+package "Event" #FEF9E7 {
+  class ConsultationEvent {
+    - sessionId : String
+    - doctorEmail : String
+    - fromStatus : String
+    - toStatus : String
+    + getSessionId() : String
+    + getDoctorEmail() : String
+    + getFromStatus() : String
+    + getToStatus() : String
+  }
+}
+
+package "Observer Interface" #E8F5E9 {
+  interface ConsultationObserver {
+    + onEvent(event : ConsultationEvent) : void
+  }
+}
+
+package "Publisher (Subject)" #FDEBD0 {
+  class ConsultationEventPublisher <<@Component>> {
+    - observers : List<ConsultationObserver>
+    + subscribe(observer) : void
+    + unsubscribe(observer) : void
+    + publish(event : ConsultationEvent) : void
+  }
+}
+
+package "Concrete Observers" #FFFACD {
+  class AuditLoggerObserver <<@Component>> {
+    - auditService : AuditService
+    + onEvent(event : ConsultationEvent) : void
+    .. maps toStatus → audit action ..
+    UNDER_REVIEW → "note_ready"
+    APPROVED     → "note_approved"
+    REJECTED     → "note_rejected"
+    IN_PROGRESS  → "session_started"
+    RECORDED     → "recording_complete"
+    TRANSCRIBED  → "transcription_complete"
+  }
+
+  class DoctorNotifierObserver <<@Component>> {
+    + onEvent(event : ConsultationEvent) : void
+    .. logs INFO for relevant transitions ..
+    UNDER_REVIEW → "Note ready for review"
+    APPROVED     → "Note approved"
+    REJECTED     → "Note rejected — regeneration available"
+  }
+
+  class SessionStatusObserver <<@Component>> {
+    + onEvent(event : ConsultationEvent) : void
+    .. logs all lifecycle transitions ..
+    "{sessionId}: {fromStatus} → {toStatus}"
+  }
+
+  class FutureObserver <<extensible>> #F4F6F7 {
+    + onEvent(event : ConsultationEvent) : void
+    .. e.g. SMS notifier, push notification ..
+  }
+}
+
+package "Publisher Caller" #D6EAF8 {
+  class SessionServiceImpl <<@Service>> {
+    - publisher : ConsultationEventPublisher
+    + transitionSession(email, id, targetStatus) : ClinicalSession
+  }
+}
+
+package "Audit Service" #FDEDEC {
+  interface AuditService {
+    + log(userEmail, action, entityType, entityId) : void
+  }
+}
+
+ConsultationObserver <|.. AuditLoggerObserver
+ConsultationObserver <|.. DoctorNotifierObserver
+ConsultationObserver <|.. SessionStatusObserver
+ConsultationObserver <|.. FutureObserver
+
+ConsultationEventPublisher "1" o-- "0..*" ConsultationObserver : "observers list"
+ConsultationEventPublisher ..> ConsultationEvent : "publishes"
+
+AuditLoggerObserver --> AuditService : "log()"
+SessionServiceImpl  --> ConsultationEventPublisher : "publish(event)"
+SessionServiceImpl  ..> ConsultationEvent          : "new ConsultationEvent(...)"
+
+note bottom of AuditLoggerObserver
+  NFR-04: Every state transition
+  automatically writes an immutable
+  row to audit_logs via AuditService.
+  Publisher never calls audit directly.
+end note
+
+note bottom of ConsultationEventPublisher
+  Extension rule:
+  1. Implement ConsultationObserver
+  2. Annotate with @Component
+  3. Spring auto-wires and subscribes
+  → Zero changes to SessionServiceImpl
+end note
+
+@enduml
