@@ -1,0 +1,103 @@
+@startuml UseCase_Diagram
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam usecaseBorderColor #555
+skinparam usecaseBackgroundColor #FFFFFF
+skinparam actorBorderColor #333
+skinparam arrowColor #444
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+
+title ScribeHealth AI — Use Case Diagram
+
+top to bottom direction
+
+actor "Doctor"               as DR  #LightSteelBlue
+actor "Administrator"        as AD  #LightSalmon
+actor "System\n(AI Pipeline)" as SYS #LightYellow
+actor "Patient"              as PAT #PaleGreen
+
+rectangle "ScribeHealth AI" {
+
+  ' ── Auth & Profile ───────────────────────────────────────────
+  usecase "UC-01\nLogin / Logout"                        as UC01
+  usecase "UC-02\nView & Edit Profile\n(specialization)" as UC02
+
+  ' ── Patient Management ───────────────────────────────────────
+  usecase "UC-03\nManage Patients\n(add / edit / delete)"   as UC03
+  usecase "UC-04\nView Patient History\n& Medical Records"  as UC04
+
+  ' ── Consultation Lifecycle ───────────────────────────────────
+  usecase "UC-05\nSchedule Session"                      as UC05
+  usecase "UC-06\nRecord Audio\n(start / pause / stop)"  as UC06
+  usecase "UC-07\nSelect Note Template\n(specialty)"     as UC07
+
+  ' ── AI Pipeline ──────────────────────────────────────────────
+  usecase "UC-08\nTranscribe Audio\n(async, with retry)" as UC08
+  usecase "UC-09\nExtract Medical Entities"              as UC09
+  usecase "UC-10\nGenerate SOAP Note\n(specialty-aware)" as UC10
+
+  ' ── Review ───────────────────────────────────────────────────
+  usecase "UC-11\nReview & Edit SOAP Note"               as UC11
+  usecase "UC-12\nApprove Note\n(locks permanently)"     as UC12
+  usecase "UC-13\nReject & Regenerate Note"              as UC13
+
+  ' ── Sharing ──────────────────────────────────────────────────
+  usecase "UC-14\nGenerate Prescription"                 as UC14
+  usecase "UC-15\nShare Note / Prescription\n(Email / WhatsApp / SMS)" as UC15
+
+  ' ── Admin ────────────────────────────────────────────────────
+  usecase "UC-16\nManage Users\n(create / activate / deactivate)" as UC16
+  usecase "UC-17\nView Audit Log\n(all system actions)"   as UC17
+  usecase "UC-18\nView System Statistics"                 as UC18
+
+  ' ── System (automated) ───────────────────────────────────────
+  usecase "UC-19\nLog Every Action\n(immutable audit_logs)" as UC19
+  usecase "UC-20\nSend Lifecycle Notifications\n(note_ready, approved, failed)" as UC20
+  usecase "UC-21\nRetry Transcription\n(withRetry × 3)"    as UC21
+}
+
+' Doctor associations
+DR --> UC01
+DR --> UC02
+DR --> UC03
+DR --> UC04
+DR --> UC05
+DR --> UC06
+DR --> UC07
+DR --> UC11
+DR --> UC12
+DR --> UC13
+DR --> UC14
+DR --> UC15
+
+' Admin associations
+AD --> UC01
+AD --> UC16
+AD --> UC17
+AD --> UC18
+
+' System (automated pipeline) associations
+SYS --> UC08
+SYS --> UC09
+SYS --> UC10
+SYS --> UC19
+SYS --> UC20
+SYS --> UC21
+
+' Patient (passive — recipient)
+UC15 --> PAT : receives note/prescription
+
+' Trigger / include / extend relationships
+UC06 ..> UC08 : <<triggers>>
+UC08 ..> UC09 : <<triggers>>
+UC09 ..> UC10 : <<triggers>>
+UC10 ..> UC11 : <<enables>>
+UC12 ..> UC19 : <<include>>
+UC13 ..> UC19 : <<include>>
+UC08 ..> UC21 : <<extend>>\non failure
+UC12 ..> UC20 : <<include>>
+
+note "Every action (UC-01 to UC-18)\nautomatically triggers UC-19\n(audit logging — NFR-04)" as N1
+
+@enduml
