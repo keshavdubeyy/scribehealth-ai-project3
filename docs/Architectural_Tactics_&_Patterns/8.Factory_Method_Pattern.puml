@@ -1,0 +1,91 @@
+@startuml Factory_Method_Pattern
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+hide empty members
+
+title ScribeHealth AI — Factory Method Pattern\nTranscriptionServiceFactory (NFR-03: Extensibility)
+
+note as N1
+  Pattern: Factory Method (GoF Creational)
+  Location: frontend/lib/transcription-factory.ts
+  NFR addressed: NFR-03 Extensibility
+  Motivation: New provider (Whisper, Google STT) requires
+  only a new implementing class + 1 env var change.
+  Zero changes to API routes or calling code.
+end note
+
+package "Product Interface" #E8F5E9 {
+  interface TranscriptionProvider {
+    + name : string  <<readonly>>
+    + transcribe(audioBuffer: Buffer, mimeType?: string) : Promise<string>
+  }
+}
+
+package "Concrete Products" #FFFACD {
+  class SarvamTranscriptionProvider {
+    + name = "sarvam"
+    - apiKey : string
+    + transcribe(audioBuffer, mimeType?) : Promise<string>
+    .. internals ..
+    POST https://api.sarvam.ai/speech-to-text
+    FormData {file, model:"saarika:v2.5"}
+  }
+
+  class WhisperProvider <<(future extension)>> #F4F6F7 {
+    + name = "whisper"
+    + transcribe(audioBuffer, mimeType?) : Promise<string>
+  }
+
+  class GoogleSttProvider <<(future extension)>> #F4F6F7 {
+    + name = "google"
+    + transcribe(audioBuffer, mimeType?) : Promise<string>
+  }
+}
+
+package "Creator (Factory)" #FDEBD0 {
+  class TranscriptionServiceFactory {
+    + {static} create(provider?: string) : TranscriptionProvider
+    .. logic ..
+    Reads: process.env.TRANSCRIPTION_PROVIDER
+    Default: "sarvam"
+    switch(provider):
+      "sarvam"  → new SarvamTranscriptionProvider()
+      "whisper" → new WhisperProvider()
+      default   → throw Error("Unknown provider")
+  }
+}
+
+package "Client (API Route)" #D6EAF8 {
+  class TranscribeRoute <<POST /api/transcribe>> {
+    + POST(request) : NextResponse
+    .. uses ..
+    const provider = TranscriptionServiceFactory.create()
+    const transcript = await withRetry(() => provider.transcribe(...))
+  }
+}
+
+SarvamTranscriptionProvider ..|> TranscriptionProvider
+WhisperProvider             ..|> TranscriptionProvider
+GoogleSttProvider           ..|> TranscriptionProvider
+
+TranscriptionServiceFactory ..> TranscriptionProvider         : <<creates & returns>>
+TranscriptionServiceFactory ..> SarvamTranscriptionProvider   : <<instantiates (current)>>
+TranscriptionServiceFactory ..> WhisperProvider               : <<instantiates (future)>>
+TranscriptionServiceFactory ..> GoogleSttProvider             : <<instantiates (future)>>
+
+TranscribeRoute --> TranscriptionServiceFactory : "create()"
+TranscribeRoute --> TranscriptionProvider       : "provider.transcribe(audioBuffer)"
+
+note bottom of TranscriptionServiceFactory
+  Extension rule (Open/Closed Principle):
+  1. Implement TranscriptionProvider interface
+  2. Add a case in the switch statement
+  3. Set TRANSCRIPTION_PROVIDER env var
+  → No other code changes required
+end note
+
+@enduml
