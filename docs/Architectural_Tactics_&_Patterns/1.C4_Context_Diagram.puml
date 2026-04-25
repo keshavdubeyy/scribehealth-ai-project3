@@ -1,0 +1,43 @@
+@startuml C4_Context_Diagram
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam rectangleBorderColor #555
+skinparam arrowColor #444
+skinparam actorBorderColor #333
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+
+title ScribeHealth AI — C4 Context Diagram
+
+top to bottom direction
+
+actor "Doctor\n(Healthcare Provider)" as Doctor #LightSteelBlue
+actor "Administrator\n(Clinic Admin)"    as Admin  #LightSalmon
+actor "Patient\n(Recipient)"            as Patient #PaleGreen
+
+rectangle "ScribeHealth AI\n[Software System]\n\nAI-powered medical scribe — records consultations,\ntranscribes audio, extracts medical entities,\ngenerates SOAP notes, manages review-approval workflow." as System #LightYellow
+
+cloud "Sarvam AI\n[External System]\nsaarika:v2.5 Speech-to-Text\n(Hindi / English STT)"       as Sarvam   #FFFACD
+cloud "Anthropic Claude\n[External System]\nHaiku (entity extraction)\nSonnet (SOAP generation)" as Claude   #FFF3E0
+cloud "Supabase\n[External System]\nPostgreSQL + Storage + Realtime"                             as Supabase #E8F5E9
+cloud "Notification Channels\n[External System]\nEmail · WhatsApp · SMS"                         as Notify   #F3E5F5
+
+Doctor  -right-> System   : "Records consultations,\nreviews & approves AI notes\n[HTTPS]"
+Admin   -right-> System   : "Manages users,\nviews audit logs\n[HTTPS]"
+System  -right-> Patient  : "Shares approved notes\n& prescriptions\n[Email / SMS / WA]"
+
+System  -down->  Sarvam   : "Sends audio buffer,\nreceives transcript [HTTPS REST]"
+System  -down->  Claude   : "Sends transcript,\nreceives entities + SOAP note [HTTPS REST]"
+System  -down->  Supabase : "Persists patients, sessions,\nnotes, audit logs [TLS]"
+System  -down->  Notify   : "Delivers note-ready,\napproved and sharing alerts"
+
+note right of System
+  FR-01 to FR-12 fully implemented
+  NFR-01: TLS + JWT (8-hr expiry)
+  NFR-02: Async transcription pipeline
+  NFR-03: Factory + Template Method patterns
+  NFR-04: Immutable audit log
+  NFR-05: Retry (3× with backoff)
+end note
+
+@enduml

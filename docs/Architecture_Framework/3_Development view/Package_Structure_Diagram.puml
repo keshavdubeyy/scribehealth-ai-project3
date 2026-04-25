@@ -1,0 +1,144 @@
+@startuml Development_Package_Structure
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam packageBorderColor #555
+skinparam classBorderColor #666
+skinparam arrowColor #444
+skinparam classBackgroundColor #FFFFFF
+hide empty members
+
+title ScribeHealth AI — Development View: Package Structure
+
+' ── Frontend ──────────────────────────────────────────────────
+package "frontend/ (Next.js 16)" <<Rectangle>> #EAF4FB {
+
+  package "app/api/" <<Rectangle>> #FFFACD {
+    class "auth/"             as Rauth   <<route>>
+    class "sessions/"         as Rses    <<route>>
+    class "patients/"         as Rpat    <<route>>
+    class "transcribe/"       as Rtr     <<route>>
+    class "generate-note/"    as Rgn     <<route>>
+    class "extract-entities/" as Ree     <<route>>
+    class "prescriptions/"    as Rpres   <<route>>
+    class "admin/"            as Radm    <<route>>
+    class "audit/"            as Raud    <<route>>
+    class "notify/"           as Rnot    <<route>>
+  }
+
+  package "app/(pages)/" <<Rectangle>> #F0F0FF {
+    class "login/"         as Plogin <<page>>
+    class "dashboard/"     as Pdash  <<page>>
+    class "patients/[id]/" as Ppat   <<page>>
+    class "sessions/[id]/" as Pses   <<page>>
+    class "admin/"         as Padm   <<page>>
+  }
+
+  package "lib/" <<Rectangle>> #EAF7EA {
+    class "auth.ts"                  <<NextAuth config>>
+    class "session-state-machine.ts" <<State pattern>>
+    class "transcription-factory.ts" <<Factory Method>>
+    class "soap-note-generator.ts"   <<Template Method>>
+    class "notifications.ts"         <<Notification templates>>
+    class "audit.ts"                 <<Client audit logger>>
+    class "audit-server.ts"          <<Server audit logger>>
+    class "mock-store.ts"            <<Zustand store>>
+  }
+
+  package "lib/types/" <<Rectangle>> #F5F5F5 {
+    class "index.ts" <<core domain types>>
+  }
+
+  package "components/" <<Rectangle>> #FFF8EE {
+    class "session-recorder.tsx"  <<audio capture>>
+    class "soap-note-editor.tsx"  <<review UI>>
+    class "prescription-tab.tsx"  <<prescription UI>>
+    class "audit-log-table.tsx"   <<admin UI>>
+  }
+
+  package "utils/supabase/" <<Rectangle>> #F5F5F5 {
+    class "client.ts"  <<browser client>>
+    class "server.ts"  <<server client>>
+    class "service.ts" <<service-role client>>
+  }
+}
+
+' ── Backend ───────────────────────────────────────────────────
+package "backend/java/ (Spring Boot 3.2)" <<Rectangle>> #FFF0F5 {
+
+  package "controller/" <<Rectangle>> #EAF4FB {
+    class "AuthController"
+    class "PatientController"
+    class "SessionController"
+    class "DoctorController"
+    class "AdminController"
+  }
+
+  package "service/" <<Rectangle>> #EAF7EA {
+    class "AuthServiceImpl"
+    class "PatientServiceImpl"
+    class "SessionServiceImpl"
+    class "AuditServiceImpl"
+    class "UserServiceImpl"
+    class "DoctorProfileServiceImpl"
+  }
+
+  package "model/" <<Rectangle>> #FFFACD {
+    class "User"
+    class "Patient"
+    class "ClinicalSession"
+    class "AuditLog"
+  }
+
+  package "repository/" <<Rectangle>> #F0F0FF {
+    class "UserRepository"
+    class "PatientRepository"
+    class "SessionRepository"
+    class "AuditLogRepository"
+  }
+
+  package "facade/" <<Rectangle>> #FFF8EE {
+    class "AdminFacade" <<Facade Pattern>>
+  }
+
+  package "builder/" <<Rectangle>> #FFF8EE {
+    class "PatientProfileBuilder" <<Builder Pattern>>
+  }
+
+  package "lifecycle/state/" <<Rectangle>> #FFF0F5 {
+    class "ConsultationState"       <<State Pattern>>
+    class "ConsultationStateFactory"
+  }
+
+  package "lifecycle/observer/" <<Rectangle>> #FFF0F5 {
+    class "ConsultationEventPublisher" <<Observer Pattern>>
+    class "AuditLoggerObserver"
+    class "DoctorNotifierObserver"
+    class "SessionStatusObserver"
+  }
+
+  package "config/" <<Rectangle>> #F5F5F5 {
+    class "SecurityConfig"
+    class "JwtAuthFilter"
+  }
+
+  package "util/" <<Rectangle>> #F5F5F5 {
+    class "JwtUtil"
+  }
+
+  package "dto/" <<Rectangle>> #F5F5F5 {
+    class "LoginRequest"
+    class "RegisterRequest"
+    class "AuthResponse"
+    class "CreatePatientRequest"
+  }
+}
+
+' ── Docs ──────────────────────────────────────────────────────
+package "docs/" <<Rectangle>> #EEEEEE {
+  class "Architecture Framework/"     <<this folder>>
+  class "Requirements & Subsystems/"
+  class "Architectural Tactics & Patterns/"
+}
+
+@enduml

@@ -1,0 +1,113 @@
+@startuml Strategic_Domain_Event_Flow
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam sequenceArrowColor #444
+skinparam sequenceLifeLineBorderColor #888
+skinparam sequenceParticipantBorderColor #555
+skinparam sequenceParticipantBackgroundColor #FFFFFF
+skinparam noteBorderColor #AAAAAA
+skinparam noteBackgroundColor #FFFFF0
+hide footbox
+
+title ScribeHealth AI — Strategic Domain Event Flow
+
+actor       "Doctor"         as D
+participant "Frontend"       as FE
+participant "Spring Boot"    as BE
+participant "Supabase DB"    as DB
+participant "Sarvam AI"      as SAR
+participant "Claude"         as CL
+participant "Notify Channel" as NTF
+
+== Auth Phase (FR-01 / NFR-01) ==
+
+D -> FE : Enter credentials
+FE -> BE : POST /api/auth/login
+BE -> DB : findByEmail + verifyPassword
+DB --> BE : User {role, isActive}
+BE -> BE : JwtUtil.generateToken()
+BE --> FE : AuthResponse {JWT, role}
+FE -> DB : <<audit>> login_success
+note right of DB : JWT expires in 8 hrs\nNFR-01 security
+
+== Session Creation (FR-03 / FR-11) ==
+
+D -> FE : Select patient → New Session
+FE -> BE : POST /api/sessions
+BE -> DB : INSERT sessions {status=SCHEDULED}
+DB --> BE : ClinicalSession {id}
+BE --> FE : session created
+FE -> DB : <<audit>> session_created
+
+== Audio Recording (FR-03) ==
+
+D -> FE : Start Recording
+FE -> FE : assertTransition(SCHEDULED→IN_PROGRESS)
+FE -> DB : UPDATE sessions {status=IN_PROGRESS}
+D -> FE : Stop Recording
+FE -> FE : assertTransition(IN_PROGRESS→RECORDED)
+FE -> DB : UPDATE sessions {status=RECORDED, audioUrl}
+note right of FE : Audio stored in\nSupabase Storage
+
+== AI Pipeline (FR-04 / FR-05 / FR-06 / NFR-02 / NFR-03) ==
+
+FE -> SAR : POST /api/transcribe\n(audio buffer)
+activate SAR
+note right of SAR : Factory Method:\nSarvamTranscriptionProvider\nwithRetry() x3 (NFR-05)
+SAR --> FE : transcript : String
+deactivate SAR
+FE -> DB : UPDATE sessions {status=TRANSCRIBED, transcription}
+
+FE -> CL : POST /api/extract-entities\n(transcript)
+activate CL
+CL --> FE : MedicalEntities JSON
+deactivate CL
+FE -> DB : UPDATE sessions {entities}
+
+FE -> CL : POST /api/generate-note\n(transcript, template)
+activate CL
+note right of CL : Template Method:\nNoteGeneratorFactory\nClaude Sonnet (NFR-03)
+CL --> FE : SoapNote {s, o, a, p}
+deactivate CL
+FE -> FE : assertTransition(TRANSCRIBED→UNDER_REVIEW)
+FE -> DB : UPDATE sessions {status=UNDER_REVIEW, soap}
+
+== Observer Notifications (FR-12 / NFR-04) ==
+
+BE -> BE : ConsultationEventPublisher.publish()
+note right of BE : AuditLoggerObserver → note_ready\nDoctorNotifierObserver → INFO\nSessionStatusObserver → log
+FE -> DB : <<audit>> note_ready
+
+== Review Phase (FR-08 / NFR-01) ==
+
+D -> FE : Review note, edit fields
+FE -> DB : UPDATE sessions {edits, soap}
+FE -> DB : <<audit>> note_edited
+
+alt Doctor Approves
+  D -> FE : Click Approve
+  FE -> FE : assertTransition(UNDER_REVIEW→APPROVED)
+  FE -> BE : PATCH /api/sessions/{id}/transition
+  BE -> DB : UPDATE sessions {status=APPROVED}
+  BE -> DB : <<audit>> note_approved
+  note right of DB : APPROVED is terminal\nNote locked permanently
+else Doctor Rejects
+  D -> FE : Click Reject
+  FE -> FE : assertTransition(UNDER_REVIEW→REJECTED)
+  FE -> BE : PATCH /api/sessions/{id}/transition
+  BE -> DB : UPDATE sessions {status=REJECTED}
+  BE -> DB : <<audit>> note_rejected
+  note right of FE : REJECTED→UNDER_REVIEW\nregeneration path
+end
+
+== Sharing (FR-09) ==
+
+D -> FE : Share approved note
+FE -> NTF : noteSharingTemplate() → mailto:/wa.me:/sms:
+note right of NTF : Email / WhatsApp / SMS\nFR-09 channels
+
+== Admin Audit Trail (FR-02 / FR-10 / NFR-04) ==
+
+note over DB : All actions write append-only rows to audit_logs.\nAdmin views via AdminFacade /api/admin/audit-logs (ADMIN role only).
+
+@enduml

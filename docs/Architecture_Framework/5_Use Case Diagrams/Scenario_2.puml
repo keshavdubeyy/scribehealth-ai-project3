@@ -1,0 +1,69 @@
+@startuml Scenario2_RetryReliability
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam sequenceArrowColor #444
+skinparam sequenceParticipantBackgroundColor #FFFFFF
+skinparam sequenceParticipantBorderColor #555
+skinparam sequenceLifeLineBorderColor #888
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+skinparam sequenceGroupBorderColor #999
+hide footbox
+
+title Scenario 2 — Retry & Reliability\n(Transcription failure → withRetry() → recovery or graceful degradation)
+
+actor "Doctor"        as D
+participant "Frontend\n(ScribeStore)"   as FE
+participant "/api/transcribe\n(withRetry wrapper)"  as API
+participant "Sarvam AI"  as SAR
+participant "Supabase"   as DB
+participant "Observer\nPipeline"        as OBS
+
+D -> FE : Stop Recording
+FE -> DB : UPDATE sessions{status=RECORDED, audioUrl}
+FE -> API : POST /api/transcribe {audioUrl}
+
+note over API
+  withRetry(fn, maxAttempts=3, baseDelayMs=1000)
+  Attempt 1 → wait 1s on fail → Attempt 2 → wait 2s → Attempt 3
+end note
+
+group Attempt 1 of 3
+  API -> SAR : POST /speech-to-text
+  SAR --> API : 503 Service Unavailable
+  note right : Sarvam AI transient error
+  API -> API : wait 1 000ms…
+end
+
+group Attempt 2 of 3
+  API -> SAR : POST /speech-to-text (retry)
+  SAR --> API : 503 Service Unavailable
+  note right : Error persists
+  API -> API : wait 2 000ms…
+end
+
+group Attempt 3 of 3 — Success path
+  API -> SAR : POST /speech-to-text (final retry)
+  SAR --> API : 200 OK { transcript: String }
+  note right : Recovery — pipeline continues normally
+  API -> DB : UPDATE sessions{status=TRANSCRIBED, transcription}
+  API -> OBS : publish(ConsultationEvent{RECORDED → TRANSCRIBED})
+  OBS -> DB : <<audit>> session_transcribed
+end
+
+note over API, SAR : --- OR if all 3 attempts fail ---
+
+group All 3 Attempts Failed — Graceful Degradation
+  API -> DB : UPDATE sessions{status=RECORDED}\n(audio preserved — no data loss NFR-05)
+  API -> DB : <<audit>> transcription_failed
+  API -> OBS : publish(ConsultationEvent{error})
+  OBS -> OBS : DoctorNotifierObserver\n→ transcriptionFailedTemplate()
+  FE --> D : Show "Transcription failed — retry manually" UI
+  note right : Audio is still stored safely.\nDoctor can retry from the session page.
+end
+
+note over DB
+  NFR-05 Reliability guarantee: session status is NEVER\nadvanced past RECORDED on failure. audioUrl is always\npreserved. Doctor can retry from the session detail page.
+end note
+
+@enduml
