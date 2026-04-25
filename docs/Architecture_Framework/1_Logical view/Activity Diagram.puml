@@ -1,0 +1,66 @@
+@startuml Logical_Activity_Diagram
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam activityBorderColor #555
+skinparam activityBackgroundColor #FFFFFF
+skinparam arrowColor #444
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+skinparam swimlaneBorderColor #999
+
+title ScribeHealth AI — Domain Event Flow (Bounded Context Transitions)
+
+|Auth & Access|
+start
+:Doctor authenticates;
+note right : JWT issued · audit: login_success
+:Role-based access granted;
+
+|Patient & Session|
+:Doctor selects patient, creates session;
+note right : Status = SCHEDULED
+:Doctor starts recording;
+note right : SCHEDULED → IN_PROGRESS
+:Doctor stops recording;
+note right : IN_PROGRESS → RECORDED\naudio saved to Supabase Storage
+
+|AI Pipeline|
+:Transcription requested\n(SarvamTranscriptionProvider);
+note right : withRetry() × 3 if failure (NFR-05)
+:Medical entities extracted (Claude Haiku);
+note right : symptoms, diagnoses, medications
+:SOAP note generated\n(SoapNoteGenerator → Claude Sonnet);
+note right : Template Method selects\nspecialty generator (NFR-03)
+
+|Lifecycle|
+:ConsultationEventPublisher.publish();
+note right : AuditLoggerObserver\nDoctorNotifierObserver\nSessionStatusObserver
+
+|Patient & Session|
+:Session updated — Status = UNDER_REVIEW;
+
+|Review & Sharing|
+:Doctor reviews and edits note;
+note right : audit: note_edited
+
+if (Doctor decision?) then (Approve)
+  :assertTransition(UNDER_REVIEW → APPROVED);
+  :Note locked permanently;
+  note right : APPROVED is terminal · audit: note_approved
+  :Share note via Email / WhatsApp / SMS;
+  note right : FR-09 sharing channels
+else (Reject)
+  :assertTransition(UNDER_REVIEW → REJECTED);
+  note right : audit: note_rejected
+  |AI Pipeline|
+  :Regenerate SOAP note;
+  :assertTransition(REJECTED → UNDER_REVIEW);
+  |Review & Sharing|
+endif
+
+|Audit & Admin|
+:Every action appended to audit_logs;
+note right : NFR-04 · Admin: /api/admin/audit-logs
+stop
+
+@enduml
