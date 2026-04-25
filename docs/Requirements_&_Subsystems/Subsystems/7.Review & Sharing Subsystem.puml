@@ -1,0 +1,56 @@
+@startuml Review_Sharing_Subsystem
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam noteBackgroundColor #FFFFEE
+skinparam noteBorderColor #AAAAAA
+hide empty members
+
+note “Human-in-the-loop (NFR-01)\nNo AI note enters permanent record without doctor Approve” as NH
+
+class ClinicalSession <<entity: sessions>> {
+  - id : String
+  - status : String
+  - soap : SoapNote  <<jsonb>>
+  - edits : String  <<jsonb>>
+}
+
+class SoapNote <<inner>> {
+  - s : String  (Subjective)
+  - o : String  (Objective)
+  - a : String  (Assessment)
+  - p : String  (Plan)
+}
+
+ClinicalSession +-- SoapNote
+
+class SessionController <<@RestController: /api/sessions>> {
+  + transitionSession(email, id, {status}) : ClinicalSession
+  + updateSession(email, id, session) : ClinicalSession
+}
+
+class SessionServiceImpl <<@Service>> {
+  + transitionSession(email, id, targetStatus) : ClinicalSession
+  + updateSession(email, id, session) : ClinicalSession
+}
+
+class ScribeStore <<Zustand store>> {
+  + transitionSession(id, status, extraData?) : Promise<void>
+  + updateSession(id, data) : Promise<void>
+}
+note right : Calls assertTransition() before DB write\nstatus: UNDER_REVIEW → APPROVED | REJECTED\nREJECTED → UNDER_REVIEW (regenerate path)
+
+class NotificationTemplates <<TS module>> {
+  + {static} noteReadyTemplate(patientName, sessionId) : TemplateResult
+  + {static} noteApprovedTemplate(patientName, sessionId) : TemplateResult
+  + {static} noteRejectedTemplate(patientName, sessionId) : TemplateResult
+  + {static} noteSharingTemplate(patientName, note) : TemplateResult
+  + {static} prescriptionSharingTemplate(patientName, data) : TemplateResult
+  + {static} sendSystemNotification(to, subject, body, event) : Promise<void>
+}
+note right : Sharing channels:\nEmail   → mailto:\nWhatsApp → wa.me/\nSMS     → sms:
+
+SessionController --> SessionServiceImpl
+ScribeStore ..> NotificationTemplates : uses for sharing (FR-09)
+@enduml
